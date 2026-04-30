@@ -14,4 +14,16 @@ public static class WordTools
     public static object WordGetOutline(
         [Description("Absolute path to the .docx file")] string path)
         => Service.GetOutline(path);
+
+    [McpServerTool(Name = "word_get_metadata")]
+    [Description("Returns core .docx metadata, page count, and word count.")]
+    public static object WordGetMetadata(
+        [Description("Absolute path to the .docx file")] string path)
+        => Service.GetMetadata(path);
+
+    [McpServerTool(Name = "word_read_markdown")]
+    [Description("Returns a Markdown projection of a .docx file. Preserves headings and paragraph text.")]
+    public static string WordReadMarkdown(
+        [Description("Absolute path to the .docx file")] string path)
+        => Service.ReadAsMarkdown(path);
 }

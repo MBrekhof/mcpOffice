@@ -8,7 +8,9 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "Ping",
-            "word_get_outline"
+            "word_get_metadata",
+            "word_get_outline",
+            "word_read_markdown"
         ];
 
         await using var harness = await ServerHarness.StartAsync();
