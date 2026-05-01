@@ -87,6 +87,66 @@ public class ExcelWorkflowTests
         }
     }
 
+    [Fact]
+    public async Task Extract_vba_via_stdio_returns_modules()
+    {
+        var fixture = ResolveFixturePath("sample-with-macros.xlsm");
+        if (!File.Exists(fixture))
+        {
+            // Hand-authored fixture not yet on disk; covered by VbaProjectReaderTests
+            // (synthetic) until it lands. See plan Task 11.
+            return;
+        }
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_extract_vba",
+            new Dictionary<string, object?> { ["path"] = fixture });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+        Assert.Contains("\"hasVbaProject\":true", text);
+        Assert.Contains("\"name\":\"Module1\"", text);
+        Assert.Contains("\"kind\":\"standardModule\"", text);
+        Assert.Contains("Sub Hello", text);
+    }
+
+    [Fact]
+    public async Task Extract_vba_via_stdio_returns_empty_for_xlsx_without_macros()
+    {
+        var path = TempPath(".xlsx");
+        try
+        {
+            using (var workbook = new Workbook())
+            {
+                workbook.Worksheets[0].Cells["A1"].Value = "x";
+                workbook.SaveDocument(path, SpreadsheetFormat.Xlsx);
+            }
+
+            await using var harness = await ServerHarness.StartAsync();
+            var result = await harness.Client.CallToolAsync(
+                "excel_extract_vba",
+                new Dictionary<string, object?> { ["path"] = path });
+
+            var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+            Assert.Contains("\"hasVbaProject\":false", text);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    private static string ResolveFixturePath(string name)
+    {
+        var asmDir = Path.GetDirectoryName(typeof(ExcelWorkflowTests).Assembly.Location)!;
+        var dir = new DirectoryInfo(asmDir);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "mcpOffice.sln")))
+            dir = dir.Parent;
+        return Path.Combine(dir!.FullName, "tests", "fixtures", name);
+    }
+
     private static string TempPath(string extension) =>
         Path.Combine(Path.GetTempPath(), $"mcpoffice-excel-integration-{Guid.NewGuid():N}{extension}");
 }
