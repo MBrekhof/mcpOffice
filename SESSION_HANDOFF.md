@@ -1,17 +1,17 @@
-# Session Handoff — 2026-05-01 (excel_extract_vba landed; awaiting fixture)
+# Session Handoff — 2026-05-01 (excel_extract_vba complete; awaiting live agent check + PR)
 
 ## Where Things Stand
 
 **Branch:** `poc/excel-tools` (still off `main`).
-**Latest commit:** `0400f86` test: stdio integration tests for excel_extract_vba (with and without macros)
+**Latest commit:** `1f0f1d9` test: hand-authored .xlsm fixture + real-Excel smoke test for VbaProjectReader.Read
 **Build:** `dotnet build` and `dotnet build -c Release` are both green, `0 warnings, 0 errors`.
-**Tests:** `dotnet test` is green: **73/74 passing, 1 skipped** (47 prior + 26 new for VBA extraction). The single skip is the deliberately-deferred locked-project test (`VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project`) — see Open Question #1 below.
+**Tests:** `dotnet test` is green: **74/75 passing, 1 skipped** (47 prior + 27 new for VBA extraction). The single skip is the deliberately-deferred locked-project test (`VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project`) — see Open Question #1 below.
 
-The Excel VBA extraction milestone is **functionally complete** but not yet PR'd. One outstanding task — manual fixture authoring — is needed before the real-Excel smoke test and stdio with-macros integration test can run.
+The Excel VBA extraction milestone is **functionally complete**. All implementation tasks (1–15) and Task 11's fixture step are done. The two remaining steps (live agent check, PR back to `main`) are user actions.
 
 ## Excel POC Plan State
 
-Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation steps from that doc:
+Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation steps:
 
 ```
 ✅ 1. Add DevExpress Spreadsheet package references
@@ -22,13 +22,13 @@ Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation 
 ✅ 6. Spike excel_extract_vba against C:\temp\macro\Air - Labware.xlsm
 ✅ 7. Decide whether static VBA extraction is implemented in-process via OpenMcdf or deferred behind an optional extractor
    → in-process via OpenMcdf, landed
-🟡 7b. excel_extract_vba shipped end-to-end except for the hand-authored .xlsm fixture
+✅ 7b. excel_extract_vba shipped end-to-end (synthetic unit tests + real-Excel smoke + stdio integration)
 ⬜ 8. Implement formula/structure tools after basic sheet reading is stable
 ```
 
 ## VBA Extraction Implementation — Summary
 
-Implementation followed `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md` (Option C: hybrid testing). Tasks 1–10, 12–15 are committed; Task 11 (hand-authored fixture + real-Excel smoke test) and the live-agent verification step in Task 16 are pending.
+Implementation followed `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md` (Option C: hybrid testing). Tasks 1–15 committed. Task 16 partially complete (build + tests verified; live agent check still pending). Task 17 (PR) pending.
 
 **Tool surface:** 19 tools. Added `excel_extract_vba` (path → `{ hasVbaProject, modules: [{name, kind, lineCount, code}] }`).
 
@@ -51,7 +51,7 @@ Implementation followed `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-pl
 - MODULETYPE `0x0022` AND name is `"ThisWorkbook"` or starts with `"Sheet"` → `"documentModule"`
 - MODULETYPE `0x0022` otherwise → `"classModule"`
 
-The "scan first 50 lines for `Attribute VB_Base = ...`" refinement noted in the plan was not needed — the name-based heuristic correctly classified the synthetic test fixtures.
+The "scan first 50 lines for `Attribute VB_Base = ...`" refinement noted in the plan was not needed — the name-based heuristic correctly classified the synthetic test fixtures and the real-Excel fixture.
 
 **InternalsVisibleTo:** `src/mcpOffice/mcpOffice.csproj` now exposes internals to `mcpOffice.Tests` so the test project can drive `MsOvbaDecompressor`, `VbaDirStreamParser`, and `VbaProjectReader.ReadVbaProjectBin` directly.
 
@@ -59,61 +59,24 @@ The "scan first 50 lines for `Attribute VB_Base = ...`" refinement noted in the 
 
 **Synthetic builder for unit tests:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectBinBuilder.cs` constructs in-memory `vbaProject.bin` blobs from `ModuleSpec` records via OpenMcdf write + a literal-only MS-OVBA "compressor" (each chunk is compressed-mode with all flag-byte bits zero). Drives `ReadVbaProjectBin` without needing an `.xlsm` on disk. Has its own self-check test (`VbaProjectBinBuilderTests`) so builder bugs don't masquerade as reader bugs.
 
-**Real-Excel coverage:** copy-token decompression is validated directly in `MsOvbaDecompressorTests.Decompresses_copy_token_for_repeated_run`. End-to-end zip-extraction + real-Excel-output coverage is what the hand-authored fixture (Task 11, pending) will add — currently a gap.
+**Real-Excel coverage:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectReaderTests.Reads_modules_from_real_excel_fixture` exercises the full zip-extraction + Excel's actual copy-token compressed chunks against `tests/fixtures/sample-with-macros.xlsm`. The fixture is hand-authored — DevExpress can't write VBA — and documented in `tests/fixtures/README.md`.
 
-**Test counts by file:**
+**Test counts by file (new):**
 - `VbaErrorCodeTests` — 3
-- `MsOvbaDecompressorTests` — 7 (signature missing, empty input, single chunk literals, multi-flag-byte chunk, copy-token round-trip, bad chunk signature, uncompressed chunk)
-- `VbaDirStreamParserTests` — 5 (PROJECTVERSION quirk, Unicode preference, multi-module ordering, bare-terminator no-emit, MODULEOFFSET capture)
+- `MsOvbaDecompressorTests` — 7
+- `VbaDirStreamParserTests` — 5
 - `VbaProjectBinBuilderTests` — 1 (self-check)
-- `VbaProjectReaderTests` — 5 + 1 skipped (single std module, document module, ordering, Unicode preference, corrupt-input → vba_parse_error, locked = skip)
-- `ExtractVbaTests` (service layer) — 2 (file_not_found, xlsx-without-macros)
-- `Extract_vba_via_stdio_*` (integration) — 2 (with-macros no-ops if fixture absent, without-macros)
+- `VbaProjectReaderTests` — 6 + 1 skipped (5 synthetic + 1 real-Excel; locked = skip)
+- `ExtractVbaTests` (service layer) — 2
+- `Extract_vba_via_stdio_*` (integration) — 2
 
 `ToolSurfaceTests.Exposes_initial_tool_catalog` updated to include `excel_extract_vba`.
 
 ## What's Still Outstanding — Action Required
 
-**1. Hand-author the fixture (Task 11).** ~5 minutes manual work in Excel:
+**1. Live agent verification (Task 16, step 3).** Wire the rebuilt server into Claude Code (existing `claude_desktop_config.json`) and call `excel_extract_vba` against `C:\temp\macro\Air - Labware.xlsm` with a real agent. The 107-module workbook is the same input the spike validated against. Per global CLAUDE.md: build green ≠ it works.
 
-1. Open Excel → New blank workbook → Save As `sample-with-macros.xlsm`.
-2. Alt+F11 → Insert → Module (named `Module1`):
-   ```vb
-   Sub Hello()
-     Debug.Print "hi"
-   End Sub
-   ```
-3. Project Explorer → double-click `ThisWorkbook`:
-   ```vb
-   Private Sub Workbook_Open()
-   End Sub
-   ```
-4. Save, close. Move to `tests/fixtures/sample-with-macros.xlsm`. Target size <30 KB.
-
-After the fixture is in place:
-
-- `tests/mcpOffice.Tests.Integration/ExcelWorkflowTests.Extract_vba_via_stdio_returns_modules` will start asserting (currently no-ops if fixture is absent).
-- Add the real-Excel smoke test to `VbaProjectReaderTests`:
-
-  ```csharp
-  [Fact]
-  public void Reads_modules_from_real_excel_fixture()
-  {
-      var path = TestFixtures.Path("sample-with-macros.xlsm");
-      var project = new VbaProjectReader().Read(path);
-
-      Assert.True(project.HasVbaProject);
-      Assert.Contains(project.Modules, m => m.Name == "Module1" && m.Kind == "standardModule");
-      Assert.Contains(project.Modules, m => m.Name == "ThisWorkbook" && m.Kind == "documentModule");
-      Assert.Contains("Sub Hello", project.Modules.Single(m => m.Name == "Module1").Code);
-  }
-  ```
-
-- Add `tests/fixtures/README.md` documenting how the fixture was authored so it's regenerable.
-
-**2. Live agent verification.** Wire the rebuilt server into Claude Code (existing `claude_desktop_config.json`) and call `excel_extract_vba` against `C:\temp\macro\Air - Labware.xlsm` with a real agent. Per global CLAUDE.md: build green ≠ it works.
-
-**3. Open PR back to `main`.** Squash-merge. Title: `feat: excel_extract_vba — static VBA source extraction`.
+**2. Open PR back to `main` (Task 17).** Squash-merge. Title: `feat: excel_extract_vba — static VBA source extraction`.
 
 ## Open Questions Still Carried Forward
 
@@ -145,3 +108,4 @@ Reference material:
 - Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
 - Spike code (reference only): `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`
 - Sample workbook for live agent test: `C:\temp\macro\Air - Labware.xlsm` (~2.8 MB, 69 sheets, 107 VBA modules)
+- Hand-authored fixture: `tests/fixtures/sample-with-macros.xlsm` (regen instructions in `tests/fixtures/README.md`)
