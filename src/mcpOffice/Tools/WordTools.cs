@@ -85,4 +85,13 @@ public static class WordTools
         [Description("Paragraph text")] string text,
         [Description("Optional paragraph style name (e.g. 'Heading 1', 'Normal'). Null = default style.")] string? style = null)
         => Service.InsertParagraph(path, atIndex, text, style);
+
+    [McpServerTool(Name = "word_insert_table")]
+    [Description("Inserts a table at the given paragraph index. headers becomes the first row; each entry in rows becomes a body row. Cell counts beyond headers.Length are truncated.")]
+    public static string WordInsertTable(
+        [Description("Absolute path to the .docx file")] string path,
+        [Description("0-based paragraph index where the table is inserted")] int atIndex,
+        [Description("Header row cell texts")] string[] headers,
+        [Description("Body rows (array of arrays of cell texts)")] string[][] rows)
+        => Service.InsertTable(path, atIndex, headers, rows.Select(r => (IReadOnlyList<string>)r).ToList());
 }

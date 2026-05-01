@@ -249,6 +249,57 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string InsertTable(string path, int atIndex, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var document = server.Document;
+            var paragraphCount = document.Paragraphs.Count;
+
+            if (atIndex < 0 || atIndex > paragraphCount)
+            {
+                throw ToolError.IndexOutOfRange(atIndex, paragraphCount);
+            }
+
+            var insertPos = atIndex == paragraphCount
+                ? document.Range.End
+                : document.Paragraphs[atIndex].Range.Start;
+
+            var totalRows = 1 + rows.Count;
+            var totalCols = headers.Count;
+            if (totalCols == 0)
+            {
+                throw ToolError.ParseError(path, "headers must contain at least one column");
+            }
+
+            var table = document.Tables.Create(insertPos, totalRows, totalCols);
+
+            for (var c = 0; c < headers.Count; c++)
+            {
+                document.InsertText(table.Rows[0].Cells[c].ContentRange.Start, headers[c]);
+            }
+
+            for (var r = 0; r < rows.Count; r++)
+            {
+                var rowCells = rows[r];
+                for (var c = 0; c < rowCells.Count && c < totalCols; c++)
+                {
+                    document.InsertText(table.Rows[r + 1].Cells[c].ContentRange.Start, rowCells[c]);
+                }
+            }
+
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase)
     {
         PathGuard.RequireExists(path);

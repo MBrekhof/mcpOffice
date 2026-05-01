@@ -22,8 +22,8 @@ Pending work for mcpOffice. Pulled from `docs/plans/2026-04-30-mcpoffice-word-po
 - [x] Task 16 — `word_append_markdown`
 - [x] Task 17 — `word_find_replace`
 - [x] Task 18 — `word_insert_paragraph`
-- [ ] Task 19 — `word_insert_table`  ← next
-- [ ] Task 20 — `word_set_metadata`
+- [x] Task 19 — `word_insert_table`
+- [ ] Task 20 — `word_set_metadata`  ← next
 - [ ] Task 21 — `word_mail_merge`
 - [ ] Task 22 — `word_convert`
 - [ ] Task 23 — Tool-surface integration test (partial — `ToolSurfaceTests.cs` exists but lists only the 3 implemented tools; expand as new tools land)

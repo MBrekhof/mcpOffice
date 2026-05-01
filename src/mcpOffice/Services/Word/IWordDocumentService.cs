@@ -15,4 +15,5 @@ public interface IWordDocumentService
     string AppendMarkdown(string path, string markdown);
     ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase);
     string InsertParagraph(string path, int atIndex, string text, string? style);
+    string InsertTable(string path, int atIndex, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows);
 }
