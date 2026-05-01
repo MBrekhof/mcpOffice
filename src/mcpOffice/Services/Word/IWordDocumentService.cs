@@ -13,4 +13,5 @@ public interface IWordDocumentService
     string CreateBlank(string path, bool overwrite);
     string CreateFromMarkdown(string path, string markdown, bool overwrite);
     string AppendMarkdown(string path, string markdown);
+    ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase);
 }

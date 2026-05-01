@@ -212,6 +212,38 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var document = server.Document;
+
+            int count;
+            if (useRegex)
+            {
+                var regexOptions = matchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
+                count = document.ReplaceAll(new Regex(find, regexOptions), replace);
+            }
+            else
+            {
+                var options = matchCase
+                    ? SearchOptions.CaseSensitive
+                    : SearchOptions.None;
+                count = document.ReplaceAll(find, replace, options);
+            }
+
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return new ReplaceResult(count);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public string AppendMarkdown(string path, string markdown)
     {
         PathGuard.RequireExists(path);

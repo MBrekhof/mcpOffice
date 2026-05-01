@@ -66,4 +66,14 @@ public static class WordTools
         [Description("Absolute path to the .docx file")] string path,
         [Description("Markdown source to append")] string markdown)
         => Service.AppendMarkdown(path, markdown);
+
+    [McpServerTool(Name = "word_find_replace")]
+    [Description("Finds and replaces text in a .docx file. Returns { Replacements: int }.")]
+    public static object WordFindReplace(
+        [Description("Absolute path to the .docx file")] string path,
+        [Description("Text or regex pattern to find")] string find,
+        [Description("Replacement text")] string replace,
+        [Description("If true, treat 'find' as a .NET regular expression")] bool useRegex = false,
+        [Description("If true, match case")] bool matchCase = false)
+        => Service.FindReplace(path, find, replace, useRegex, matchCase);
 }
