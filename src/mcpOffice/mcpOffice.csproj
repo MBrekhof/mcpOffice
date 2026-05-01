@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DevExpress.Document.Processor" Version="25.2.5" />
     <PackageReference Include="DevExpress.RichEdit.Export" Version="25.2.5" />
     <PackageReference Include="MarkdownToDocxGenerator" Version="1.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />

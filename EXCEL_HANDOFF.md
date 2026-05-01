@@ -36,13 +36,17 @@ Confirmed locally:
 
 ## Next Implementation Steps
 
-1. Add `DevExpress.Spreadsheet.Core` to server and unit test projects.
-2. Create Excel DTOs and `IExcelWorkbookService`.
-3. Implement `excel_list_sheets(path)`.
-4. Implement `excel_read_sheet(path, sheetName?, sheetIndex?, range?, includeFormulas=true, includeFormats=false, maxCells=50000)`.
-5. Add unit tests using generated `.xlsx` fixtures.
-6. Add MCP tool wrappers and integration test.
+1. ✅ Add `DevExpress.Document.Processor` to server and unit test projects.
+2. ✅ Create Excel DTOs and `IExcelWorkbookService`.
+3. ✅ Implement `excel_list_sheets(path)`.
+4. ✅ Add unit tests using generated `.xlsx` fixtures.
+5. ✅ Add MCP tool wrapper and integration test.
+6. Implement `excel_read_sheet(path, sheetName?, sheetIndex?, range?, includeFormulas=true, includeFormats=false, maxCells=50000)`.
 7. Spike static `excel_extract_vba(path)` against `C:\temp\macro\Air - Labware.xlsm`.
+
+## Current Verification
+
+`dotnet test --nologo` passes: 42/42 tests (35 unit + 7 integration).
 
 ## Design Doc
 
