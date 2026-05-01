@@ -212,6 +212,23 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string CreateFromMarkdown(string path, string markdown, bool overwrite)
+    {
+        PathGuard.RequireWritable(path, overwrite);
+
+        try
+        {
+            using var server = new RichEditDocumentServer();
+            WriteMarkdownToDocument(server.Document, markdown);
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public string ReadAsMarkdown(string path)
     {
         PathGuard.RequireExists(path);
@@ -320,6 +337,85 @@ public sealed class WordDocumentService : IWordDocumentService
         }
 
         return runs;
+    }
+
+    private static void WriteMarkdownToDocument(Document doc, string? markdown)
+    {
+        if (string.IsNullOrEmpty(markdown)) return;
+
+        var normalized = markdown.Replace("\r\n", "\n").Replace("\r", "\n");
+        var blocks = Regex.Split(normalized, @"\n\s*\n");
+
+        foreach (var rawBlock in blocks)
+        {
+            var block = rawBlock.Trim();
+            if (block.Length == 0) continue;
+
+            var headingMatch = Regex.Match(block, @"^(#{1,6})\s+(.*)$", RegexOptions.Singleline);
+            if (headingMatch.Success)
+            {
+                var level = headingMatch.Groups[1].Value.Length;
+                var text = headingMatch.Groups[2].Value;
+                var range = doc.AppendText(text + "\n");
+                var paragraph = doc.Paragraphs.Get(range).First();
+                EnsureParagraphStyle(doc, $"Heading {level}");
+                paragraph.Style = doc.ParagraphStyles[$"Heading {level}"];
+            }
+            else
+            {
+                WriteInline(doc, block);
+                doc.AppendText("\n");
+            }
+        }
+    }
+
+    private static void WriteInline(Document doc, string text)
+    {
+        var i = 0;
+        while (i < text.Length)
+        {
+            if (i + 1 < text.Length && text[i] == '*' && text[i + 1] == '*')
+            {
+                var end = text.IndexOf("**", i + 2, StringComparison.Ordinal);
+                if (end >= 0)
+                {
+                    AppendStyled(doc, text.Substring(i + 2, end - (i + 2)), bold: true, italic: false);
+                    i = end + 2;
+                    continue;
+                }
+            }
+            if (text[i] == '*')
+            {
+                var end = text.IndexOf('*', i + 1);
+                if (end >= 0)
+                {
+                    AppendStyled(doc, text.Substring(i + 1, end - (i + 1)), bold: false, italic: true);
+                    i = end + 1;
+                    continue;
+                }
+            }
+            var nextSpecial = text.IndexOf('*', i);
+            if (nextSpecial < 0) nextSpecial = text.Length;
+            if (nextSpecial > i) doc.AppendText(text.Substring(i, nextSpecial - i));
+            i = nextSpecial;
+        }
+    }
+
+    private static void AppendStyled(Document doc, string text, bool bold, bool italic)
+    {
+        var range = doc.AppendText(text);
+        var props = doc.BeginUpdateCharacters(range);
+        if (bold) props.Bold = true;
+        if (italic) props.Italic = true;
+        doc.EndUpdateCharacters(props);
+    }
+
+    private static void EnsureParagraphStyle(Document doc, string styleName)
+    {
+        if (doc.ParagraphStyles[styleName] is not null) return;
+        var style = doc.ParagraphStyles.CreateNew();
+        style.Name = styleName;
+        doc.ParagraphStyles.Add(style);
     }
 
     private static string MapRevisionType(RevisionType type) => type switch

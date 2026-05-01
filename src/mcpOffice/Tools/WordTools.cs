@@ -51,4 +51,12 @@ public static class WordTools
         [Description("Absolute path where the .docx will be written")] string path,
         [Description("If true, replace an existing file at the path")] bool overwrite = false)
         => Service.CreateBlank(path, overwrite);
+
+    [McpServerTool(Name = "word_create_from_markdown")]
+    [Description("Creates a .docx file from Markdown source. Supports headings, bold/italic, lists, and tables. Throws file_exists unless overwrite=true.")]
+    public static string WordCreateFromMarkdown(
+        [Description("Absolute path where the .docx will be written")] string path,
+        [Description("Markdown source")] string markdown,
+        [Description("If true, replace an existing file at the path")] bool overwrite = false)
+        => Service.CreateFromMarkdown(path, markdown, overwrite);
 }
