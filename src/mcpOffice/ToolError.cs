@@ -22,6 +22,12 @@ public static class ToolError
     public static Exception IndexOutOfRange(int index, int max) =>
         Throw(ErrorCode.IndexOutOfRange, $"Index {index} is out of range (0..{max}).");
 
+    public static Exception SheetNotFound(string sheet) =>
+        Throw(ErrorCode.SheetNotFound, $"Worksheet not found: {sheet}");
+
+    public static Exception RangeTooLarge(string range, int cellCount, int maxCells) =>
+        Throw(ErrorCode.RangeTooLarge, $"Range {range} contains {cellCount} cells, which exceeds maxCells={maxCells}.");
+
     public static Exception MergeFieldMissing(IEnumerable<string> fields) =>
         Throw(ErrorCode.MergeFieldMissing, $"Template fields with no value in dataJson: {string.Join(", ", fields)}");
 
@@ -30,6 +36,15 @@ public static class ToolError
 
     public static Exception Internal(string detail) =>
         Throw(ErrorCode.InternalError, $"Internal error: {detail}");
+
+    public static Exception VbaProjectMissing(string path) =>
+        Throw(ErrorCode.VbaProjectMissing, $"No VBA project in workbook: {path}");
+
+    public static Exception VbaProjectLocked(string path) =>
+        Throw(ErrorCode.VbaProjectLocked, $"VBA project is locked for viewing: {path}");
+
+    public static Exception VbaParseError(string path, string detail) =>
+        Throw(ErrorCode.VbaParseError, $"Could not parse VBA project in {path}: {detail}");
 
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
