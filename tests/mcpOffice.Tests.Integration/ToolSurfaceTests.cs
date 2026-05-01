@@ -10,7 +10,8 @@ public class ToolSurfaceTests
             "Ping",
             "word_get_metadata",
             "word_get_outline",
-            "word_read_markdown"
+            "word_read_markdown",
+            "word_read_structured"
         ];
 
         await using var harness = await ServerHarness.StartAsync();

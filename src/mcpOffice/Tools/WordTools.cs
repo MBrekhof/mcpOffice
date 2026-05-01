@@ -26,4 +26,10 @@ public static class WordTools
     public static string WordReadMarkdown(
         [Description("Absolute path to the .docx file")] string path)
         => Service.ReadAsMarkdown(path);
+
+    [McpServerTool(Name = "word_read_structured")]
+    [Description("Returns a structured tree of blocks (headings, paragraphs with runs), tables, images, and document properties. Use for surgical edits or when run-level formatting matters.")]
+    public static object WordReadStructured(
+        [Description("Absolute path to the .docx file")] string path)
+        => Service.ReadStructured(path);
 }

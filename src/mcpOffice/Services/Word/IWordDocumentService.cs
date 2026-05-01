@@ -7,4 +7,5 @@ public interface IWordDocumentService
     IReadOnlyList<OutlineNode> GetOutline(string path);
     DocumentMetadata GetMetadata(string path);
     string ReadAsMarkdown(string path);
+    StructuredDocument ReadStructured(string path);
 }
