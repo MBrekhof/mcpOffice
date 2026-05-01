@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "office": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "${workspaceFolder}/src/mcpOffice/bin/Debug/net9.0/mcpOffice.dll"
+      ]
+    }
+  }
+}
