@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="mcpOffice.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DevExpress.Document.Processor" Version="25.2.5" />
     <PackageReference Include="DevExpress.RichEdit.Export" Version="25.2.5" />
     <PackageReference Include="MarkdownToDocxGenerator" Version="1.2.0" />
