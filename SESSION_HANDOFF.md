@@ -2,9 +2,9 @@
 
 ## Where things stand
 
-**Branch:** `poc/word-tools` — local has uncommitted Task 22 changes after `9a40dfa`.
-**Latest commit:** `9a40dfa` docs: session handoff after Tasks 11–21 complete
-**Build:** `0 warnings, 0 errors`. **Tests:** `36/36 passing` (33 unit + 3 integration).
+**Branch:** `poc/word-tools` — local has uncommitted Task 24 integration-test changes after `af732fb`.
+**Latest commit:** `af732fb` chore: add VS Code MCP workspace config
+**Build:** `0 warnings, 0 errors`. **Tests:** `39/39 passing` (33 unit + 6 integration).
 
 Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 
@@ -23,7 +23,7 @@ Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 ✅ Task 12 — word_list_comments
 ✅ Task 13 — word_list_revisions
 ✅ Task 14 — word_create_blank
-✅ Task 15 — word_create_from_markdown (hand-rolled writer — see §Decisions)
+✅ Task 15 — word_create_from_markdown (MarkdownToDocxGenerator-backed — see §Decisions)
 ✅ Task 16 — word_append_markdown
 ✅ Task 17 — word_find_replace
 ✅ Task 18 — word_insert_paragraph
@@ -32,7 +32,7 @@ Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 ✅ Task 21 — word_mail_merge
 ✅ Task 22 — word_convert
 ✅ Task 23 — tool-surface integration test (updated with all 16 tools)
-⬜ Task 24 — end-to-end integration tests (read / write / convert via stdio)
+✅ Task 24 — end-to-end integration tests (read / write / convert via stdio)
 ⬜ Task 25 — docs polish (docs/usage.md exists; README may need expansion)
 ⬜ Task 26 — final verification (Release build, publish, live MCP wire-in)
 ```
@@ -47,7 +47,7 @@ Tool surface (16): `Ping`, `word_append_markdown`, `word_convert`, `word_create_
 
 2. **Run detection in `word_read_structured` is character-by-character** via `BeginUpdateCharacters` per character. Simple and correct; slow for large docs. Optimize only if a profile says so.
 
-3. **Polymorphic `Block` records** (`HeadingBlock` / `ParagraphBlock`) lack `[JsonDerivedType]` discriminators. Fine for unit tests (which use `Assert.IsType<>`); `word_read_structured`'s JSON output via the MCP layer will need discriminators added if/when integration tests assert on the wire format (Task 24).
+3. **Polymorphic `Block` records** (`HeadingBlock` / `ParagraphBlock`) lack `[JsonDerivedType]` discriminators. Fine for unit tests (which use `Assert.IsType<>`); `word_read_structured`'s JSON output via the MCP layer will need discriminators added if/when integration tests assert structured-read wire format.
 
 4. **`word_mail_merge` parses `dataJson` as `Dictionary<string, JsonElement>`** rather than the plan's `Dictionary<string, string>`. Lets numbers/booleans pass through via `ToString()` without rejecting `{"age": 30}` outright. Strings are unwrapped via `GetString()`.
 
@@ -65,24 +65,23 @@ Tool surface (16): `Ping`, `word_append_markdown`, `word_convert`, `word_create_
 
 ## What's next
 
-**Task 24 — end-to-end integration tests.** Add stdio tests for one read, one write, and one convert workflow:
+**Task 25 — docs polish.** Refresh `docs/usage.md` and README:
 
-- `Read_markdown_round_trip_via_stdio`
-- `Create_then_outline_via_stdio`
-- `Convert_to_pdf_via_stdio`
+- README still lists the old three-tool surface and should list all 16 tools.
+- `docs/usage.md` predates Tasks 11–24 and should document read/write/convert workflows, the VS Code `.vscode/mcp.json`, and the Markdown import caveats.
 
-After 24: Tasks 25/26 are docs + final verification.
+After 25: Task 26 is final verification (Release build/test/publish/live MCP wire-in).
 
 ## How to resume
 
 ```bash
 cd C:/Projects/mcpOffice
-git status                                  # uncommitted Task 22 changes unless already committed
-git log --oneline -3                        # 9a40dfa, f2c0012, ece4745
+git status                                  # uncommitted Task 24 changes unless already committed
+git log --oneline -3                        # af732fb, 925d3c6, 9a40dfa
 dotnet build                                # 0 warnings, 0 errors
-dotnet test                                 # 36 tests passing
-git add src/mcpOffice tests/mcpOffice.Tests tests/mcpOffice.Tests.Integration SESSION_HANDOFF.md
-git commit -m "feat: add word_convert tool"
+dotnet test                                 # 39 tests passing
+git add tests/mcpOffice.Tests.Integration/WordWorkflowTests.cs SESSION_HANDOFF.md
+git commit -m "test: add Word MCP workflow integration tests"
 ```
 
-Then start Task 24.
+Then start Task 25.
