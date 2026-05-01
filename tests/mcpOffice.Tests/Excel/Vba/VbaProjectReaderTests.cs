@@ -73,6 +73,24 @@ public class VbaProjectReaderTests
         Assert.Contains("<synthetic>", ex.Message);
     }
 
+    [Fact]
+    public void Reads_modules_from_real_excel_fixture()
+    {
+        // End-to-end: zip → vbaProject.bin → real MS-OVBA compressed chunks → modules.
+        // The synthetic builder uses literal-only compressed chunks; this test ensures
+        // we still parse Excel's actual (copy-token) compressed output.
+        var path = TestFixtures.Path("sample-with-macros.xlsm");
+        var project = new VbaProjectReader().Read(path);
+
+        Assert.True(project.HasVbaProject);
+        Assert.Contains(project.Modules, m => m.Name == "Module1" && m.Kind == "standardModule");
+        Assert.Contains(project.Modules, m => m.Name == "ThisWorkbook" && m.Kind == "documentModule");
+
+        var module1 = project.Modules.Single(m => m.Name == "Module1");
+        Assert.Contains("Sub Hello", module1.Code);
+        Assert.True(module1.LineCount > 0);
+    }
+
     [Fact(Skip = "needs locked-project sample — see SESSION_HANDOFF.md Open Question #1")]
     public void Throws_vba_project_locked_for_protected_project() { }
 }
