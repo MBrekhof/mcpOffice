@@ -8,4 +8,5 @@ public interface IWordDocumentService
     DocumentMetadata GetMetadata(string path);
     string ReadAsMarkdown(string path);
     StructuredDocument ReadStructured(string path);
+    IReadOnlyList<CommentEntry> ListComments(string path);
 }

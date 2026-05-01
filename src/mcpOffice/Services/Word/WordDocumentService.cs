@@ -132,6 +132,41 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public IReadOnlyList<CommentEntry> ListComments(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var document = server.Document;
+            var entries = new List<CommentEntry>(document.Comments.Count);
+
+            for (var i = 0; i < document.Comments.Count; i++)
+            {
+                var comment = document.Comments[i];
+                var anchorText = document.GetText(comment.Range);
+
+                var body = comment.BeginUpdate();
+                var commentText = body.GetText(body.Range).TrimEnd('\r', '\n', '\v', '\f');
+                comment.EndUpdate(body);
+
+                entries.Add(new CommentEntry(
+                    i,
+                    comment.Author ?? string.Empty,
+                    comment.Date,
+                    commentText,
+                    anchorText));
+            }
+
+            return entries;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
     public string ReadAsMarkdown(string path)
     {
         PathGuard.RequireExists(path);

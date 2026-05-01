@@ -32,4 +32,10 @@ public static class WordTools
     public static object WordReadStructured(
         [Description("Absolute path to the .docx file")] string path)
         => Service.ReadStructured(path);
+
+    [McpServerTool(Name = "word_list_comments")]
+    [Description("Returns all comments in a .docx file: id, author, date, comment body text, and the anchored text it relates to.")]
+    public static object WordListComments(
+        [Description("Absolute path to the .docx file")] string path)
+        => Service.ListComments(path);
 }
