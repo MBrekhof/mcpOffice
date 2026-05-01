@@ -40,6 +40,53 @@ public class ExcelWorkflowTests
         }
     }
 
+    [Fact]
+    public async Task Read_sheet_via_stdio()
+    {
+        var path = TempPath(".xlsx");
+        try
+        {
+            using (var workbook = new Workbook())
+            {
+                var sheet = workbook.Worksheets[0];
+                sheet.Name = "Data";
+                sheet.Cells["A1"].Value = "Name";
+                sheet.Cells["B1"].Value = "Amount";
+                sheet.Cells["A2"].Value = "Ada";
+                sheet.Cells["B2"].Value = 40;
+                sheet.Cells["C2"].Formula = "=B2+2";
+                workbook.Calculate();
+                workbook.SaveDocument(path, SpreadsheetFormat.Xlsx);
+            }
+
+            await using var harness = await ServerHarness.StartAsync();
+            var result = await harness.Client.CallToolAsync(
+                "excel_read_sheet",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = path,
+                    ["sheetName"] = "Data",
+                    ["range"] = "A1:C2",
+                    ["includeFormulas"] = true,
+                    ["includeFormats"] = false,
+                    ["maxCells"] = 10
+                });
+            var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+            Assert.Contains("\"sheet\":\"Data\"", text);
+            Assert.Contains("\"range\":\"A1:C2\"", text);
+            Assert.Contains("\"Ada\"", text);
+            Assert.Contains("\"value\":42", text);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
     private static string TempPath(string extension) =>
         Path.Combine(Path.GetTempPath(), $"mcpoffice-excel-integration-{Guid.NewGuid():N}{extension}");
 }

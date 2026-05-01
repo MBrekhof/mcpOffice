@@ -14,4 +14,16 @@ public static class ExcelTools
     public static object ExcelListSheets(
         [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
         => Service.ListSheets(path);
+
+    [McpServerTool(Name = "excel_read_sheet")]
+    [Description("Reads cell data from a worksheet or range. Returns rows plus addressed cell details. Uses maxCells to prevent accidental giant reads.")]
+    public static object ExcelReadSheet(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path,
+        [Description("Worksheet name. If omitted, sheetIndex is used.")] string? sheetName = null,
+        [Description("0-based worksheet index used when sheetName is omitted. Defaults to 0.")] int? sheetIndex = null,
+        [Description("Optional A1 range such as A1:D20. Defaults to the worksheet used range.")] string? range = null,
+        [Description("Include formulas for formula cells.")] bool includeFormulas = true,
+        [Description("Include number format strings.")] bool includeFormats = false,
+        [Description("Maximum cells to return. Prevents accidental huge sheet reads.")] int maxCells = 50000)
+        => Service.ReadSheet(path, sheetName, sheetIndex, range, includeFormulas, includeFormats, maxCells);
 }

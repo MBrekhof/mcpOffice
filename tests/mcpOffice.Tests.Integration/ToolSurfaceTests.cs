@@ -8,6 +8,7 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "excel_list_sheets",
+            "excel_read_sheet",
             "Ping",
             "word_append_markdown",
             "word_convert",

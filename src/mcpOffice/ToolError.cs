@@ -22,6 +22,12 @@ public static class ToolError
     public static Exception IndexOutOfRange(int index, int max) =>
         Throw(ErrorCode.IndexOutOfRange, $"Index {index} is out of range (0..{max}).");
 
+    public static Exception SheetNotFound(string sheet) =>
+        Throw(ErrorCode.SheetNotFound, $"Worksheet not found: {sheet}");
+
+    public static Exception RangeTooLarge(string range, int cellCount, int maxCells) =>
+        Throw(ErrorCode.RangeTooLarge, $"Range {range} contains {cellCount} cells, which exceeds maxCells={maxCells}.");
+
     public static Exception MergeFieldMissing(IEnumerable<string> fields) =>
         Throw(ErrorCode.MergeFieldMissing, $"Template fields with no value in dataJson: {string.Join(", ", fields)}");
 
