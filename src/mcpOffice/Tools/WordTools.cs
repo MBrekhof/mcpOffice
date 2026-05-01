@@ -44,4 +44,11 @@ public static class WordTools
     public static object WordListRevisions(
         [Description("Absolute path to the .docx file")] string path)
         => Service.ListRevisions(path);
+
+    [McpServerTool(Name = "word_create_blank")]
+    [Description("Creates an empty .docx file at the given absolute path. Throws file_exists unless overwrite=true.")]
+    public static string WordCreateBlank(
+        [Description("Absolute path where the .docx will be written")] string path,
+        [Description("If true, replace an existing file at the path")] bool overwrite = false)
+        => Service.CreateBlank(path, overwrite);
 }

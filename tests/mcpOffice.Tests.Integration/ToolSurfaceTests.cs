@@ -8,6 +8,7 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "Ping",
+            "word_create_blank",
             "word_get_metadata",
             "word_get_outline",
             "word_list_comments",

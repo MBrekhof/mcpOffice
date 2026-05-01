@@ -196,6 +196,22 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string CreateBlank(string path, bool overwrite)
+    {
+        PathGuard.RequireWritable(path, overwrite);
+
+        try
+        {
+            using var server = new RichEditDocumentServer();
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public string ReadAsMarkdown(string path)
     {
         PathGuard.RequireExists(path);

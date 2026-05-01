@@ -10,4 +10,5 @@ public interface IWordDocumentService
     StructuredDocument ReadStructured(string path);
     IReadOnlyList<CommentEntry> ListComments(string path);
     IReadOnlyList<RevisionEntry> ListRevisions(string path);
+    string CreateBlank(string path, bool overwrite);
 }
