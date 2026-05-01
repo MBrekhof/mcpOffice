@@ -1,17 +1,15 @@
-# Session Handoff — 2026-05-01 (excel_extract_vba complete; awaiting live agent check + PR)
+# Session Handoff — 2026-05-01 (Excel VBA extraction shipped; next milestone ready)
 
 ## Where Things Stand
 
-**Branch:** `poc/excel-tools` (still off `main`).
-**Latest commit:** `1f0f1d9` test: hand-authored .xlsm fixture + real-Excel smoke test for VbaProjectReader.Read
+**Branch:** `main` is up to date with `origin/main`. The Excel VBA work landed via PR #1 (`d1923b3 Merge pull request #1 from MBrekhof/poc/excel-tools`). The local `poc/excel-tools` branch is now stale and safe to delete.
 **Build:** `dotnet build` and `dotnet build -c Release` are both green, `0 warnings, 0 errors`.
-**Tests:** `dotnet test` is green: **74/75 passing, 1 skipped** (47 prior + 27 new for VBA extraction). The single skip is the deliberately-deferred locked-project test (`VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project`) — see Open Question #1 below.
+**Tests:** `dotnet test` is green: **74/75 passing, 1 skipped** (`VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project` — see Open Question #1 below).
+**Tool surface:** 19 tools — 16 Word + `excel_list_sheets`, `excel_read_sheet`, `excel_extract_vba`.
 
-The Excel VBA extraction milestone is **functionally complete**. All implementation tasks (1–15) and Task 11's fixture step are done. The two remaining steps (live agent check, PR back to `main`) are user actions.
+## Excel POC — Status
 
-## Excel POC Plan State
-
-Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation steps:
+Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`.
 
 ```
 ✅ 1. Add DevExpress Spreadsheet package references
@@ -21,91 +19,86 @@ Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation 
 ✅ 5. Add integration test for listing tools and reading a generated workbook
 ✅ 6. Spike excel_extract_vba against C:\temp\macro\Air - Labware.xlsm
 ✅ 7. Decide whether static VBA extraction is implemented in-process via OpenMcdf or deferred behind an optional extractor
-   → in-process via OpenMcdf, landed
-✅ 7b. excel_extract_vba shipped end-to-end (synthetic unit tests + real-Excel smoke + stdio integration)
+   → in-process via OpenMcdf, shipped end-to-end
 ⬜ 8. Implement formula/structure tools after basic sheet reading is stable
 ```
 
-## VBA Extraction Implementation — Summary
+**Step 8 is the next milestone.** The design doc names four candidate tools:
 
-Implementation followed `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md` (Option C: hybrid testing). Tasks 1–15 committed. Task 16 partially complete (build + tests verified; live agent check still pending). Task 17 (PR) pending.
+- `excel_get_structure(path, includeSheets=true, includeFormulas=true, includeDefinedNames=true)` — workbook-level overview: sheets + visibility, used ranges, formula counts by sheet, defined names, external connections, table/pivot/chart counts where DevExpress / Open XML expose them.
+- `excel_list_formulas(path, sheetName?, includeValues=false, maxFormulas=10000)` — per-cell formula text + cached value/display text + rough dependency tokens.
+- `excel_list_defined_names(path)` — workbook + sheet-scoped names with formula/range bodies.
+- `excel_get_metadata(path)` — author/title/created/modified + workbook counts.
 
-**Tool surface:** 19 tools. Added `excel_extract_vba` (path → `{ hasVbaProject, modules: [{name, kind, lineCount, code}] }`).
+Conventions to keep when planning step 8:
 
-**New error codes (in `ErrorCode.cs` / `ToolError.cs`):**
-- `vba_project_missing` — defined; not raised by the current tool (absence is `hasVbaProject: false`). Reserved for a future strict variant.
-- `vba_project_locked` — raised when `dir` stream is missing or parses to zero modules. Heuristic — see Open Question #1.
-- `vba_parse_error` — raised on OLE walk / decompression / dir-record-walk failures. Message includes underlying detail.
+- Stateless / absolute-path model, every tool reopens the workbook.
+- DevExpress.Spreadsheet.Workbook.LoadDocument is the load path; reuse `LoadWorkbook` in `ExcelWorkbookService`.
+- Cap rows/cells with explicit `maxFormulas` / `maxNames` parameters and surface `range_too_large` (or a new sibling code) on overflow rather than silently truncating.
+- TDD per the executing-plans skill — same flow used for the VBA work.
 
-**Production code, all under `src/mcpOffice/Services/Excel/Vba/`:**
-- `MsOvbaDecompressor.cs` — MS-OVBA 2.4 RLE decompressor, internal static. Promoted verbatim from spike.
-- `VbaDirStreamParser.cs` — internal static, walks the decompressed dir stream record-by-record. Handles the `PROJECTVERSION` (id `0x0009`) quirk explicitly. Prefers `MODULENAMEUNICODE` (`0x0047`) / `MODULESTREAMNAMEUNICODE` (`0x0032`) when present, falls back to MBCS (`0x0019` / `0x001A`).
-- `VbaModuleEntry.cs` — internal record (Name, StreamName, TextOffset, Type).
-- `VbaProjectReader.cs` — internal sealed class with the **two-entry-point API** the plan specifies:
-  - `Read(string xlsmPath)` — opens the `.xlsm` as ZIP, finds `xl/vbaProject.bin`, delegates to the stream variant. Returns `HasVbaProject: false` when the entry is absent.
-  - `ReadVbaProjectBin(Stream stream, string sourceLabel)` — does the OLE walk + `dir` decompression + per-module decompression. Public on the internal class so the test project can call it directly.
-- `Models/ExcelVbaProject.cs`, `Models/ExcelVbaModule.cs` — public DTOs (returned via JSON-RPC).
+## VBA Extraction — Reference
 
-**Module classification heuristic** in `VbaProjectReader.ClassifyKind`:
-- MODULETYPE `0x0021` → `"standardModule"`
-- MODULETYPE `0x0022` AND name is `"ThisWorkbook"` or starts with `"Sheet"` → `"documentModule"`
-- MODULETYPE `0x0022` otherwise → `"classModule"`
+Production code under `src/mcpOffice/Services/Excel/Vba/`:
 
-The "scan first 50 lines for `Attribute VB_Base = ...`" refinement noted in the plan was not needed — the name-based heuristic correctly classified the synthetic test fixtures and the real-Excel fixture.
+- `MsOvbaDecompressor.cs` — MS-OVBA 2.4 RLE decompressor, internal static.
+- `VbaDirStreamParser.cs` — internal static. Handles the `PROJECTVERSION` (`0x0009`) size-vs-payload quirk and prefers Unicode module-name siblings (`MODULENAMEUNICODE` `0x0047` / `MODULESTREAMNAMEUNICODE` `0x0032`) over MBCS (`0x0019` / `0x001A`).
+- `VbaProjectReader.cs` — internal sealed class with split API: `Read(string xlsmPath)` opens the `.xlsm` zip; `ReadVbaProjectBin(Stream, sourceLabel)` is the OLE-walking core (called directly from synthetic unit tests).
+- `Models/ExcelVbaProject.cs`, `Models/ExcelVbaModule.cs` — public DTOs returned via JSON-RPC.
 
-**InternalsVisibleTo:** `src/mcpOffice/mcpOffice.csproj` now exposes internals to `mcpOffice.Tests` so the test project can drive `MsOvbaDecompressor`, `VbaDirStreamParser`, and `VbaProjectReader.ReadVbaProjectBin` directly.
+Module classification heuristic in `VbaProjectReader.ClassifyKind`:
 
-## Test Strategy (Option C, hybrid)
+- MODULETYPE `0x0021` → `"standardModule"`.
+- MODULETYPE `0x0022` AND name is `"ThisWorkbook"` or starts with `"Sheet"` → `"documentModule"`.
+- MODULETYPE `0x0022` otherwise → `"classModule"`.
 
-**Synthetic builder for unit tests:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectBinBuilder.cs` constructs in-memory `vbaProject.bin` blobs from `ModuleSpec` records via OpenMcdf write + a literal-only MS-OVBA "compressor" (each chunk is compressed-mode with all flag-byte bits zero). Drives `ReadVbaProjectBin` without needing an `.xlsm` on disk. Has its own self-check test (`VbaProjectBinBuilderTests`) so builder bugs don't masquerade as reader bugs.
+New error codes (in `ErrorCode.cs` / `ToolError.cs`):
 
-**Real-Excel coverage:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectReaderTests.Reads_modules_from_real_excel_fixture` exercises the full zip-extraction + Excel's actual copy-token compressed chunks against `tests/fixtures/sample-with-macros.xlsm`. The fixture is hand-authored — DevExpress can't write VBA — and documented in `tests/fixtures/README.md`.
+- `vba_project_missing` — defined; **not raised** by `excel_extract_vba` (absence is `hasVbaProject: false`). Reserved for a future strict variant.
+- `vba_project_locked` — heuristic-only today; see Open Question #1.
+- `vba_parse_error` — raised on OLE walk / decompression / dir-record-walk failures. Message includes the underlying detail.
 
-**Test counts by file (new):**
-- `VbaErrorCodeTests` — 3
-- `MsOvbaDecompressorTests` — 7
-- `VbaDirStreamParserTests` — 5
-- `VbaProjectBinBuilderTests` — 1 (self-check)
-- `VbaProjectReaderTests` — 6 + 1 skipped (5 synthetic + 1 real-Excel; locked = skip)
-- `ExtractVbaTests` (service layer) — 2
-- `Extract_vba_via_stdio_*` (integration) — 2
+`InternalsVisibleTo("mcpOffice.Tests")` is set in `src/mcpOffice/mcpOffice.csproj` so the test project can drive the internal classes directly.
 
-`ToolSurfaceTests.Exposes_initial_tool_catalog` updated to include `excel_extract_vba`.
+## Test Strategy (in case of follow-up)
 
-## What's Still Outstanding — Action Required
+- **Synthetic builder:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectBinBuilder.cs` constructs in-memory `vbaProject.bin` blobs from `ModuleSpec` records via OpenMcdf write + a literal-only MS-OVBA "compressor" (every flag-byte bit zero — production decompressor handles literal-only and copy-token chunks identically). Has its own `VbaProjectBinBuilderTests` self-check.
+- **Real-Excel coverage:** `tests/mcpOffice.Tests/Excel/Vba/VbaProjectReaderTests.Reads_modules_from_real_excel_fixture` exercises Excel's actual copy-token compressed chunks against `tests/fixtures/sample-with-macros.xlsm` (hand-authored — DevExpress can't write VBA). Regen instructions in `tests/fixtures/README.md`.
+- **Stdio integration:** `tests/mcpOffice.Tests.Integration/ExcelWorkflowTests.Extract_vba_via_stdio_*` covers both `.xlsm` (with macros) and `.xlsx` (no macros) paths.
 
-**1. Live agent verification (Task 16, step 3).** Wire the rebuilt server into Claude Code (existing `claude_desktop_config.json`) and call `excel_extract_vba` against `C:\temp\macro\Air - Labware.xlsm` with a real agent. The 107-module workbook is the same input the spike validated against. Per global CLAUDE.md: build green ≠ it works.
+## Open Questions Carried Forward
 
-**2. Open PR back to `main` (Task 17).** Squash-merge. Title: `feat: excel_extract_vba — static VBA source extraction`.
-
-## Open Questions Still Carried Forward
-
-1. **Locked / password-protected VBA projects.** Detection is heuristic (no module runs found OR `dir` stream missing → `vba_project_locked`). Without a real locked sample we don't know if Excel emits a parsable but empty-of-modules dir stream when the project is locked, or if the dir stream is encrypted/missing. Worst current behavior: a locked project may surface as `vba_parse_error` if the dir stream decompression fails outright. `VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project` is `[Fact(Skip = ...)]` waiting for a fixture.
+1. **Locked / password-protected VBA projects.** Detection is heuristic (`dir` stream missing OR parses to zero modules → `vba_project_locked`). Without a real locked sample we don't know if Excel emits a parsable but empty-of-modules `dir` stream when the project is locked, or if the dir stream itself is absent/encrypted. Worst current behavior: a locked project may surface as `vba_parse_error` if `dir` decompression fails outright. `VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project` is `[Fact(Skip = ...)]` waiting for a fixture.
 
 2. **PROJECTLCID / non-Western locale code pages.** Source decoding is hardcoded to cp1252. MS-OVBA stores the project's LCID in dir record `0x0002 PROJECTLCID`. Stretch goal — document and defer.
 
-3. **Form layout vs form code.** Still out of scope per the design doc.
+3. **Form layout vs form code.** Out of scope per the design doc.
 
-4. **Promoting the spike file.** `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs` is intentionally left in place as historical reference. It still no-ops when `C:\temp\macro\vbaProject.bin` is absent. The production code is independent of the spike's own internal `MsOvbaDecompressor` (different namespace, both `internal`).
+4. **Live agent verification.** Not done in-session. Next time worth pointing a Claude Code session at the rebuilt server and calling `excel_extract_vba` against `C:\temp\macro\Air - Labware.xlsm` (the 107-module workbook the spike validated). Per global CLAUDE.md: build green ≠ it works.
 
-## Next Plan After This Lands
+5. **Spike file still in the test project.** `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs` is intentionally left in place as historical reference. It no-ops when `C:\temp\macro\vbaProject.bin` is absent. Production code is independent of it (different namespace, both `internal`). Delete only if/when the dependency on the spike's documentation value lapses.
 
-After the VBA tool ships, plan items 8 (formula / structure tools — `excel_get_structure`, `excel_list_formulas`, `excel_list_defined_names`, `excel_get_metadata`) come next.
+## Housekeeping This Handoff Did
+
+- Deleted `EXCEL_HANDOFF.md` — was an intermediate snapshot that listed `excel_extract_vba` as still-to-do; superseded by this file and the merged commits.
+- Branch `chore/handoff-after-vba` exists with this update; merge it into `main` to refresh the handoff in tree.
 
 ## How To Resume
 
 ```powershell
 cd C:\Projects\mcpOffice
-git status
-git log --oneline -10
+git checkout main
+git pull --ff-only
+git branch -D poc/excel-tools             # safe — merged via PR #1
 dotnet build --nologo
 dotnet test --nologo
 ```
 
 Reference material:
 
-- VBA extraction plan: `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md`
-- Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
+- Excel POC design (covers all step-8 tools): `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
+- VBA extraction plan (closed): `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md`
+- Word POC design + plan (closed, for cross-reference): `docs/plans/2026-04-30-mcpoffice-word-poc-*.md`
 - Spike code (reference only): `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`
 - Sample workbook for live agent test: `C:\temp\macro\Air - Labware.xlsm` (~2.8 MB, 69 sheets, 107 VBA modules)
-- Hand-authored fixture: `tests/fixtures/sample-with-macros.xlsm` (regen instructions in `tests/fixtures/README.md`)
+- Hand-authored fixture (regen steps in its README): `tests/fixtures/sample-with-macros.xlsm`
