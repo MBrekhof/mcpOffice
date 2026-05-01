@@ -37,6 +37,15 @@ public static class ToolError
     public static Exception Internal(string detail) =>
         Throw(ErrorCode.InternalError, $"Internal error: {detail}");
 
+    public static Exception VbaProjectMissing(string path) =>
+        Throw(ErrorCode.VbaProjectMissing, $"No VBA project in workbook: {path}");
+
+    public static Exception VbaProjectLocked(string path) =>
+        Throw(ErrorCode.VbaProjectLocked, $"VBA project is locked for viewing: {path}");
+
+    public static Exception VbaParseError(string path, string detail) =>
+        Throw(ErrorCode.VbaParseError, $"Could not parse VBA project in {path}: {detail}");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }
