@@ -94,4 +94,11 @@ public static class WordTools
         [Description("Header row cell texts")] string[] headers,
         [Description("Body rows (array of arrays of cell texts)")] string[][] rows)
         => Service.InsertTable(path, atIndex, headers, rows.Select(r => (IReadOnlyList<string>)r).ToList());
+
+    [McpServerTool(Name = "word_set_metadata")]
+    [Description("Sets core document properties. Supported keys: author, title, subject, keywords. Unknown keys throw unsupported_format.")]
+    public static string WordSetMetadata(
+        [Description("Absolute path to the .docx file")] string path,
+        [Description("Map of property name to value. Allowed keys: author, title, subject, keywords.")] Dictionary<string, string> properties)
+        => Service.SetMetadata(path, properties);
 }

@@ -249,6 +249,45 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string SetMetadata(string path, IReadOnlyDictionary<string, string> properties)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var docProps = server.Document.DocumentProperties;
+
+            foreach (var (key, value) in properties)
+            {
+                switch (key.ToLowerInvariant())
+                {
+                    case "author":
+                        docProps.Author = value;
+                        break;
+                    case "title":
+                        docProps.Title = value;
+                        break;
+                    case "subject":
+                        docProps.Subject = value;
+                        break;
+                    case "keywords":
+                        docProps.Keywords = value;
+                        break;
+                    default:
+                        throw ToolError.UnsupportedFormat(key);
+                }
+            }
+
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public string InsertTable(string path, int atIndex, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
     {
         PathGuard.RequireExists(path);
