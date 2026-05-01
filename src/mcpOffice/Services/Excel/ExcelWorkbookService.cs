@@ -1,5 +1,6 @@
 using DevExpress.Spreadsheet;
 using McpOffice.Models;
+using McpOffice.Services.Excel.Vba;
 using ModelContextProtocol;
 
 namespace McpOffice.Services.Excel;
@@ -102,6 +103,12 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         {
             throw ToolError.ParseError(path, ex.Message);
         }
+    }
+
+    public ExcelVbaProject ExtractVba(string path)
+    {
+        PathGuard.RequireExists(path);
+        return new VbaProjectReader().Read(path);
     }
 
     private static Workbook LoadWorkbook(string path)

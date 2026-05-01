@@ -13,4 +13,5 @@ public interface IExcelWorkbookService
         bool includeFormulas,
         bool includeFormats,
         int maxCells);
+    ExcelVbaProject ExtractVba(string path);
 }
