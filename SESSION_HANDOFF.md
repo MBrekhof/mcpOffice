@@ -1,86 +1,85 @@
-# Session Handoff — 2026-05-01
+# Session Handoff — 2026-05-01 (Excel POC, mid-flight)
 
 ## Where Things Stand
 
-**Branch:** `poc/word-tools` — local has uncommitted Task 26 final-verification notes after `3adf8e7`.
-**Latest commit:** `3adf8e7` docs: refresh Word POC usage guide
-**Build:** Release build is green with `0 warnings, 0 errors`.
-**Tests:** Release tests are green: `39/39 passing` (33 unit + 6 integration).
-**Publish:** `dotnet publish -c Release -r win-x64 --self-contained false src/mcpOffice` succeeded.
-**Live MCP verification:** passed against the published executable at `src/mcpOffice/bin/Release/net9.0/win-x64/publish/mcpOffice.exe`; a real MCP stdio client listed 16 tools and `word_get_outline` returned `[{"level":1,"text":"Live MCP Outline"}]` for a generated `.docx`.
+**Branch:** `poc/excel-tools` (forked off `main` after Word POC was merged).
+**Latest commit:** `305c4af` chore: spike static VBA extraction via OpenMcdf
+**Build:** `dotnet build` is green, `0 warnings, 0 errors`.
+**Tests:** `dotnet test` is green: `47/47 passing` (39 unit + 8 integration), including the new VBA extraction spike test.
 
-Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
+The Word POC milestone is finished and shipped on `main`. This branch is the second milestone — Excel (`.xlsx`/`.xlsm`) tool surface.
+
+## Excel POC Plan State
+
+Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation steps from that doc:
 
 ```
-✅ Task 1  — repo + .gitignore + README + nuget.config
-✅ Task 2  — solution + 3 projects
-✅ Task 3  — NuGet packages
-✅ Task 4  — Program.cs (stdio MCP host) + ping tool
-✅ Task 5  — integration harness + ping round-trip test
-✅ Task 6  — ToolError + stable error codes
-✅ Task 7  — PathGuard
-✅ Task 8  — word_get_outline + WordDocumentService skeleton
-✅ Task 9  — word_get_metadata + DocumentMetadata DTO
-✅ Task 10 — word_read_markdown
-✅ Task 11 — word_read_structured
-✅ Task 12 — word_list_comments
-✅ Task 13 — word_list_revisions
-✅ Task 14 — word_create_blank
-✅ Task 15 — word_create_from_markdown
-✅ Task 16 — word_append_markdown
-✅ Task 17 — word_find_replace
-✅ Task 18 — word_insert_paragraph
-✅ Task 19 — word_insert_table
-✅ Task 20 — word_set_metadata
-✅ Task 21 — word_mail_merge
-✅ Task 22 — word_convert
-✅ Task 23 — tool-surface integration test
-✅ Task 24 — end-to-end integration tests
-✅ Task 25 — docs polish
-✅ Task 26 — final verification
+✅ 1. Add DevExpress Spreadsheet package references
+✅ 2. Add Excel DTOs and IExcelWorkbookService
+✅ 3. Implement excel_list_sheets
+✅ 4. Implement excel_read_sheet with maxCells
+✅ 5. Add integration test for listing tools and reading a generated workbook
+🟡 6. Spike excel_extract_vba against C:\temp\macro\Air - Labware.xlsm   (DONE — see below)
+⬜ 7. Decide whether static VBA extraction is implemented in-process via OpenMcdf or deferred behind an optional extractor
+⬜ 8. Implement formula/structure tools after basic sheet reading is stable
 ```
 
-Tool surface (16): `Ping`, `word_append_markdown`, `word_convert`, `word_create_blank`, `word_create_from_markdown`, `word_find_replace`, `word_get_metadata`, `word_get_outline`, `word_insert_paragraph`, `word_insert_table`, `word_list_comments`, `word_list_revisions`, `word_mail_merge`, `word_read_markdown`, `word_read_structured`, `word_set_metadata`.
+Tool surface so far (18): all 16 Word tools from the previous milestone plus `excel_list_sheets` and `excel_read_sheet`.
 
-## Decisions Made
+## VBA Extraction Spike — Findings
 
-1. **Markdown import uses `MarkdownToDocxGenerator` 1.2.0.** DevExpress 25.2 does not expose Markdown as a `DocumentFormat`, so `word_create_from_markdown` and `word_append_markdown` generate DOCX through this MIT-licensed package, then load the result through `RichEditDocumentServer`. mcpOffice post-processes headings into Word `Heading N` styles and reapplies common `*italic*` spans.
+The spike (`tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`) is committed as reference material, not as a final implementation. It runs as a normal unit test and no-ops if `C:\temp\macro\vbaProject.bin` isn't on disk; on this machine it dumps results to `C:\temp\macro\vba-spike-output.txt`.
 
-2. **Markdown caveats remain.** Lists currently round-trip as paragraph text with literal `-` / `1.` prefixes rather than semantic Word list objects. `word_read_structured` does not expose hyperlink URLs yet. Markdown export is conservative, not full-fidelity.
+**Verdict: in-process static VBA extraction via OpenMcdf is viable.** Concretely:
 
-3. **Run detection in `word_read_structured` is character-by-character** via `BeginUpdateCharacters` per character. Simple and correct; slow for large docs. Optimize only if a profile says so.
+- `xl/vbaProject.bin` (1.17 MB) extracted from the `.xlsm` ZIP, OLE magic confirmed.
+- OpenMcdf 3.1.3 (MIT) walks the compound file cleanly via `RootStorage.OpenRead` + `EnumerateEntries`. ~280 entries: 1 root `VBA` storage with module/sheet/form code streams, plus `dir`, plus per-form sub-storages.
+- A ~50-line MS-OVBA RLE decompressor decompressed the `dir` stream cleanly (4449 → 13794 bytes) and the per-module compressed source at each module's `textOffset`.
+- The dir-stream record walker discovered **107 modules** with name, stream name, `textOffset`, and module type (`0x0021` procedural / `0x0022` class/document).
+- Decompressed source is real VBA: `Module2` (798 bytes), `mdlWOM` (2922 bytes, real `Function WOM(...)` body), `ThisWorkbook` (3650 bytes with proper `VB_Base` GUID and `Workbook_BeforeSave`).
 
-4. **Polymorphic `Block` records** lack JSON discriminators. Fine for unit tests; add discriminators later if clients need structured-read wire format branching.
+**One spec gotcha worth recording:** `PROJECTVERSION` (id `0x0009`) violates the standard `id+size+payload` record layout — the size field is hardcoded to `4` but the actual payload is `6` bytes (Major UInt32 + Minor UInt16). Walking past it without special-casing throws the parse off by 2 bytes and cascades into garbage. The spike handles this; the production reader must too.
 
-5. **`word_mail_merge` accepts JSON scalar values** by parsing `dataJson` as `Dictionary<string, JsonElement>`, so numbers/booleans pass through via `ToString()`.
+**New deps the spike pulled in (already committed):**
+- `OpenMcdf` 3.1.3 (test project only, for now)
+- `System.Text.Encoding.CodePages` 10.0.7 (test project only, for now) — needed because .NET 9 doesn't ship cp1252 by default and MS-OVBA `MODULENAME` / `MODULESTREAMNAME` records are MBCS
 
-6. **`word_insert_table` accepts `string[][]` at the tool boundary** because jagged arrays bind cleanly through MCP SDK schema generation.
+When promoting to `src/`, both packages will need to move into `src/mcpOffice/mcpOffice.csproj` as well (or the production code lives in a tiny library both reference).
 
-## Known Nuisances
+## Open Questions Carried Forward
 
-- DevExpress runtime license is still not wired in via `licenses.licx`; all current RichEdit operations, including PDF export, succeed on this machine.
-- No `.editorconfig`; `dotnet format` has no local rules to enforce.
-- The package `MarkdownToDocxGenerator` depends on `OpenXMLSDK.Engine 2022.10313.0-preview-044`; acceptable for the POC, but revisit before production packaging.
+1. **Locked / password-protected VBA projects.** The fixture isn't locked. Production needs a deliberate `vba_project_locked` error path; needs a locked sample to test against.
+2. **Unicode module names.** Spike used MBCS records (`0x0019`, `0x001A`); MS-OVBA also has `MODULENAMEUNICODE` (`0x0047`) and `MODULESTREAMNAMEUNICODE` (`0x0032`). Production should prefer the unicode siblings and fall back to MBCS only if missing.
+3. **Form layout vs form code.** Spike extracts the *code* behind forms but ignores the binary `f`/`o`/`VBFrame` form-layout streams. Design doc only commits to source, so this stays out of scope unless asked.
+4. **Where the production decoder lives.** Two options: tuck `MsOvbaDecompressor` + `VbaProjectReader` inside `src/mcpOffice` next to `Services/Excel/`, or extract into a small `mcpOffice.Vba` library. Lean toward the former for the POC unless we end up wanting to reuse from PowerPoint or elsewhere.
 
-## What's Next
+## What's Next — Per User Direction
 
-Word POC is complete. Next milestone: Excel (`.xlsx`) tool surface and design.
+The user explicitly chose **option (b): write a plan first, before implementing `excel_extract_vba`.**
 
-Suggested first Excel steps:
+Next session should:
 
-- Draft `docs/plans/<date>-mcpoffice-excel-poc-design.md`.
-- Keep the same stateless, absolute-path model.
-- Start with read tools: workbook metadata, sheet list, used ranges, table-like range extraction.
-- Then write tools: create workbook, set cell/range values, append rows, basic formulas, convert/export.
+1. Re-read the spike findings above and the existing design doc `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`.
+2. Author `docs/plans/<date>-mcpoffice-excel-vba-extraction-plan.md` modeled on the Word POC plan: TDD task list with exact code per task, fixture strategy, error codes, and tests for the `PROJECTVERSION` quirk specifically.
+3. Cover at minimum: `MsOvbaDecompressor`, `VbaProjectReader`, `IExcelWorkbookService.ExtractVba`, the `excel_extract_vba` tool wiring, and unit + stdio integration tests.
+4. Cover the new error codes: `vba_project_missing`, `vba_project_locked`, `vba_parse_error` (already drafted in the design doc but not implemented).
+5. **Do not start implementation in the planning session.** Wait for the user to greenlight the plan.
+
+After the VBA tool lands, plan items 8 (formula / structure tools — `excel_get_structure`, `excel_list_formulas`, `excel_list_defined_names`, `excel_get_metadata`) come next.
 
 ## How To Resume
 
-```bash
-cd C:/Projects/mcpOffice
+```powershell
+cd C:\Projects\mcpOffice
 git status
-dotnet test -c Release --nologo
-dotnet publish -c Release -r win-x64 --self-contained false src/mcpOffice
-git add SESSION_HANDOFF.md
-git commit -m "docs: mark Word POC final verification complete"
-git push origin poc/word-tools
+git log --oneline -5
+dotnet build --nologo
+dotnet test --nologo
 ```
+
+Reference material:
+
+- Spike code: `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`
+- Spike output (regenerated each run): `C:\temp\macro\vba-spike-output.txt`
+- Sample workbook: `C:\temp\macro\Air - Labware.xlsm` (~2.8 MB, 69 sheets, 107 VBA modules)
+- Extracted vba blob (regenerated by hand earlier in the spike session): `C:\temp\macro\vbaProject.bin` (1.17 MB)
