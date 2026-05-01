@@ -212,6 +212,23 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string AppendMarkdown(string path, string markdown)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            WriteMarkdownToDocument(server.Document, markdown);
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public string CreateFromMarkdown(string path, string markdown, bool overwrite)
     {
         PathGuard.RequireWritable(path, overwrite);

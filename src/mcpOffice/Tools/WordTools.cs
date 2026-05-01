@@ -59,4 +59,11 @@ public static class WordTools
         [Description("Markdown source")] string markdown,
         [Description("If true, replace an existing file at the path")] bool overwrite = false)
         => Service.CreateFromMarkdown(path, markdown, overwrite);
+
+    [McpServerTool(Name = "word_append_markdown")]
+    [Description("Appends Markdown content to an existing .docx file. Same Markdown subset as word_create_from_markdown.")]
+    public static string WordAppendMarkdown(
+        [Description("Absolute path to the .docx file")] string path,
+        [Description("Markdown source to append")] string markdown)
+        => Service.AppendMarkdown(path, markdown);
 }

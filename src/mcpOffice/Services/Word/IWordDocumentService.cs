@@ -12,4 +12,5 @@ public interface IWordDocumentService
     IReadOnlyList<RevisionEntry> ListRevisions(string path);
     string CreateBlank(string path, bool overwrite);
     string CreateFromMarkdown(string path, string markdown, bool overwrite);
+    string AppendMarkdown(string path, string markdown);
 }

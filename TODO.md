@@ -19,8 +19,8 @@ Pending work for mcpOffice. Pulled from `docs/plans/2026-04-30-mcpoffice-word-po
 - [x] Task 13 — `word_list_revisions`
 - [x] Task 14 — `word_create_blank`
 - [x] Task 15 — `word_create_from_markdown`
-- [ ] Task 16 — `word_append_markdown`  ← next
-- [ ] Task 17 — `word_find_replace`
+- [x] Task 16 — `word_append_markdown`
+- [ ] Task 17 — `word_find_replace`  ← next
 - [ ] Task 18 — `word_insert_paragraph`
 - [ ] Task 19 — `word_insert_table`
 - [ ] Task 20 — `word_set_metadata`
