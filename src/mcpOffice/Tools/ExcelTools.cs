@@ -26,4 +26,10 @@ public static class ExcelTools
         [Description("Include number format strings.")] bool includeFormats = false,
         [Description("Maximum cells to return. Prevents accidental huge sheet reads.")] int maxCells = 50000)
         => Service.ReadSheet(path, sheetName, sheetIndex, range, includeFormulas, includeFormats, maxCells);
+
+    [McpServerTool(Name = "excel_extract_vba")]
+    [Description("Statically extracts VBA module source from an .xlsm workbook without launching Excel. Returns hasVbaProject and a list of {name, kind, lineCount, code}. For .xlsx or workbooks without macros, returns hasVbaProject=false and an empty list.")]
+    public static object ExcelExtractVba(
+        [Description("Absolute path to the .xlsm workbook")] string path)
+        => Service.ExtractVba(path);
 }
