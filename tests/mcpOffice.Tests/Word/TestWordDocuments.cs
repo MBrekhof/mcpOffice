@@ -1,5 +1,6 @@
 using DevExpress.XtraRichEdit;
 using DevExpress.XtraRichEdit.API.Native;
+using RichEditFormat = DevExpress.XtraRichEdit.DocumentFormat;
 
 namespace McpOffice.Tests.Word;
 
@@ -14,7 +15,7 @@ internal static class TestWordDocuments
 
         using var server = new RichEditDocumentServer();
         configure(server);
-        server.SaveDocument(path, DocumentFormat.OpenXml);
+        server.SaveDocument(path, RichEditFormat.OpenXml);
 
         return path;
     }

@@ -9,6 +9,7 @@ public class ToolSurfaceTests
         [
             "Ping",
             "word_append_markdown",
+            "word_convert",
             "word_create_blank",
             "word_create_from_markdown",
             "word_find_replace",

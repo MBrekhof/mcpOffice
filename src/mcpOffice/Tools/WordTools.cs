@@ -109,4 +109,12 @@ public static class WordTools
         [Description("Absolute path where the merged .docx will be written")] string outputPath,
         [Description("JSON object mapping token name to value")] string dataJson)
         => Service.MailMerge(templatePath, outputPath, dataJson);
+
+    [McpServerTool(Name = "word_convert")]
+    [Description("Converts a .docx file to pdf, html, rtf, txt, markdown, or docx. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists.")]
+    public static string WordConvert(
+        [Description("Absolute path to the input .docx file")] string inputPath,
+        [Description("Absolute path where the converted file will be written")] string outputPath,
+        [Description("Optional output format: pdf, html, rtf, txt, markdown, md, or docx. Inferred from outputPath extension when null.")] string? format = null)
+        => Service.Convert(inputPath, outputPath, format);
 }

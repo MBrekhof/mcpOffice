@@ -18,4 +18,5 @@ public interface IWordDocumentService
     string InsertTable(string path, int atIndex, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows);
     string SetMetadata(string path, IReadOnlyDictionary<string, string> properties);
     string MailMerge(string templatePath, string outputPath, string dataJson);
+    string Convert(string inputPath, string outputPath, string? format);
 }

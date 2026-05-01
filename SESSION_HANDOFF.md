@@ -2,9 +2,9 @@
 
 ## Where things stand
 
-**Branch:** `poc/word-tools` — local is **11 commits ahead** of `origin/poc/word-tools` (clean working tree, fast-forward push).
-**Latest commit:** `f2c0012` feat: word_mail_merge substitutes {{token}} placeholders from JSON
-**Build:** `0 warnings, 0 errors`. **Tests:** `27/27 passing` (24 unit + 3 integration).
+**Branch:** `poc/word-tools` — local has uncommitted Task 22 changes after `9a40dfa`.
+**Latest commit:** `9a40dfa` docs: session handoff after Tasks 11–21 complete
+**Build:** `0 warnings, 0 errors`. **Tests:** `36/36 passing` (33 unit + 3 integration).
 
 Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 
@@ -30,20 +30,20 @@ Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 ✅ Task 19 — word_insert_table
 ✅ Task 20 — word_set_metadata
 ✅ Task 21 — word_mail_merge
-⬜ Task 22 — word_convert  ← next
-⬜ Task 23 — tool-surface integration test (already exists & up to date with all 15 tools — task is to lock the spec)
+✅ Task 22 — word_convert
+✅ Task 23 — tool-surface integration test (updated with all 16 tools)
 ⬜ Task 24 — end-to-end integration tests (read / write / convert via stdio)
 ⬜ Task 25 — docs polish (docs/usage.md exists; README may need expansion)
 ⬜ Task 26 — final verification (Release build, publish, live MCP wire-in)
 ```
 
-Tool surface (15): `Ping`, `word_append_markdown`, `word_create_blank`, `word_create_from_markdown`, `word_find_replace`, `word_get_metadata`, `word_get_outline`, `word_insert_paragraph`, `word_insert_table`, `word_list_comments`, `word_list_revisions`, `word_mail_merge`, `word_read_markdown`, `word_read_structured`, `word_set_metadata`.
+Tool surface (16): `Ping`, `word_append_markdown`, `word_convert`, `word_create_blank`, `word_create_from_markdown`, `word_find_replace`, `word_get_metadata`, `word_get_outline`, `word_insert_paragraph`, `word_insert_table`, `word_list_comments`, `word_list_revisions`, `word_mail_merge`, `word_read_markdown`, `word_read_structured`, `word_set_metadata`.
 
 ## Decisions made autonomously
 
-1. **Markdown writer is hand-rolled.** DevExpress 25.2 `DocumentFormat` does **not** include Markdown — supported import/export formats are TXT/RTF/DOCX/DOC/DOCM/DOT/DOTM/DOTX/WordML/OpenDocument/HTML/MHT/XML/FlatOpc/EPUB. (PDF is export-only.) The plan flagged this risk but assumed first-party support; reality is no support at all. `WriteMarkdownToDocument` in `WordDocumentService.cs` covers blank-line-separated blocks, ATX headings (#–######), inline `**bold**` and `*italic*`. **No tables, lists, links, code, or escaping yet.** Used by both `word_create_from_markdown` (Task 15) and `word_append_markdown` (Task 16).
+1. **Markdown import uses `MarkdownToDocxGenerator` 1.2.0.** DevExpress 25.2 `DocumentFormat` does **not** include Markdown, so `word_create_from_markdown` and `word_append_markdown` now generate DOCX through the MIT-licensed `MarkdownToDocxGenerator` package, then load the result back through `RichEditDocumentServer`. This gives us richer Markdown input than the old hand-rolled writer: tables, lists, fenced code blocks, links/images at the package level, plus bold. We add mcpOffice post-processing for stable behavior: ATX Markdown headings are normalized to DevExpress/Word `Heading N` styles so `word_get_outline` still works, and common `*italic*` spans are re-applied because the package does not emit italic for single-asterisk emphasis.
 
-   **Replacement candidate worth evaluating:** [`mathieumack/MarkdownToDocxGenerator`](https://github.com/mathieumack/MarkdownToDocxGenerator) — third-party C# Markdown→docx library. If a future task needs richer Markdown (tables, code blocks, lists, links, escapes) before we hand-roll those features ourselves, swap in this library and delete the hand-rolled writer. Verify license compatibility and whether it composes with DevExpress's RichEditDocumentServer or only writes raw OpenXml — we'd want the output to round-trip back through `word_read_structured`.
+   **Caveats:** lists currently round-trip as paragraph text with literal `-` / `1.` prefixes rather than semantic Word list objects. `word_read_structured` still does not expose hyperlink URLs, so link preservation is not asserted yet. The package depends on `OpenXMLSDK.Engine 2022.10313.0-preview-044`; acceptable for this POC, but revisit before a production packaging milestone.
 
 2. **Run detection in `word_read_structured` is character-by-character** via `BeginUpdateCharacters` per character. Simple and correct; slow for large docs. Optimize only if a profile says so.
 
@@ -65,28 +65,24 @@ Tool surface (15): `Ping`, `word_append_markdown`, `word_create_blank`, `word_cr
 
 ## What's next
 
-**Task 22 — `word_convert(inputPath, outputPath, format?)`.** Maps file extensions / explicit format strings to `DocumentFormat` values (or `ExportToPdf` for `.pdf`):
+**Task 24 — end-to-end integration tests.** Add stdio tests for one read, one write, and one convert workflow:
 
-- `.pdf` → `RichEditDocumentServer.ExportToPdf(stream)`
-- `.html` → `DocumentFormat.Html`
-- `.rtf` → `DocumentFormat.Rtf`
-- `.txt` → `DocumentFormat.PlainText`
-- `.md` / `.markdown` → **no DevExpress support** — emit via the existing `ReadAsMarkdown` projection, write bytes directly. Don't try to use `DocumentFormat.Markdown` (it doesn't exist).
-- `.docx` → `DocumentFormat.OpenXml`
+- `Read_markdown_round_trip_via_stdio`
+- `Create_then_outline_via_stdio`
+- `Convert_to_pdf_via_stdio`
 
-One test per format asserting non-empty output + magic bytes (`%PDF-`, `<html`, `{\rtf`, `PK\x03\x04` for docx). Error test: `format = "xyz"` → `unsupported_format`.
-
-After 22: Tasks 23/24 are integration polish; 25/26 are docs + final verification.
+After 24: Tasks 25/26 are docs + final verification.
 
 ## How to resume
 
 ```bash
 cd C:/Projects/mcpOffice
-git status                                  # clean
-git log --oneline -3                        # f2c0012, ece4745, 601f29b
+git status                                  # uncommitted Task 22 changes unless already committed
+git log --oneline -3                        # 9a40dfa, f2c0012, ece4745
 dotnet build                                # 0 warnings, 0 errors
-dotnet test                                 # 27 tests passing
-git push                                    # fast-forward, 11 commits ahead
+dotnet test                                 # 36 tests passing
+git add src/mcpOffice tests/mcpOffice.Tests tests/mcpOffice.Tests.Integration SESSION_HANDOFF.md
+git commit -m "feat: add word_convert tool"
 ```
 
-Then start Task 22.
+Then start Task 24.

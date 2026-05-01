@@ -1,10 +1,13 @@
 using DevExpress.XtraRichEdit;
 using DevExpress.XtraRichEdit.API.Native;
+using MarkdownToDocxGenerator;
 using McpOffice.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using RichEditFormat = DevExpress.XtraRichEdit.DocumentFormat;
 
 namespace McpOffice.Services.Word;
 
@@ -17,7 +20,7 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = new RichEditDocumentServer();
-            server.LoadDocument(path, DocumentFormat.OpenXml);
+            server.LoadDocument(path, RichEditFormat.OpenXml);
 
             var document = server.Document;
             var outline = new List<OutlineNode>();
@@ -204,7 +207,7 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = new RichEditDocumentServer();
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -241,7 +244,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 paragraph.Style = document.ParagraphStyles[style];
             }
 
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -294,7 +297,50 @@ public sealed class WordDocumentService : IWordDocumentService
                 document.ReplaceAll(find, replacement, SearchOptions.None);
             }
 
-            server.SaveDocument(outputPath, DocumentFormat.OpenXml);
+            server.SaveDocument(outputPath, RichEditFormat.OpenXml);
+            return outputPath;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
+    public string Convert(string inputPath, string outputPath, string? format)
+    {
+        PathGuard.RequireExists(inputPath);
+        PathGuard.RequireWritable(outputPath, overwrite: false);
+
+        var outputFormat = ResolveOutputFormat(format, outputPath);
+
+        try
+        {
+            using var server = LoadOpenXml(inputPath);
+
+            switch (outputFormat)
+            {
+                case WordOutputFormat.Pdf:
+                    server.ExportToPdf(outputPath);
+                    break;
+                case WordOutputFormat.Html:
+                    server.SaveDocument(outputPath, RichEditFormat.Html);
+                    break;
+                case WordOutputFormat.Rtf:
+                    server.SaveDocument(outputPath, RichEditFormat.Rtf);
+                    break;
+                case WordOutputFormat.Text:
+                    server.SaveDocument(outputPath, RichEditFormat.PlainText);
+                    break;
+                case WordOutputFormat.Markdown:
+                    File.WriteAllText(outputPath, RenderMarkdown(server), Encoding.UTF8);
+                    break;
+                case WordOutputFormat.OpenXml:
+                    server.SaveDocument(outputPath, RichEditFormat.OpenXml);
+                    break;
+                default:
+                    throw ToolError.UnsupportedFormat(format ?? Path.GetExtension(outputPath));
+            }
+
             return outputPath;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -333,7 +379,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 }
             }
 
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -384,7 +430,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 }
             }
 
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -416,7 +462,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 count = document.ReplaceAll(find, replace, options);
             }
 
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return new ReplaceResult(count);
         }
         catch (Exception ex) when (ex is not McpException)
@@ -432,8 +478,9 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = LoadOpenXml(path);
-            WriteMarkdownToDocument(server.Document, markdown);
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            using var markdownServer = CreateDocumentFromMarkdown(markdown);
+            server.Document.AppendDocumentContent(markdownServer.Document.Range);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -448,9 +495,8 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = new RichEditDocumentServer();
-            WriteMarkdownToDocument(server.Document, markdown);
-            server.SaveDocument(path, DocumentFormat.OpenXml);
+            using var server = CreateDocumentFromMarkdown(markdown);
+            server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -466,32 +512,7 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = LoadOpenXml(path);
-            var document = server.Document;
-            var markdown = new StringBuilder();
-
-            foreach (var paragraph in document.Paragraphs)
-            {
-                var text = document.GetText(paragraph.Range).Trim();
-                if (text.Length == 0)
-                {
-                    continue;
-                }
-
-                var headingLevel = TryGetHeadingLevel(paragraph.Style?.Name);
-                if (headingLevel is not null)
-                {
-                    markdown.Append('#', headingLevel.Value);
-                    markdown.Append(' ');
-                    markdown.AppendLine(text);
-                    markdown.AppendLine();
-                    continue;
-                }
-
-                markdown.AppendLine(text);
-                markdown.AppendLine();
-            }
-
-            return markdown.ToString().TrimEnd();
+            return RenderMarkdown(server);
         }
         catch (Exception ex) when (ex is not McpException)
         {
@@ -499,10 +520,68 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    private enum WordOutputFormat
+    {
+        Pdf,
+        Html,
+        Rtf,
+        Text,
+        Markdown,
+        OpenXml
+    }
+
+    private static WordOutputFormat ResolveOutputFormat(string? format, string outputPath)
+    {
+        var value = string.IsNullOrWhiteSpace(format)
+            ? Path.GetExtension(outputPath).TrimStart('.')
+            : format.Trim().TrimStart('.');
+
+        return value.ToLowerInvariant() switch
+        {
+            "pdf" => WordOutputFormat.Pdf,
+            "html" or "htm" => WordOutputFormat.Html,
+            "rtf" => WordOutputFormat.Rtf,
+            "txt" or "text" => WordOutputFormat.Text,
+            "md" or "markdown" => WordOutputFormat.Markdown,
+            "docx" => WordOutputFormat.OpenXml,
+            _ => throw ToolError.UnsupportedFormat(value)
+        };
+    }
+
+    private static string RenderMarkdown(RichEditDocumentServer server)
+    {
+        var document = server.Document;
+        var markdown = new StringBuilder();
+
+        foreach (var paragraph in document.Paragraphs)
+        {
+            var text = document.GetText(paragraph.Range).Trim();
+            if (text.Length == 0)
+            {
+                continue;
+            }
+
+            var headingLevel = TryGetHeadingLevel(paragraph.Style?.Name);
+            if (headingLevel is not null)
+            {
+                markdown.Append('#', headingLevel.Value);
+                markdown.Append(' ');
+                markdown.AppendLine(text);
+                markdown.AppendLine();
+                continue;
+            }
+
+            markdown.AppendLine(text);
+            markdown.AppendLine();
+        }
+
+        return markdown.ToString().TrimEnd();
+    }
+
     private static RichEditDocumentServer LoadOpenXml(string path)
     {
         var server = new RichEditDocumentServer();
-        server.LoadDocument(path, DocumentFormat.OpenXml);
+        server.LoadDocument(path, RichEditFormat.OpenXml);
         return server;
     }
 
@@ -569,75 +648,145 @@ public sealed class WordDocumentService : IWordDocumentService
         return runs;
     }
 
-    private static void WriteMarkdownToDocument(Document doc, string? markdown)
+    private static RichEditDocumentServer CreateDocumentFromMarkdown(string? markdown)
     {
-        if (string.IsNullOrEmpty(markdown)) return;
+        var generator = new MdReportGenenerator(
+            NullLogger<MdReportGenenerator>.Instance,
+            new MdToOxmlEngine(NullLogger<MdToOxmlEngine>.Instance));
 
+        using var stream = generator.TransformWithStream([markdown ?? string.Empty]);
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        var server = new RichEditDocumentServer();
+        server.LoadDocument(stream, RichEditFormat.OpenXml);
+        NormalizeMarkdownGeneratedDocument(server.Document, markdown);
+        return server;
+    }
+
+    private sealed record MarkdownHeading(int Level, string Text);
+
+    private static void NormalizeMarkdownGeneratedDocument(Document document, string? markdown)
+    {
+        ApplyMarkdownHeadingStyles(document, ExtractMarkdownHeadings(markdown));
+        ApplyMarkdownItalicStyles(document, ExtractMarkdownItalicSpans(markdown));
+
+        foreach (var paragraph in document.Paragraphs)
+        {
+            var styleName = paragraph.Style?.Name;
+            var match = styleName is null
+                ? System.Text.RegularExpressions.Match.Empty
+                : Regex.Match(styleName, @"^Titre(?<level>[1-6])$", RegexOptions.IgnoreCase);
+
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var headingStyle = $"Heading {match.Groups["level"].Value}";
+            EnsureParagraphStyle(document, headingStyle);
+            paragraph.Style = document.ParagraphStyles[headingStyle];
+        }
+    }
+
+    private static IReadOnlyList<MarkdownHeading> ExtractMarkdownHeadings(string? markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return [];
+        }
+
+        var headings = new List<MarkdownHeading>();
         var normalized = markdown.Replace("\r\n", "\n").Replace("\r", "\n");
-        var blocks = Regex.Split(normalized, @"\n\s*\n");
-
-        foreach (var rawBlock in blocks)
+        foreach (var line in normalized.Split('\n'))
         {
-            var block = rawBlock.Trim();
-            if (block.Length == 0) continue;
+            var match = Regex.Match(line, @"^\s*(#{1,6})\s+(.+?)\s*#*\s*$");
+            if (!match.Success)
+            {
+                continue;
+            }
 
-            var headingMatch = Regex.Match(block, @"^(#{1,6})\s+(.*)$", RegexOptions.Singleline);
-            if (headingMatch.Success)
+            headings.Add(new MarkdownHeading(
+                match.Groups[1].Value.Length,
+                StripInlineMarkdown(match.Groups[2].Value.Trim())));
+        }
+
+        return headings;
+    }
+
+    private static void ApplyMarkdownHeadingStyles(Document document, IReadOnlyList<MarkdownHeading> headings)
+    {
+        if (headings.Count == 0)
+        {
+            return;
+        }
+
+        var headingIndex = 0;
+        foreach (var paragraph in document.Paragraphs)
+        {
+            if (headingIndex >= headings.Count)
             {
-                var level = headingMatch.Groups[1].Value.Length;
-                var text = headingMatch.Groups[2].Value;
-                var range = doc.AppendText(text + "\n");
-                var paragraph = doc.Paragraphs.Get(range).First();
-                EnsureParagraphStyle(doc, $"Heading {level}");
-                paragraph.Style = doc.ParagraphStyles[$"Heading {level}"];
+                return;
             }
-            else
+
+            var text = document.GetText(paragraph.Range).Trim();
+            var heading = headings[headingIndex];
+            if (!string.Equals(text, heading.Text, StringComparison.Ordinal))
             {
-                WriteInline(doc, block);
-                doc.AppendText("\n");
+                continue;
             }
+
+            var headingStyle = $"Heading {heading.Level}";
+            EnsureParagraphStyle(document, headingStyle);
+            paragraph.Style = document.ParagraphStyles[headingStyle];
+            headingIndex++;
         }
     }
 
-    private static void WriteInline(Document doc, string text)
+    private static string StripInlineMarkdown(string text)
     {
-        var i = 0;
-        while (i < text.Length)
-        {
-            if (i + 1 < text.Length && text[i] == '*' && text[i + 1] == '*')
-            {
-                var end = text.IndexOf("**", i + 2, StringComparison.Ordinal);
-                if (end >= 0)
-                {
-                    AppendStyled(doc, text.Substring(i + 2, end - (i + 2)), bold: true, italic: false);
-                    i = end + 2;
-                    continue;
-                }
-            }
-            if (text[i] == '*')
-            {
-                var end = text.IndexOf('*', i + 1);
-                if (end >= 0)
-                {
-                    AppendStyled(doc, text.Substring(i + 1, end - (i + 1)), bold: false, italic: true);
-                    i = end + 1;
-                    continue;
-                }
-            }
-            var nextSpecial = text.IndexOf('*', i);
-            if (nextSpecial < 0) nextSpecial = text.Length;
-            if (nextSpecial > i) doc.AppendText(text.Substring(i, nextSpecial - i));
-            i = nextSpecial;
-        }
+        var result = Regex.Replace(text, @"\*\*(.+?)\*\*", "$1");
+        result = Regex.Replace(result, @"\*(.+?)\*", "$1");
+        result = Regex.Replace(result, @"\[(.+?)\]\(.+?\)", "$1");
+        return result;
     }
 
-    private static void AppendStyled(Document doc, string text, bool bold, bool italic)
+    private static IReadOnlyList<string> ExtractMarkdownItalicSpans(string? markdown)
     {
-        var range = doc.AppendText(text);
-        var props = doc.BeginUpdateCharacters(range);
-        if (bold) props.Bold = true;
-        if (italic) props.Italic = true;
-        doc.EndUpdateCharacters(props);
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return [];
+        }
+
+        var spans = new List<string>();
+        var withoutCodeFences = Regex.Replace(markdown, @"```.*?```", string.Empty, RegexOptions.Singleline);
+        foreach (System.Text.RegularExpressions.Match match in Regex.Matches(
+                     withoutCodeFences,
+                     @"(?<!\*)\*(?!\*)(?<text>.+?)(?<!\*)\*(?!\*)"))
+        {
+            var text = match.Groups["text"].Value.Trim();
+            if (text.Length > 0)
+            {
+                spans.Add(StripInlineMarkdown(text));
+            }
+        }
+
+        return spans.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    private static void ApplyMarkdownItalicStyles(Document document, IReadOnlyList<string> spans)
+    {
+        foreach (var span in spans)
+        {
+            foreach (var range in document.FindAll(span, SearchOptions.None))
+            {
+                var properties = document.BeginUpdateCharacters(range);
+                properties.Italic = true;
+                document.EndUpdateCharacters(properties);
+            }
+        }
     }
 
     private static void EnsureParagraphStyle(Document doc, string styleName)

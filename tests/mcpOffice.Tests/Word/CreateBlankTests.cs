@@ -1,6 +1,7 @@
 using DevExpress.XtraRichEdit;
 using McpOffice.Services.Word;
 using ModelContextProtocol;
+using RichEditFormat = DevExpress.XtraRichEdit.DocumentFormat;
 
 namespace McpOffice.Tests.Word;
 
@@ -18,7 +19,7 @@ public class CreateBlankTests
             Assert.True(File.Exists(path));
 
             using var server = new RichEditDocumentServer();
-            server.LoadDocument(path, DocumentFormat.OpenXml);
+            server.LoadDocument(path, RichEditFormat.OpenXml);
         }
         finally
         {
