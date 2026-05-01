@@ -16,8 +16,8 @@ Pending work for mcpOffice. Pulled from `docs/plans/2026-04-30-mcpoffice-word-po
 - [x] Task 10 — `word_read_markdown`
 - [x] Task 11 — `word_read_structured`
 - [x] Task 12 — `word_list_comments`
-- [ ] Task 13 — `word_list_revisions`  ← next
-- [ ] Task 14 — `word_create_blank`
+- [x] Task 13 — `word_list_revisions`
+- [ ] Task 14 — `word_create_blank`  ← next
 - [ ] Task 15 — `word_create_from_markdown`
 - [ ] Task 16 — `word_append_markdown`
 - [ ] Task 17 — `word_find_replace`

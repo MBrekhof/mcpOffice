@@ -38,4 +38,10 @@ public static class WordTools
     public static object WordListComments(
         [Description("Absolute path to the .docx file")] string path)
         => Service.ListComments(path);
+
+    [McpServerTool(Name = "word_list_revisions")]
+    [Description("Returns all tracked-change revisions: type (insert/delete/format/...), author, date, and affected text.")]
+    public static object WordListRevisions(
+        [Description("Absolute path to the .docx file")] string path)
+        => Service.ListRevisions(path);
 }

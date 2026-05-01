@@ -5,12 +5,15 @@ namespace McpOffice.Tests.Word;
 
 internal static class TestWordDocuments
 {
-    public static string Create(Action<Document> configure)
+    public static string Create(Action<Document> configure) =>
+        Create(server => configure(server.Document));
+
+    public static string Create(Action<RichEditDocumentServer> configure)
     {
         var path = Path.Combine(Path.GetTempPath(), $"mcpoffice-{Guid.NewGuid():N}.docx");
 
         using var server = new RichEditDocumentServer();
-        configure(server.Document);
+        configure(server);
         server.SaveDocument(path, DocumentFormat.OpenXml);
 
         return path;

@@ -11,6 +11,7 @@ public class ToolSurfaceTests
             "word_get_metadata",
             "word_get_outline",
             "word_list_comments",
+            "word_list_revisions",
             "word_read_markdown",
             "word_read_structured"
         ];

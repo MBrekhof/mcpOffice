@@ -167,6 +167,35 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public IReadOnlyList<RevisionEntry> ListRevisions(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var document = server.Document;
+            var entries = new List<RevisionEntry>();
+
+            foreach (var revision in document.Revisions)
+            {
+                var text = document.GetText(revision.Range)
+                    .TrimEnd('\r', '\n', '\v', '\f');
+                entries.Add(new RevisionEntry(
+                    MapRevisionType(revision.Type),
+                    revision.Author ?? string.Empty,
+                    revision.DateTime ?? default,
+                    text));
+            }
+
+            return entries;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
     public string ReadAsMarkdown(string path)
     {
         PathGuard.RequireExists(path);
@@ -276,6 +305,21 @@ public sealed class WordDocumentService : IWordDocumentService
 
         return runs;
     }
+
+    private static string MapRevisionType(RevisionType type) => type switch
+    {
+        RevisionType.Inserted => "insert",
+        RevisionType.Deleted => "delete",
+        RevisionType.CharacterPropertyChanged => "format",
+        RevisionType.ParagraphPropertyChanged => "format",
+        RevisionType.SectionPropertyChanged => "format",
+        RevisionType.TablePropertyChanged => "format",
+        RevisionType.TableRowPropertyChanged => "format",
+        RevisionType.TableCellPropertyChanged => "format",
+        RevisionType.CharacterStyleDefinitionChanged => "format",
+        RevisionType.ParagraphStyleDefinitionChanged => "format",
+        _ => type.ToString().ToLowerInvariant()
+    };
 
     private static int? TryGetHeadingLevel(string? styleName)
     {
