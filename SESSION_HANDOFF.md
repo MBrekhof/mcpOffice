@@ -2,8 +2,8 @@
 
 ## Where things stand
 
-**Branch:** `poc/word-tools` — local has uncommitted Task 24 integration-test changes after `af732fb`.
-**Latest commit:** `af732fb` chore: add VS Code MCP workspace config
+**Branch:** `poc/word-tools` — local has uncommitted Task 25 docs changes after `4c31ce3`.
+**Latest commit:** `4c31ce3` test: add Word MCP workflow integration tests
 **Build:** `0 warnings, 0 errors`. **Tests:** `39/39 passing` (33 unit + 6 integration).
 
 Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
@@ -33,7 +33,7 @@ Plan tasks (`docs/plans/2026-04-30-mcpoffice-word-poc-plan.md`):
 ✅ Task 22 — word_convert
 ✅ Task 23 — tool-surface integration test (updated with all 16 tools)
 ✅ Task 24 — end-to-end integration tests (read / write / convert via stdio)
-⬜ Task 25 — docs polish (docs/usage.md exists; README may need expansion)
+✅ Task 25 — docs polish (README + docs/usage.md refreshed)
 ⬜ Task 26 — final verification (Release build, publish, live MCP wire-in)
 ```
 
@@ -61,27 +61,30 @@ Tool surface (16): `Ping`, `word_append_markdown`, `word_convert`, `word_create_
 
 - **DevExpress runtime license** still not wired in via `licenses.licx`. All `RichEditDocumentServer` calls succeed under trial mode; defer until something actually fails (e.g. exporting to PDF or saving past the trial limit on a large doc).
 - **No `.editorconfig`** — `dotnet format` has no rules to enforce.
-- **`docs/usage.md`** exists (from origin/main) but predates Tasks 11–21. Will need a refresh in Task 25.
+- **No live MCP wire-in has been verified yet** after the Release publish. Task 24 proves stdio transport through integration tests; Task 26 still needs a real client/server call against the published executable.
 
 ## What's next
 
-**Task 25 — docs polish.** Refresh `docs/usage.md` and README:
+**Task 26 — final verification.**
 
-- README still lists the old three-tool surface and should list all 16 tools.
-- `docs/usage.md` predates Tasks 11–24 and should document read/write/convert workflows, the VS Code `.vscode/mcp.json`, and the Markdown import caveats.
+- `dotnet build -c Release --nologo`
+- `dotnet test -c Release --nologo`
+- `dotnet publish -c Release -r win-x64 --self-contained false src/mcpOffice`
+- Wire the published server into an MCP client and call `word_get_outline` against a real `.docx`.
+- Update final handoff/memory notes and choose the next milestone.
 
-After 25: Task 26 is final verification (Release build/test/publish/live MCP wire-in).
+After 26: Word POC is complete; next milestone is Excel.
 
 ## How to resume
 
 ```bash
 cd C:/Projects/mcpOffice
-git status                                  # uncommitted Task 24 changes unless already committed
-git log --oneline -3                        # af732fb, 925d3c6, 9a40dfa
+git status                                  # uncommitted Task 25 docs changes unless already committed
+git log --oneline -3                        # 4c31ce3, af732fb, 925d3c6
 dotnet build                                # 0 warnings, 0 errors
 dotnet test                                 # 39 tests passing
-git add tests/mcpOffice.Tests.Integration/WordWorkflowTests.cs SESSION_HANDOFF.md
-git commit -m "test: add Word MCP workflow integration tests"
+git add README.md docs/usage.md SESSION_HANDOFF.md
+git commit -m "docs: refresh Word POC usage guide"
 ```
 
-Then start Task 25.
+Then start Task 26.
