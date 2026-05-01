@@ -212,6 +212,43 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    public string InsertParagraph(string path, int atIndex, string text, string? style)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var server = LoadOpenXml(path);
+            var document = server.Document;
+            var paragraphCount = document.Paragraphs.Count;
+
+            if (atIndex < 0 || atIndex > paragraphCount)
+            {
+                throw ToolError.IndexOutOfRange(atIndex, paragraphCount);
+            }
+
+            var insertPos = atIndex == paragraphCount
+                ? document.Range.End
+                : document.Paragraphs[atIndex].Range.Start;
+
+            var insertedRange = document.InsertText(insertPos, text + "\n");
+
+            if (!string.IsNullOrEmpty(style))
+            {
+                EnsureParagraphStyle(document, style);
+                var paragraph = document.Paragraphs.Get(insertedRange).First();
+                paragraph.Style = document.ParagraphStyles[style];
+            }
+
+            server.SaveDocument(path, DocumentFormat.OpenXml);
+            return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
     public ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase)
     {
         PathGuard.RequireExists(path);

@@ -76,4 +76,13 @@ public static class WordTools
         [Description("If true, treat 'find' as a .NET regular expression")] bool useRegex = false,
         [Description("If true, match case")] bool matchCase = false)
         => Service.FindReplace(path, find, replace, useRegex, matchCase);
+
+    [McpServerTool(Name = "word_insert_paragraph")]
+    [Description("Inserts a paragraph at the given paragraph index (0-based, must be in [0, paragraphCount]). Optional style by name (e.g. 'Heading 1').")]
+    public static string WordInsertParagraph(
+        [Description("Absolute path to the .docx file")] string path,
+        [Description("0-based paragraph index. Use paragraphCount to append at the end.")] int atIndex,
+        [Description("Paragraph text")] string text,
+        [Description("Optional paragraph style name (e.g. 'Heading 1', 'Normal'). Null = default style.")] string? style = null)
+        => Service.InsertParagraph(path, atIndex, text, style);
 }

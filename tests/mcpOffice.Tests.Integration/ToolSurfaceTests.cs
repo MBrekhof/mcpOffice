@@ -14,6 +14,7 @@ public class ToolSurfaceTests
             "word_find_replace",
             "word_get_metadata",
             "word_get_outline",
+            "word_insert_paragraph",
             "word_list_comments",
             "word_list_revisions",
             "word_read_markdown",
