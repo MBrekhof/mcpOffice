@@ -101,4 +101,12 @@ public static class WordTools
         [Description("Absolute path to the .docx file")] string path,
         [Description("Map of property name to value. Allowed keys: author, title, subject, keywords.")] Dictionary<string, string> properties)
         => Service.SetMetadata(path, properties);
+
+    [McpServerTool(Name = "word_mail_merge")]
+    [Description("Replaces {{token}} placeholders in templatePath with values from dataJson and writes to outputPath. Throws merge_field_missing if any token has no value, file_exists if outputPath already exists.")]
+    public static string WordMailMerge(
+        [Description("Absolute path to the .docx template containing {{token}} placeholders")] string templatePath,
+        [Description("Absolute path where the merged .docx will be written")] string outputPath,
+        [Description("JSON object mapping token name to value")] string dataJson)
+        => Service.MailMerge(templatePath, outputPath, dataJson);
 }

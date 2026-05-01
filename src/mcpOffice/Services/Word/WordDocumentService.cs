@@ -3,6 +3,7 @@ using DevExpress.XtraRichEdit.API.Native;
 using McpOffice.Models;
 using ModelContextProtocol;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace McpOffice.Services.Word;
@@ -242,6 +243,59 @@ public sealed class WordDocumentService : IWordDocumentService
 
             server.SaveDocument(path, DocumentFormat.OpenXml);
             return path;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
+    private static readonly Regex MailMergeTokenPattern = new(@"\{\{(\w+)\}\}", RegexOptions.Compiled);
+
+    public string MailMerge(string templatePath, string outputPath, string dataJson)
+    {
+        PathGuard.RequireExists(templatePath);
+        PathGuard.RequireWritable(outputPath, overwrite: false);
+
+        Dictionary<string, JsonElement> data;
+        try
+        {
+            data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(dataJson)
+                   ?? new Dictionary<string, JsonElement>();
+        }
+        catch (JsonException ex)
+        {
+            throw ToolError.ParseError("dataJson", ex.Message);
+        }
+
+        try
+        {
+            using var server = LoadOpenXml(templatePath);
+            var document = server.Document;
+            var fullText = document.GetText(document.Range);
+
+            var tokens = MailMergeTokenPattern.Matches(fullText)
+                .Select(m => m.Groups[1].Value)
+                .Distinct()
+                .ToList();
+
+            var missing = tokens.Where(t => !data.ContainsKey(t)).ToList();
+            if (missing.Count > 0)
+            {
+                throw ToolError.MergeFieldMissing(missing);
+            }
+
+            foreach (var token in tokens)
+            {
+                var find = "{{" + token + "}}";
+                var replacement = data[token].ValueKind == JsonValueKind.String
+                    ? data[token].GetString() ?? string.Empty
+                    : data[token].ToString();
+                document.ReplaceAll(find, replacement, SearchOptions.None);
+            }
+
+            server.SaveDocument(outputPath, DocumentFormat.OpenXml);
+            return outputPath;
         }
         catch (Exception ex) when (ex is not McpException)
         {

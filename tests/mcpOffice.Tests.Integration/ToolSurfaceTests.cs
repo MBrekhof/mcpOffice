@@ -18,6 +18,7 @@ public class ToolSurfaceTests
             "word_insert_table",
             "word_list_comments",
             "word_list_revisions",
+            "word_mail_merge",
             "word_read_markdown",
             "word_read_structured",
             "word_set_metadata"

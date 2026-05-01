@@ -24,8 +24,8 @@ Pending work for mcpOffice. Pulled from `docs/plans/2026-04-30-mcpoffice-word-po
 - [x] Task 18 — `word_insert_paragraph`
 - [x] Task 19 — `word_insert_table`
 - [x] Task 20 — `word_set_metadata`
-- [ ] Task 21 — `word_mail_merge`  ← next
-- [ ] Task 22 — `word_convert`
+- [x] Task 21 — `word_mail_merge`
+- [ ] Task 22 — `word_convert`  ← next
 - [ ] Task 23 — Tool-surface integration test (partial — `ToolSurfaceTests.cs` exists but lists only the 3 implemented tools; expand as new tools land)
 - [ ] Task 24 — End-to-end integration test per tool group
 - [ ] Task 25 — Docs: `docs/usage.md` (exists, may need polish) + README polish
