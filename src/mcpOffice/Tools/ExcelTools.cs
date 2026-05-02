@@ -44,4 +44,13 @@ public static class ExcelTools
     public static object ExcelListDefinedNames(
         [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
         => Service.ListDefinedNames(path);
+
+    [McpServerTool(Name = "excel_list_formulas")]
+    [Description("Returns formula cells across the workbook (or a single sheet). Each entry has {sheet, address, formula, value?, valueType?}. When includeValues=true the workbook is recalculated and value/valueType are populated. maxFormulas caps the result; exceeding it raises range_too_large.")]
+    public static object ExcelListFormulas(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path,
+        [Description("Optional sheet name. When omitted, all sheets are scanned.")] string? sheetName = null,
+        [Description("Recalculate and include cached values in each result.")] bool includeValues = false,
+        [Description("Maximum number of formula cells to return.")] int maxFormulas = 10000)
+        => Service.ListFormulas(path, sheetName, includeValues, maxFormulas);
 }

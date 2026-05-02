@@ -172,6 +172,67 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public IReadOnlyList<ExcelFormulaCell> ListFormulas(
+        string path,
+        string? sheetName,
+        bool includeValues,
+        int maxFormulas)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            if (includeValues)
+            {
+                workbook.CalculateFull();
+            }
+            var targets = string.IsNullOrWhiteSpace(sheetName)
+                ? workbook.Worksheets.AsEnumerable()
+                : new[] { ResolveWorksheet(workbook, sheetName, sheetIndex: null) };
+
+            var results = new List<ExcelFormulaCell>();
+            foreach (var worksheet in targets)
+            {
+                var used = worksheet.GetUsedRange();
+                if (used.RowCount == 0 || used.ColumnCount == 0)
+                {
+                    continue;
+                }
+
+                for (var r = 0; r < used.RowCount; r++)
+                {
+                    for (var c = 0; c < used.ColumnCount; c++)
+                    {
+                        var cell = used[r, c];
+                        if (!cell.HasFormula)
+                        {
+                            continue;
+                        }
+
+                        if (results.Count >= maxFormulas)
+                        {
+                            throw ToolError.RangeTooLarge(used.GetReferenceA1(), results.Count + 1, maxFormulas);
+                        }
+
+                        results.Add(new ExcelFormulaCell(
+                            worksheet.Name,
+                            cell.GetReferenceA1(),
+                            cell.Formula,
+                            includeValues ? GetCellValue(cell.Value) : null,
+                            includeValues ? GetCellValueType(cell.Value) : null));
+                    }
+                }
+            }
+
+            return results;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
     private static ExcelDefinedName MapDefinedName(DefinedName name, string? scope) =>
         new(
             name.Name,
