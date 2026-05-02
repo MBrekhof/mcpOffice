@@ -38,4 +38,10 @@ public static class ExcelTools
     public static object ExcelGetMetadata(
         [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
         => Service.GetMetadata(path);
+
+    [McpServerTool(Name = "excel_list_defined_names")]
+    [Description("Returns all defined names in the workbook. Each entry has {name, scope (null for workbook scope, sheet name for sheet scope), refersTo, comment, isHidden}.")]
+    public static object ExcelListDefinedNames(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
+        => Service.ListDefinedNames(path);
 }

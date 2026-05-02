@@ -15,4 +15,5 @@ public interface IExcelWorkbookService
         int maxCells);
     ExcelVbaProject ExtractVba(string path);
     ExcelWorkbookMetadata GetMetadata(string path);
+    IReadOnlyList<ExcelDefinedName> ListDefinedNames(string path);
 }

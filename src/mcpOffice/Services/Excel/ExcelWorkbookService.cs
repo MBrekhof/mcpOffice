@@ -142,6 +142,44 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public IReadOnlyList<ExcelDefinedName> ListDefinedNames(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            var results = new List<ExcelDefinedName>();
+
+            foreach (var name in workbook.DefinedNames)
+            {
+                results.Add(MapDefinedName(name, scope: null));
+            }
+
+            foreach (var worksheet in workbook.Worksheets)
+            {
+                foreach (var name in worksheet.DefinedNames)
+                {
+                    results.Add(MapDefinedName(name, scope: worksheet.Name));
+                }
+            }
+
+            return results;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    private static ExcelDefinedName MapDefinedName(DefinedName name, string? scope) =>
+        new(
+            name.Name,
+            scope,
+            name.RefersTo ?? string.Empty,
+            NullIfEmpty(name.Comment),
+            name.Hidden);
+
     private static string? NullIfEmpty(string? value) =>
         string.IsNullOrEmpty(value) ? null : value;
 
