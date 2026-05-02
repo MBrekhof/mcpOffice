@@ -32,4 +32,10 @@ public static class ExcelTools
     public static object ExcelExtractVba(
         [Description("Absolute path to the .xlsm workbook")] string path)
         => Service.ExtractVba(path);
+
+    [McpServerTool(Name = "excel_get_metadata")]
+    [Description("Returns workbook document properties (author, title, subject, keywords, description, category, company, manager, application, lastModifiedBy, created, modified, printed) plus sheetCount.")]
+    public static object ExcelGetMetadata(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
+        => Service.GetMetadata(path);
 }

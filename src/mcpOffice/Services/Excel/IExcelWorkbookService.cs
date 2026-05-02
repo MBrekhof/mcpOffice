@@ -14,4 +14,5 @@ public interface IExcelWorkbookService
         bool includeFormats,
         int maxCells);
     ExcelVbaProject ExtractVba(string path);
+    ExcelWorkbookMetadata GetMetadata(string path);
 }

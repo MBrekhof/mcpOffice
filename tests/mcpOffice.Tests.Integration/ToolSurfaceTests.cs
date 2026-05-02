@@ -8,6 +8,7 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "excel_extract_vba",
+            "excel_get_metadata",
             "excel_list_sheets",
             "excel_read_sheet",
             "Ping",

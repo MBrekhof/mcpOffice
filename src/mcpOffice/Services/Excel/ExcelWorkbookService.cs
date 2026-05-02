@@ -111,6 +111,43 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         return new VbaProjectReader().Read(path);
     }
 
+    public ExcelWorkbookMetadata GetMetadata(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            var p = workbook.DocumentProperties;
+
+            return new ExcelWorkbookMetadata(
+                NullIfEmpty(p.Author),
+                NullIfEmpty(p.Title),
+                NullIfEmpty(p.Subject),
+                NullIfEmpty(p.Keywords),
+                NullIfEmpty(p.Description),
+                NullIfEmpty(p.Category),
+                NullIfEmpty(p.Company),
+                NullIfEmpty(p.Manager),
+                NullIfEmpty(p.Application),
+                NullIfEmpty(p.LastModifiedBy),
+                NormalizeDate(p.Created),
+                NormalizeDate(p.Modified),
+                NormalizeDate(p.Printed),
+                workbook.Worksheets.Count);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrEmpty(value) ? null : value;
+
+    private static DateTime? NormalizeDate(DateTime value) =>
+        value == default ? null : value;
+
     private static Workbook LoadWorkbook(string path)
     {
         var workbook = new Workbook();
