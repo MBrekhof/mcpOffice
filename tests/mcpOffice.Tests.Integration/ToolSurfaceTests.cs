@@ -9,6 +9,7 @@ public class ToolSurfaceTests
         [
             "excel_extract_vba",
             "excel_get_metadata",
+            "excel_get_structure",
             "excel_list_defined_names",
             "excel_list_formulas",
             "excel_list_sheets",

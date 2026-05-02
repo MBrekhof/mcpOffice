@@ -21,4 +21,9 @@ public interface IExcelWorkbookService
         string? sheetName,
         bool includeValues,
         int maxFormulas);
+    ExcelWorkbookStructure GetStructure(
+        string path,
+        bool includeSheets,
+        bool includeFormulaCounts,
+        bool includeDefinedNames);
 }

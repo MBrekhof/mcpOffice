@@ -53,4 +53,13 @@ public static class ExcelTools
         [Description("Recalculate and include cached values in each result.")] bool includeValues = false,
         [Description("Maximum number of formula cells to return.")] int maxFormulas = 10000)
         => Service.ListFormulas(path, sheetName, includeValues, maxFormulas);
+
+    [McpServerTool(Name = "excel_get_structure")]
+    [Description("Returns a workbook-level summary: sheetCount, definedNameCount, optional sheets array (per-sheet index/name/visibility/usedRange/row+columnCount/formulaCount/tableCount), and optional definedNames. Toggle the include* flags to keep payloads small on large workbooks.")]
+    public static object ExcelGetStructure(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path,
+        [Description("Include the per-sheet array. Default true.")] bool includeSheets = true,
+        [Description("Include formula counts per sheet (requires scanning each used range). Default true.")] bool includeFormulaCounts = true,
+        [Description("Include the defined names array (workbook + sheet scoped). Default true.")] bool includeDefinedNames = true)
+        => Service.GetStructure(path, includeSheets, includeFormulaCounts, includeDefinedNames);
 }

@@ -233,6 +233,91 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public ExcelWorkbookStructure GetStructure(
+        string path,
+        bool includeSheets,
+        bool includeFormulaCounts,
+        bool includeDefinedNames)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+
+            var definedNameCount = workbook.DefinedNames.Count
+                + workbook.Worksheets.Sum(w => w.DefinedNames.Count);
+
+            List<ExcelSheetStructure>? sheets = null;
+            if (includeSheets)
+            {
+                sheets = new List<ExcelSheetStructure>(workbook.Worksheets.Count);
+                for (var i = 0; i < workbook.Worksheets.Count; i++)
+                {
+                    var worksheet = workbook.Worksheets[i];
+                    var used = worksheet.GetUsedRange();
+                    var formulaCount = includeFormulaCounts ? CountFormulas(used) : 0;
+
+                    sheets.Add(new ExcelSheetStructure(
+                        i,
+                        worksheet.Name,
+                        worksheet.Visible,
+                        "worksheet",
+                        used.GetReferenceA1(),
+                        used.RowCount,
+                        used.ColumnCount,
+                        formulaCount,
+                        worksheet.Tables.Count));
+                }
+            }
+
+            List<ExcelDefinedName>? definedNames = null;
+            if (includeDefinedNames)
+            {
+                definedNames = new List<ExcelDefinedName>(definedNameCount);
+                foreach (var name in workbook.DefinedNames)
+                {
+                    definedNames.Add(MapDefinedName(name, scope: null));
+                }
+                foreach (var worksheet in workbook.Worksheets)
+                {
+                    foreach (var name in worksheet.DefinedNames)
+                    {
+                        definedNames.Add(MapDefinedName(name, scope: worksheet.Name));
+                    }
+                }
+            }
+
+            return new ExcelWorkbookStructure(
+                workbook.Worksheets.Count,
+                definedNameCount,
+                sheets,
+                definedNames);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    private static int CountFormulas(CellRange range)
+    {
+        if (range.RowCount == 0 || range.ColumnCount == 0)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        for (var r = 0; r < range.RowCount; r++)
+        {
+            for (var c = 0; c < range.ColumnCount; c++)
+            {
+                if (range[r, c].HasFormula) count++;
+            }
+        }
+        return count;
+    }
+
     private static ExcelDefinedName MapDefinedName(DefinedName name, string? scope) =>
         new(
             name.Name,
