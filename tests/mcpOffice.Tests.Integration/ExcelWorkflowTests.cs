@@ -138,6 +138,29 @@ public class ExcelWorkflowTests
         }
     }
 
+    [Fact]
+    public async Task Analyze_vba_via_stdio_returns_summary()
+    {
+        var fixture = ResolveFixturePath("sample-with-macros.xlsm");
+        if (!File.Exists(fixture)) return;  // synthetic fixture optional; same skip pattern as Extract_vba_via_stdio
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_analyze_vba",
+            new Dictionary<string, object?>
+            {
+                ["path"] = fixture,
+                ["includeProcedures"] = true,
+                ["includeCallGraph"] = true,
+                ["includeReferences"] = true
+            });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+        Assert.Contains("\"hasVbaProject\":true", text);
+        Assert.Contains("\"summary\":", text);
+        Assert.Contains("\"modules\":", text);
+    }
+
     private static string ResolveFixturePath(string name)
     {
         var asmDir = Path.GetDirectoryName(typeof(ExcelWorkflowTests).Assembly.Location)!;
