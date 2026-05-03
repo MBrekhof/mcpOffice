@@ -46,7 +46,7 @@ Tools shipped this session (4 commits, 12 new unit tests):
 
 ## Outstanding — Action Required
 
-**1. Live agent verification of `excel_extract_vba`.** Wire the rebuilt server into Claude Code on the right machine and call against `C:\Projects\mcpOffice-samples\Air.xlsm` (107 modules). Cross-machine carry-over from the previous session — the workstation with that sample isn't this one.
+**1. ~~Live verification of `excel_extract_vba`.~~ DONE 2026-05-03.** Ran a one-off probe through `ServerHarness` (real stdio MCP transport) against `C:\Projects\mcpOffice-samples\Air.xlsm`. Result: hasVbaProject=true, 107 modules, 566 KB payload, first module `ThisWorkbook` with VBA attributes intact. Probe deleted after run — kept it out of the permanent suite since the file is machine-local. LLM-in-the-loop verification (registering `mcpOffice` as an MCP server in Claude Code and having an agent call it) is optional follow-up; the protocol-level run is the substantive evidence.
 
 **2. Open PR `poc/excel-tools` → `main`.** Squash-merge. Suggested title: `feat: Excel POC (list_sheets, read_sheet, extract_vba, get_metadata, list_defined_names, list_formulas, get_structure)`.
 

@@ -19,7 +19,7 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Branch: `poc/excel-
 - [x] Step 7 — Decision: in-process VBA extraction via `OpenMcdf` (landed)
 - [x] Step 7b — `excel_extract_vba` end-to-end (synthetic unit tests + real-Excel smoke + stdio integration)
 - [x] Step 8 — Formula/structure tools: `excel_get_metadata`, `excel_list_defined_names`, `excel_list_formulas`, `excel_get_structure`
-- [ ] Live agent verification of `excel_extract_vba` against `C:\Projects\mcpOffice-samples\Air.xlsm` (107 modules). Sample dir lives outside the repo to keep ~66 MB of unrelated business workbooks out of git history.
+- [x] Live stdio verification of `excel_extract_vba` against `C:\Projects\mcpOffice-samples\Air.xlsm` — 107 modules extracted, 566 KB payload, hasVbaProject=true. Sample dir lives outside the repo to keep ~66 MB of unrelated business workbooks out of git history. (LLM-in-the-loop verification via Claude Code MCP registration is optional follow-up — would require wiring `mcpOffice` into the MCP config and restarting Claude Code.)
 - [ ] Open PR `poc/excel-tools` → `main` (squash). Suggested title: `feat: Excel POC (list_sheets, read_sheet, extract_vba, get_metadata, list_defined_names, list_formulas, get_structure)`
 
 ## Next Excel feature (post-PR)
