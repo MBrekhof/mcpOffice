@@ -49,6 +49,15 @@ public static class ToolError
     public static Exception ModuleNotFound(string moduleName, IEnumerable<string> available) =>
         Throw(ErrorCode.ModuleNotFound, $"Module not found: {moduleName}. Available modules: {string.Join(", ", available)}");
 
+    public static Exception ProcedureNotFound(string procedureName, IEnumerable<string> available) =>
+        Throw(ErrorCode.ProcedureNotFound, $"Procedure not found: {procedureName}. Available procedures: {string.Join(", ", available)}");
+
+    public static Exception GraphTooLarge(int actualNodeCount, int maxNodes) =>
+        Throw(ErrorCode.GraphTooLarge, $"Filtered call graph has {actualNodeCount} nodes, which exceeds maxNodes={maxNodes}. Narrow the result with moduleName, procedureName, or a smaller depth.");
+
+    public static Exception InvalidRenderOption(string optionName, string value, string detail) =>
+        Throw(ErrorCode.InvalidRenderOption, $"Invalid value for {optionName}: '{value}'. {detail}");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }
