@@ -164,6 +164,52 @@ public class AnalyzeVbaPipelineTests
     }
 
     [Fact]
+    public void Document_module_codenames_classify_as_documentModule_regardless_of_locale()
+    {
+        // Dutch-locale codenames (Blad...). Without OOXML-derived codenames they would
+        // fall through to "classModule" because the legacy heuristic only matches
+        // English-default "Sheet*" prefixes. Helper is a class module (MODULETYPE 0x22)
+        // not in the codename set — proves the "type-0x22 + not-in-set → classModule"
+        // branch isn't accidentally falling through to documentModule.
+        var bytes = VbaProjectBinBuilder.Build([
+            new ModuleSpec("Blad1",        "Blad1",        "", IsDocumentModule: true),
+            new ModuleSpec("Blad3",        "Blad3",        "", IsDocumentModule: true),
+            new ModuleSpec("Helper",       "Helper",       "Sub Foo()\r\nEnd Sub", IsDocumentModule: true),
+            new ModuleSpec("ThisWorkbook", "ThisWorkbook", "", IsDocumentModule: true),
+        ]);
+
+        using var stream = new MemoryStream(bytes);
+        var project = new VbaProjectReader().ReadVbaProjectBin(
+            stream, "synthetic-dutch",
+            documentModuleCodenames: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ThisWorkbook", "Blad1", "Blad3" });
+
+        Assert.Equal("documentModule", project.Modules.Single(m => m.Name == "Blad1").Kind);
+        Assert.Equal("documentModule", project.Modules.Single(m => m.Name == "Blad3").Kind);
+        Assert.Equal("documentModule", project.Modules.Single(m => m.Name == "ThisWorkbook").Kind);
+        Assert.Equal("classModule",    project.Modules.Single(m => m.Name == "Helper").Kind);
+    }
+
+    [Fact]
+    public void Without_codenames_legacy_heuristic_still_classifies_Sheet_and_ThisWorkbook()
+    {
+        // Backward-compat: when codenames aren't available (null), classifier falls
+        // back to the legacy English-prefix heuristic so existing test fixtures and
+        // any callers of the simpler ReadVbaProjectBin overload don't regress.
+        var bytes = VbaProjectBinBuilder.Build([
+            new ModuleSpec("Sheet1",       "Sheet1",       "", IsDocumentModule: true),
+            new ModuleSpec("ThisWorkbook", "ThisWorkbook", "", IsDocumentModule: true),
+            new ModuleSpec("Helper",       "Helper",       "Sub Foo()\r\nEnd Sub"),
+        ]);
+
+        using var stream = new MemoryStream(bytes);
+        var project = new VbaProjectReader().ReadVbaProjectBin(stream, "synthetic-legacy");
+
+        Assert.Equal("documentModule", project.Modules.Single(m => m.Name == "Sheet1").Kind);
+        Assert.Equal("documentModule", project.Modules.Single(m => m.Name == "ThisWorkbook").Kind);
+        Assert.Equal("standardModule", project.Modules.Single(m => m.Name == "Helper").Kind);
+    }
+
+    [Fact]
     public void Pipeline_handles_empty_module_gracefully()
     {
         var bytes = VbaProjectBinBuilder.Build([
