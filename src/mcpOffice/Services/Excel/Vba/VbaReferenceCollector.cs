@@ -5,14 +5,6 @@ namespace McpOffice.Services.Excel.Vba;
 
 internal static partial class VbaReferenceCollector
 {
-    // Present for future enum extraction; the regex hardcodes the alternation.
-    private static readonly string[] ObjectModelApis =
-    [
-        "Worksheets", "Sheets", "Range", "Cells",
-        "ActiveSheet", "ActiveWorkbook", "ThisWorkbook",
-        "Application", "Selection", "Names"
-    ];
-
     // First pass: APIs invoked with a string-literal arg — capture the literal from OriginalText.
     [GeneratedRegex(@"\b(?<api>Worksheets|Sheets|Range|Cells|ActiveSheet|ActiveWorkbook|ThisWorkbook|Application|Selection|Names)\b\s*\(\s*""(?<lit>[^""]*)""", RegexOptions.IgnoreCase)]
     private static partial Regex OmWithLiteralRegex();
@@ -27,7 +19,10 @@ internal static partial class VbaReferenceCollector
     [GeneratedRegex(@"\b(Kill|MkDir|RmDir|ChDir|Dir|FileSystemObject|Workbooks\.Open|Workbooks\.OpenText|Scripting\.FileSystemObject)\b", RegexOptions.IgnoreCase)]
     private static partial Regex FileApiRegex();
 
-    [GeneratedRegex(@"(?:CreateObject|GetObject)\s*\(\s*""(?<progid>[^""]+)""", RegexOptions.IgnoreCase)]
+    // Matches both `CreateObject("ProgID")` and `GetObject(, "ProgID")` — the latter form has an
+    // empty first arg (for "any running instance"). The non-greedy non-quote prefix tolerates
+    // arbitrary leading args before the ProgID string literal.
+    [GeneratedRegex(@"(?:CreateObject|GetObject)\s*\(\s*[^""]*""(?<progid>[^""]+)""", RegexOptions.IgnoreCase)]
     private static partial Regex CreateGetObjectRegex();
 
     [GeneratedRegex(@"\b(ADODB\.|DAO\.|OpenDatabase)\b", RegexOptions.IgnoreCase)]
@@ -36,7 +31,9 @@ internal static partial class VbaReferenceCollector
     [GeneratedRegex(@"\b(MSXML2\.XMLHTTP|WinHttp\.WinHttpRequest|URLDownloadToFile|InternetExplorer\.Application)\b", RegexOptions.IgnoreCase)]
     private static partial Regex NetworkApiRegex();
 
-    [GeneratedRegex(@"^\s*Shell\s*\(", RegexOptions.IgnoreCase)]
+    // \b matches both function form `Shell(...)` and statement form `Shell "cmd"`,
+    // while still rejecting word continuations like `ShellExec(...)`.
+    [GeneratedRegex(@"^\s*Shell\b", RegexOptions.IgnoreCase)]
     private static partial Regex ShellRegex();
 
     public static void Collect(
@@ -100,13 +97,17 @@ internal static partial class VbaReferenceCollector
             return;
         }
 
-        // CreateObject / GetObject — dispatch by ProgID.
+        // CreateObject / GetObject — dispatch by ProgID. The two are semantically distinct
+        // (create-new vs attach-to-existing) so the operation label preserves which keyword fired.
         var co = CreateGetObjectRegex().Match(line.OriginalText);
         if (co.Success)
         {
             var progId = co.Groups["progid"].Value;
             string kind = ClassifyProgId(progId);
-            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, kind, progId, "CreateObject"));
+            var operation = co.Value.TrimStart().StartsWith("GetObject", StringComparison.OrdinalIgnoreCase)
+                ? "GetObject"
+                : "CreateObject";
+            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, kind, progId, operation));
             return;
         }
 

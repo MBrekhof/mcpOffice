@@ -79,4 +79,23 @@ public class VbaReferenceCollectorTests
             "Sub A()\nShell(\"notepad.exe\")\nEnd Sub");
         Assert.Equal("shell", deps.Single().Kind);
     }
+
+    [Fact]
+    public void GetObject_operation_label_is_GetObject_not_CreateObject()
+    {
+        var (_, deps) = Collect("M", "standardModule",
+            "Sub A()\nSet o = GetObject(, \"Excel.Application\")\nEnd Sub");
+        var d = Assert.Single(deps);
+        Assert.Equal("automation", d.Kind);   // Excel.Application falls to automation
+        Assert.Equal("Excel.Application", d.Target);
+        Assert.Equal("GetObject", d.Operation);   // not "CreateObject"
+    }
+
+    [Fact]
+    public void Shell_statement_form_without_parens_is_classified_as_shell()
+    {
+        var (_, deps) = Collect("M", "standardModule",
+            "Sub A()\nShell \"notepad.exe\"\nEnd Sub");
+        Assert.Equal("shell", deps.Single().Kind);
+    }
 }
