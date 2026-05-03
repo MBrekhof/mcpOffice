@@ -67,10 +67,9 @@ internal sealed class VbaProjectReader
                 throw ToolError.VbaProjectLocked(sourceLabel);
             }
 
-            // Build a case-insensitive set of storage names that indicate UserForm modules.
-            // UserForms have a same-named sub-storage (holding layout streams like f/o).
-            // Excel places these at the root level; some versions put them inside VBA.
-            // We check both locations to be safe.
+            // UserForms have a same-named sub-storage at the root level (next to VBA),
+            // holding layout streams like f/o. Excel writes them at root only; the
+            // MS-OVBA spec doesn't define sub-storages inside VBA, so we don't scan there.
             var formStorageNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var info in root.EnumerateEntries())
             {
@@ -79,11 +78,6 @@ internal sealed class VbaProjectReader
                 {
                     formStorageNames.Add(info.Name);
                 }
-            }
-            foreach (var info in vba.EnumerateEntries())
-            {
-                if (info.Type == EntryType.Storage)
-                    formStorageNames.Add(info.Name);
             }
 
             var modules = new List<ExcelVbaModule>(entries.Count);
