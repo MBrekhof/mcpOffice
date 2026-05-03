@@ -26,4 +26,9 @@ public interface IExcelWorkbookService
         bool includeSheets,
         bool includeFormulaCounts,
         bool includeDefinedNames);
+    ExcelVbaAnalysis AnalyzeVba(
+        string path,
+        bool includeProcedures,
+        bool includeCallGraph,
+        bool includeReferences);
 }

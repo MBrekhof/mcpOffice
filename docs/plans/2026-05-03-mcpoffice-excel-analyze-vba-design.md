@@ -86,7 +86,8 @@ ExcelVbaAnalysis {
             { name, type?, byRef: bool, optional: bool, defaultValue? }
           ],
           returnType: string?,                // for Function and Property Get
-          lineRange: [int, int],              // 1-based inclusive
+          lineStart: int,                     // 1-based inclusive
+          lineEnd: int,                       // 1-based inclusive
           isEventHandler: bool,
           eventTarget: string?                // e.g. "Workbook", "Worksheet", "CommandButton1"
         }

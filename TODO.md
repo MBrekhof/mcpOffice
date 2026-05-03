@@ -12,7 +12,16 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 
 ## Next Excel feature (post-PR)
 
-- [ ] `excel_analyze_vba` — layer over `excel_extract_vba`. Procedures/functions with signatures, event handlers, call graph, Excel object-model references, file/DB/network deps, conversion hints. Benchmark on the 107-module `C:\Projects\mcpOffice-samples\Air.xlsm`. Strategy choice: regex-on-extracted-source vs. proper VBA tokenizer.
+- [x] `excel_analyze_vba` — DONE (branch `feat/excel-analyze-vba`, merged). Procedures/functions with signatures, event handlers, call graph, Excel object-model references, file/DB/network deps. Benchmarked against the 107-module `C:\Projects\mcpOffice-samples\Air.xlsm`: 200 procedures, 110 event handlers, 938 call edges, 3040 object-model reference sites, 48 external dependencies, ~115ms wall time.
+
+## excel_analyze_vba v2 — conversion hints layer
+
+These items are surfaced by the v1 Air.xlsm benchmark as the natural next step toward Excel-to-C# migration tooling:
+
+- [ ] Conversion hints per procedure: classify as event handler / utility / data-transform / UI glue; suggest C# equivalent (method, service class, hosted service, etc.).
+- [ ] Dependency graph rendering: emit a DOT/Mermaid call graph for agent consumption.
+- [ ] Cross-module coupling score: identify tightly coupled module clusters as refactoring targets.
+- [ ] `excel_analyze_vba` v2 design doc — capture the shape of conversion hints DTO before implementing.
 
 ## Side items
 
@@ -25,4 +34,7 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 - [ ] PROJECTLCID-aware code page selection in `VbaProjectReader` (currently hardcoded to cp1252). MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale.
 - [ ] `excel_get_structure`: optional pivot / chart / external-connection counts via Open XML walk (DevExpress doesn't expose them directly).
 - [ ] `excel_list_formulas`: rough dependency-token extraction (deferred — formula text is enough for now).
-- [ ] Spike file `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs` is historical reference; consider removing once `excel_analyze_vba` lands.
+- [ ] Synthetic extract→analyze integration test using `VbaProjectBinBuilder` — design doc promised this; deferred in v1 in favor of the Air.xlsm gated benchmark. Adds coverage on machines without the sample file.
+- [ ] `VbaProjectReader.ClassifyKind` never produces `"userForm"` even though the design doc lists it as a valid module kind. Pre-existing classifier limitation. UserForm modules currently land as `"classModule"`. Either widen the classifier (best — surfaces a real distinction) or remove `"userForm"` from the design doc vocabulary.
+- [ ] `ExcelWorkbookService.AnalyzeVba` has no `try/catch (Exception ex) when (ex is not McpException)` wrapper, unlike most neighboring service methods. Subcomponents don't throw on string input today, but the divergence from convention is worth aligning.
+- [ ] `VbaProcedureScanner` lacks tests for `ParamArray` parameter form and `Static Sub` procedure form. Both currently parse correctly per the regex; no behavior gap, just test coverage.

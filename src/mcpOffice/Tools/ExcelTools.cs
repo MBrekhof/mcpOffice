@@ -62,4 +62,13 @@ public static class ExcelTools
         [Description("Include formula counts per sheet (requires scanning each used range). Default true.")] bool includeFormulaCounts = true,
         [Description("Include the defined names array (workbook + sheet scoped). Default true.")] bool includeDefinedNames = true)
         => Service.GetStructure(path, includeSheets, includeFormulaCounts, includeDefinedNames);
+
+    [McpServerTool(Name = "excel_analyze_vba")]
+    [Description("Layers structural analysis on top of excel_extract_vba's source: procedures with signatures, event handlers, call graph, Excel object-model references (Worksheets/Range/Cells/...), and external dependencies (file/database/network/automation/shell). Tiered output via toggles. Returns hasVbaProject=false (with zeroed summary) for workbooks without a VBA project.")]
+    public static object ExcelAnalyzeVba(
+        [Description("Absolute path to the .xlsm/.xlsb workbook")] string path,
+        [Description("Include the per-module procedure list. Default true.")] bool includeProcedures = true,
+        [Description("Include the call graph edges. Default false (medium cost).")] bool includeCallGraph = false,
+        [Description("Include object-model and dependency references. Default false (heaviest output).")] bool includeReferences = false)
+        => Service.AnalyzeVba(path, includeProcedures, includeCallGraph, includeReferences);
 }
