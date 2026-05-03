@@ -1,67 +1,73 @@
-# Session Handoff — 2026-05-03 (excel_analyze_vba v1 merged + follow-ups + wiring docs)
+# Session Handoff — 2026-05-03 (excel_render_vba_callgraph WIP — Tasks 1–4 of 19 done)
 
 ## Where Things Stand
 
-**Branch:** `main` — clean, up to date with `origin/main`.
-**Latest commit:** `2226e62` chore: wire mcpOffice into Claude Code + refresh usage docs (#6)
+**Branch:** `feat/render-vba-callgraph` — pushed to origin, **NOT** ready for PR yet (15 of 19 tasks remain).
+**Latest commit on branch:** `1123dde` feat: VbaCallgraphFilter — no-filter pass-through
+**Main:** `aa184a0` docs: design + plan for excel_render_vba_callgraph (analyzer v2) (#8) — clean.
 **Build:** `dotnet build` is green, 0 warnings, 0 errors.
-**Tests:** `dotnet test` is green.
-**Tool surface:** 24 tools (1 Ping + 15 Word + 8 Excel).
+**Tests:** 139 unit + 11 integration = 150 passing, 0 skipped.
+**Tool surface:** still 24 tools — `excel_render_vba_callgraph` registers in Task 15.
 
-## What Landed Recently (all on main)
+## What Landed Recently (all merged to main)
 
-Three PRs squash-merged in the last day:
+- **#7 — `chore: drop locked-VBA fixture placeholder`** (`d026685`). Removed the no-op skipped test, the TODO bullet, and the open question. User confirmed they never password-lock VBA projects.
+- **#8 — `docs: design + plan for excel_render_vba_callgraph (analyzer v2)`** (`aa184a0`).
+  - Design: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md`
+  - Plan: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-plan.md` (19 TDD tasks)
 
-- **#4 — `feat: excel_analyze_vba — structural VBA analysis layer`** (`feat/excel-analyze-vba`).
-  v1 of the analyzer: procedures with signatures, event handlers, call graph, Excel object-model references, and external dependencies (file/DB/network/automation/shell).
-- **#5 — `chore: excel_analyze_vba follow-ups`** (`feat/analyze-vba-followups`).
-  Test coverage gaps closed, catch wrapper tightened, userForm classifier added.
-- **#6 — `chore: wire mcpOffice into Claude Code + refresh usage docs`** (`chore/wire-mcp-and-update-usage`).
-  Wiring instructions for `mcpOffice` as a Claude Code MCP server; `docs/usage.md` refreshed.
+## Where We Are in the Plan
 
-The orphaned spike file (`tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`) was removed as part of those changes.
+Subagent-driven execution started this session.
 
-## Air.xlsm Benchmark (107 modules — real-world evidence for v2)
+| # | Task | Status | Commit(s) |
+|---|---|---|---|
+| 1 | Branch off main | ✅ | (no commit — `git checkout -b`) |
+| 2 | Add 3 new error codes + ToolError helpers | ✅ | b2a94a9, 6e2b9e2 (test-style align), 5010c22 (csproj indent fix) |
+| 3 | Add CallgraphNode/Edge/FilteredCallgraph DTOs | ✅ | bf1646b |
+| 4 | VbaCallgraphFilter — no-filter pass-through | ✅ | 1123dde |
+| 5 | Filter — moduleName direct-neighbour expansion + `module_not_found` | pending | — |
+| 6 | Filter — focal procedure BFS + `procedure_not_found` + invalid direction | pending | — |
+| 7 | Filter — procedureName-without-moduleName guard test | pending | — |
+| 8 | Filter — external (unresolved) callees deduplicated as `__ext__` nodes | pending | — |
+| 9 | Filter — orphan classification per filtered view | pending | — |
+| 10 | Filter — maxNodes cap throws `graph_too_large` | pending | — |
+| 11 | ICallgraphRenderer interface + Mermaid renderer (basics) | pending | — |
+| 12 | Mermaid renderer — escaping reserved chars regression tests | pending | — |
+| 13 | DotCallgraphRenderer with clusters, flat, styling, escaping | pending | — |
+| 14 | IExcelWorkbookService.RenderVbaCallgraph + impl | pending | — |
+| 15 | Register `excel_render_vba_callgraph` MCP tool | pending | — |
+| 16 | Stdio integration tests | pending | — |
+| 17 | Air.xlsm gated benchmark | pending | — |
+| 18 | Final verification — Release build + full test run | pending | — |
+| 19 | Open PR | pending | — |
 
-Run against `C:\Projects\mcpOffice-samples\Air.xlsm` via a gated integration test (skipped when the file is absent):
+The plan's test/code blocks for each pending task are inline at `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-plan.md`. The implementer subagent should be given the full task text from there.
 
-| Metric | Value |
-|---|---|
-| Modules parsed | 107 / 107 |
-| Procedures | 200 |
-| Event handlers | 110 (55% of procedures — heavily event-driven) |
-| Call edges | 938 |
-| Object-model reference sites | 3040 |
-| External dependencies | 48 |
-| Wall time | ~115 ms |
+## Decisions Made This Session
 
-These remain the starting evidence for the `excel_analyze_vba` v2 conversion-hints layer. The high event-handler ratio and 3040 object-model sites are the two signals that should drive v2 design.
+1. **VBA-locked workbooks declared out of scope** (memory: `project_no_locked_vba.md`). Team never password-locks VBA projects — the placeholder skipped test was deleted (PR #7).
+2. **v2 cut to call-graph rendering only.** Original TODO bundled three things (conversion hints, graph rendering, coupling score) under "v2". Rebrainstormed: graph rendering first (this branch), conversion hints become v3, coupling score becomes v4.
+3. **Mermaid + DOT chosen over Excalidraw / DevExpress DiagramControl.** Rationale captured in the design's "Out of scope" section: Excalidraw → free composition (`mermaid → excalidraw__create_from_mermaid`), no coupling needed; DiagramControl → UI control, breaks the inline-Mermaid use case, would add Win32 dependency to a stdio console app.
+4. **Per-task subagent + 2-stage review** chosen as execution mode (option 1 / "Subagent-Driven"). For verbatim mechanical tasks (3, 7, 12), formal reviews skipped and verified inline — running three model calls to confirm a 5-line record copy is wasteful. Tasks with real branching logic (5, 6, 8, 9, 10, 11, 13, 14) get the full review cycle.
 
-## Excel Tool Inventory (as of main)
+## Resumption Recipe
 
-1. `excel_list_sheets`
-2. `excel_read_sheet`
-3. `excel_extract_vba`
-4. `excel_get_metadata`
-5. `excel_list_defined_names`
-6. `excel_list_formulas`
-7. `excel_get_structure`
-8. `excel_analyze_vba`
+```powershell
+cd C:\Projects\mcpOffice
+git checkout feat/render-vba-callgraph
+git pull --ff-only
+dotnet build --nologo
+dotnet test --nologo
+```
 
-## Outstanding — Action Required
+Expected: 139 unit + 11 integration passing, 0 warnings/errors.
 
-**Nothing blocking.** Everything from the previous handoff (open PR, remove spike) is done.
+**Then continue with Task 5.** The implementer prompt for it lives inline in the plan at `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-plan.md` § "Phase 3 — Filter" → "Task 5". The plan body has the full failing tests and implementation code for each remaining task; copy them into the implementer subagent's prompt verbatim.
 
-## Next Up — `excel_analyze_vba` v2 design doc
+The TaskList in this session has Tasks 5–19 marked pending. A fresh session can either reuse the TaskList (via `TaskList`) or rebuild it from the plan.
 
-Per the previous session, the next step is a **design doc** for the v2 conversion-hints layer **before** touching code. Goals:
-
-- Classify procedures by role: event handler / utility / data-transform / UI glue.
-- Suggest C# equivalents per role (method, service class, hosted service, etc.).
-- Emit a DOT/Mermaid call graph for visual inspection.
-- Cross-module coupling score to identify refactoring targets.
-
-Drop the doc at `docs/plans/2026-05-04-mcpoffice-excel-analyze-vba-v2-design.md` (or today's date — keep the convention). Use the v1 design doc as the shape template (`docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`). Anchor the design against the Air.xlsm numbers above — that's the scale we're designing for.
+**One gotcha:** if the mcpOffice MCP server is running (it auto-starts when Claude Code loads its config from PR #6), it'll lock `src/mcpOffice/bin/Debug/net9.0/mcpOffice.dll` and the first build will fail with `MSB3027`. Kill it with `taskkill //PID <pid> //F //T` (find the PID via `netstat -ano | grep dotnet` or just look for the lock complaint in the build error). Build then succeeds and the MCP server is gone for the rest of the session.
 
 ## Carried-Forward Open Questions
 
@@ -69,18 +75,10 @@ Drop the doc at `docs/plans/2026-05-04-mcpoffice-excel-analyze-vba-v2-design.md`
 2. **Form layout vs form code.** Out of scope.
 3. **Pagination on heavy `excel_analyze_vba` arrays.** Module filter ships; offset/limit on `callGraph` and `references` is the next lever for very large workbooks. See `TODO.md`.
 
-## How To Resume
+## Reference Material
 
-```powershell
-cd C:\Projects\mcpOffice
-git status
-git log --oneline -5
-dotnet build --nologo
-dotnet test --nologo
-```
-
-Reference material:
-
+- v2 render design: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md`
+- v2 render plan: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-plan.md` (19 tasks, full code)
 - v1 analyzer design: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`
 - v1 analyzer plan: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-plan.md`
 - Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
