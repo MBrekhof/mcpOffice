@@ -11,14 +11,15 @@ internal static partial class VbaCallGraphBuilder
         "If", "Then", "Else", "ElseIf", "End", "Sub", "Function", "Property",
         "Dim", "Set", "Const", "Public", "Private", "Friend", "Static",
         "For", "Next", "While", "Wend", "Do", "Loop", "Until", "Each", "In",
-        "Select", "Case", "With", "Exit", "GoTo", "On", "Error", "Resume",
+        "Select", "Case", "With", "Exit", "GoTo", "GoSub", "On", "Error", "Resume",
         "True", "False", "Nothing", "Null", "Empty", "And", "Or", "Not", "Xor", "Mod",
         "Is", "Like", "Optional", "ByVal", "ByRef", "ParamArray", "As",
         "Return", "Stop", "Rem", "Type", "Enum", "Declare", "Lib", "Alias",
+        "RaiseEvent",
         "Me", "Application"  // Application.Run is handled separately
     };
 
-    [GeneratedRegex(@"^\s*(Call\s+)?(?<name>[A-Za-z_]\w*)\s*(\(|$)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*(Call\s+)?(?<name>[A-Za-z_]\w*)\s*(\(|\.|$)", RegexOptions.IgnoreCase)]
     private static partial Regex DirectCallRegex();
 
     [GeneratedRegex(@"Application\s*\.\s*Run\s+""(?<target>[^""]+)""", RegexOptions.IgnoreCase)]
@@ -77,6 +78,27 @@ internal static partial class VbaCallGraphBuilder
                     if (Keywords.Contains(name)) continue;
                     // Skip self-name (the procedure header line was already excluded by [start, end] body window)
                     if (string.Equals(name, sp.Procedure.Name, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    // Detect qualified call: <name>.<member> — resolve against allFqn rather than bare-name lookup.
+                    int nameEnd = dc.Groups["name"].Index + name.Length;
+                    if (nameEnd < line.Text.Length && line.Text[nameEnd] == '.')
+                    {
+                        int afterDot = nameEnd + 1;
+                        int procEnd = afterDot;
+                        while (procEnd < line.Text.Length && (char.IsLetterOrDigit(line.Text[procEnd]) || line.Text[procEnd] == '_'))
+                            procEnd++;
+
+                        if (procEnd > afterDot)
+                        {
+                            var qualifiedName = line.Text.Substring(dc.Groups["name"].Index, procEnd - dc.Groups["name"].Index);
+                            edges.Add(new ExcelVbaCallEdge(
+                                From: sp.Procedure.FullyQualifiedName,
+                                To: qualifiedName,
+                                Resolved: allFqn.Contains(qualifiedName),
+                                Site: new ExcelVbaSiteRef(moduleName, sp.Procedure.Name, line.LineNumber)));
+                            continue;
+                        }
+                    }
 
                     string to;
                     bool resolved;

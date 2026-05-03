@@ -74,4 +74,32 @@ public class VbaCallGraphBuilderTests
             "Sub A()\nx = 1\nB\nEnd Sub\nSub B()\nEnd Sub"));
         Assert.Equal(3, edges[0].Site.Line);
     }
+
+    [Fact]
+    public void Qualified_call_resolves_to_fqn()
+    {
+        var edges = Build(
+            ("Caller", "standardModule", "Sub A()\nUtils.DoLog\nEnd Sub"),
+            ("Utils", "standardModule", "Sub DoLog()\nEnd Sub"));
+        var edge = Assert.Single(edges);
+        Assert.Equal("Caller.A", edge.From);
+        Assert.Equal("Utils.DoLog", edge.To);
+        Assert.True(edge.Resolved);
+    }
+
+    [Fact]
+    public void Qualified_call_to_unknown_target_is_unresolved()
+    {
+        var edges = Build(("M", "standardModule", "Sub A()\nOtherWb.Foo\nEnd Sub"));
+        var edge = Assert.Single(edges);
+        Assert.Equal("OtherWb.Foo", edge.To);
+        Assert.False(edge.Resolved);
+    }
+
+    [Fact]
+    public void RaiseEvent_is_not_a_call_edge()
+    {
+        var edges = Build(("M", "classModule", "Sub A()\nRaiseEvent SomethingHappened\nEnd Sub"));
+        Assert.Empty(edges);
+    }
 }
