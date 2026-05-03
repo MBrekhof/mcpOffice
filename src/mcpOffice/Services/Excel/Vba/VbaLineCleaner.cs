@@ -30,7 +30,9 @@ internal static class VbaLineCleaner
 
             if (endsWithContinuation)
             {
-                pending.Append(StripTrailingContinuation(cleaned));
+                // The continuation `_` may have been inside a comment that CleanSingleLine
+                // already stripped. Only strip from `cleaned` if it actually still ends with `_`.
+                pending.Append(EndsWithContinuation(cleaned) ? StripTrailingContinuation(cleaned) : cleaned);
                 pending.Append(' ');
                 pendingOriginal.Append(StripTrailingContinuation(raw));
                 pendingOriginal.Append(' ');
@@ -57,37 +59,21 @@ internal static class VbaLineCleaner
     private static string CleanSingleLine(string raw)
     {
         var trimmed = raw.TrimStart();
-        if (trimmed.Length >= 4 &&
-            (trimmed.StartsWith("Rem ", StringComparison.OrdinalIgnoreCase) ||
-             trimmed.Equals("Rem", StringComparison.OrdinalIgnoreCase)))
+        if (trimmed.Equals("Rem", StringComparison.OrdinalIgnoreCase) ||
+            (trimmed.Length >= 4 &&
+             trimmed.StartsWith("Rem", StringComparison.OrdinalIgnoreCase) &&
+             char.IsWhiteSpace(trimmed[3])))
         {
             return new string(' ', raw.Length - trimmed.Length);
         }
 
         var sb = new StringBuilder(raw.Length);
-        bool inString = false;
         for (int i = 0; i < raw.Length; i++)
         {
             char c = raw[i];
 
-            if (inString)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < raw.Length && raw[i + 1] == '"')
-                    {
-                        i++;
-                        continue;
-                    }
-                    inString = false;
-                    // Closing quote already appended by the opening branch's lookahead — safe to no-op here.
-                }
-                continue;
-            }
-
             if (c == '"')
             {
-                inString = true;
                 sb.Append('"').Append(StringSentinel).Append('"');
                 int j = i + 1;
                 while (j < raw.Length)
@@ -100,7 +86,6 @@ internal static class VbaLineCleaner
                     j++;
                 }
                 i = j;
-                inString = false;
                 continue;
             }
 
