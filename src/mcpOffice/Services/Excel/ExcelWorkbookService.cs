@@ -118,8 +118,16 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         bool includeReferences)
     {
         PathGuard.RequireExists(path);
-        var project = new VbaProjectReader().Read(path);
-        return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences);
+
+        try
+        {
+            var project = new VbaProjectReader().Read(path);
+            return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
     }
 
     public ExcelWorkbookMetadata GetMetadata(string path)
