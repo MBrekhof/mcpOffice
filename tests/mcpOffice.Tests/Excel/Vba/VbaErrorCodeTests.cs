@@ -1,4 +1,3 @@
-using FluentAssertions;
 using ModelContextProtocol;
 
 namespace McpOffice.Tests.Excel.Vba;
@@ -35,32 +34,29 @@ public class VbaErrorCodeTests
     [Fact]
     public void ProcedureNotFound_throws_McpException_with_code_and_candidates()
     {
-        Action act = () => throw ToolError.ProcedureNotFound("ReadExports", new[] { "SaveDB", "Paste2Cell" });
-        act.Should().Throw<ModelContextProtocol.McpException>()
-           .Which.Message.Should().Contain("procedure_not_found")
-           .And.Contain("ReadExports")
-           .And.Contain("SaveDB")
-           .And.Contain("Paste2Cell");
+        var ex = Assert.Throws<McpException>((Action)(() => throw ToolError.ProcedureNotFound("ReadExports", new[] { "SaveDB", "Paste2Cell" })));
+        Assert.Contains("procedure_not_found", ex.Message);
+        Assert.Contains("ReadExports", ex.Message);
+        Assert.Contains("SaveDB", ex.Message);
+        Assert.Contains("Paste2Cell", ex.Message);
     }
 
     [Fact]
     public void GraphTooLarge_throws_McpException_with_count_and_max()
     {
-        Action act = () => throw ToolError.GraphTooLarge(425, 300);
-        act.Should().Throw<ModelContextProtocol.McpException>()
-           .Which.Message.Should().Contain("graph_too_large")
-           .And.Contain("425")
-           .And.Contain("300");
+        var ex = Assert.Throws<McpException>((Action)(() => throw ToolError.GraphTooLarge(425, 300)));
+        Assert.Contains("graph_too_large", ex.Message);
+        Assert.Contains("425", ex.Message);
+        Assert.Contains("300", ex.Message);
     }
 
     [Fact]
     public void InvalidRenderOption_throws_McpException_with_option_and_message()
     {
-        Action act = () => throw ToolError.InvalidRenderOption("format", "svg", "Use one of mermaid, dot.");
-        act.Should().Throw<ModelContextProtocol.McpException>()
-           .Which.Message.Should().Contain("invalid_render_option")
-           .And.Contain("format")
-           .And.Contain("svg")
-           .And.Contain("mermaid");
+        var ex = Assert.Throws<McpException>((Action)(() => throw ToolError.InvalidRenderOption("format", "svg", "Use one of mermaid, dot.")));
+        Assert.Contains("invalid_render_option", ex.Message);
+        Assert.Contains("format", ex.Message);
+        Assert.Contains("svg", ex.Message);
+        Assert.Contains("mermaid", ex.Message);
     }
 }
