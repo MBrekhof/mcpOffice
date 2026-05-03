@@ -27,7 +27,16 @@ internal static class VbaProjectBinBuilder
     internal static void RegisterCp1252() =>
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    public static byte[] Build(IReadOnlyList<ModuleSpec> modules)
+    public static byte[] Build(IReadOnlyList<ModuleSpec> modules) =>
+        Build(modules, formModuleNames: null);
+
+    /// <summary>
+    /// Builds a vbaProject.bin with optional UserForm sub-storages at the root level.
+    /// Any name listed in <paramref name="formModuleNames"/> will get a same-named
+    /// placeholder storage at the root (next to the VBA storage), matching how Excel
+    /// stores UserForm layout data.
+    /// </summary>
+    public static byte[] Build(IReadOnlyList<ModuleSpec> modules, IReadOnlySet<string>? formModuleNames)
     {
         var dir = BuildDirStream(modules);
         var dirCompressed = CompressLiteralsOnly(dir);
@@ -36,7 +45,7 @@ internal static class VbaProjectBinBuilder
             m => m.StreamName,
             m => CompressLiteralsOnly(Encoding.GetEncoding(1252).GetBytes(m.Source)));
 
-        return BuildOleCompoundFile(dirCompressed, moduleStreams);
+        return BuildOleCompoundFile(dirCompressed, moduleStreams, formModuleNames);
     }
 
     private static byte[] BuildDirStream(IReadOnlyList<ModuleSpec> modules)
@@ -124,7 +133,10 @@ internal static class VbaProjectBinBuilder
         return ms.ToArray();
     }
 
-    private static byte[] BuildOleCompoundFile(byte[] dirCompressed, IReadOnlyDictionary<string, byte[]> moduleStreams)
+    private static byte[] BuildOleCompoundFile(
+        byte[] dirCompressed,
+        IReadOnlyDictionary<string, byte[]> moduleStreams,
+        IReadOnlySet<string>? formModuleNames = null)
     {
         var ms = new MemoryStream();
         using (var root = RootStorage.Create(ms, OpenMcdf.Version.V3, StorageModeFlags.LeaveOpen))
@@ -140,6 +152,17 @@ internal static class VbaProjectBinBuilder
             {
                 using var ms2 = vba.CreateStream(streamName);
                 ms2.Write(payload, 0, payload.Length);
+            }
+
+            // UserForm modules get a same-named sub-storage at the root level
+            // (holds layout streams f/o in a real Excel file; an empty storage
+            // is sufficient for the classifier to detect the form kind).
+            if (formModuleNames is not null)
+            {
+                foreach (var formName in formModuleNames)
+                {
+                    root.CreateStorage(formName);
+                }
             }
         }
 

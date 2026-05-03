@@ -91,6 +91,29 @@ public class VbaProjectReaderTests
         Assert.True(module1.LineCount > 0);
     }
 
+    [Fact]
+    public void Classifies_userform_module_when_form_storage_exists()
+    {
+        var formNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "UserForm1" };
+        var bytes = VbaProjectBinBuilder.Build(
+            [
+                new ModuleSpec("Module1", "Module1", "Sub Foo()\nEnd Sub"),
+                // UserForms use the class-type module record (0x0022, IsDocumentModule=true in the
+                // builder) in the dir stream — the form storage at root is what distinguishes them
+                // from plain classModules or documentModules.
+                new ModuleSpec("UserForm1", "UserForm1", "Private Sub UserForm_Initialize()\nEnd Sub",
+                    IsDocumentModule: true)
+            ],
+            formModuleNames: formNames);
+
+        using var ms = new MemoryStream(bytes);
+        var project = new VbaProjectReader().ReadVbaProjectBin(ms, "synthetic");
+
+        Assert.True(project.HasVbaProject);
+        Assert.Contains(project.Modules, m => m.Name == "Module1" && m.Kind == "standardModule");
+        Assert.Contains(project.Modules, m => m.Name == "UserForm1" && m.Kind == "userForm");
+    }
+
     [Fact(Skip = "needs locked-project sample — see SESSION_HANDOFF.md Open Question #1")]
     public void Throws_vba_project_locked_for_protected_project() { }
 }
