@@ -18,7 +18,7 @@ Plan doc: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Implementation 
 ✅ 3. Implement excel_list_sheets
 ✅ 4. Implement excel_read_sheet with maxCells
 ✅ 5. Add integration test for listing tools and reading a generated workbook
-✅ 6. Spike excel_extract_vba against C:\temp\macro\Air - Labware.xlsm
+✅ 6. Spike excel_extract_vba against C:\Projects\mcpOffice-samples\Air.xlsm
 ✅ 7. Decide whether static VBA extraction is implemented in-process via OpenMcdf or deferred behind an optional extractor
    → in-process via OpenMcdf, landed
 ✅ 7b. excel_extract_vba shipped end-to-end (synthetic unit tests + real-Excel smoke + stdio integration)
@@ -46,7 +46,7 @@ Tools shipped this session (4 commits, 12 new unit tests):
 
 ## Outstanding — Action Required
 
-**1. Live agent verification of `excel_extract_vba`.** Wire the rebuilt server into Claude Code on the right machine and call against `C:\temp\macro\Air - Labware.xlsm` (107 modules). Cross-machine carry-over from the previous session — the workstation with that sample isn't this one.
+**1. Live agent verification of `excel_extract_vba`.** Wire the rebuilt server into Claude Code on the right machine and call against `C:\Projects\mcpOffice-samples\Air.xlsm` (107 modules). Cross-machine carry-over from the previous session — the workstation with that sample isn't this one.
 
 **2. Open PR `poc/excel-tools` → `main`.** Squash-merge. Suggested title: `feat: Excel POC (list_sheets, read_sheet, extract_vba, get_metadata, list_defined_names, list_formulas, get_structure)`.
 
@@ -95,5 +95,5 @@ Reference material:
 - Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
 - VBA extraction plan: `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md`
 - Word POC handoff (older): commit `4df3225` on `poc/word-tools` (already merged context)
-- Sample workbook for live agent test: `C:\temp\macro\Air - Labware.xlsm`
+- Sample workbook for live agent test: `C:\Projects\mcpOffice-samples\Air.xlsm`
 - Hand-authored fixture: `tests/fixtures/sample-with-macros.xlsm`
