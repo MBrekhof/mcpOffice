@@ -6,21 +6,9 @@ Pending work for mcpOffice. Maintained by the `/handoff` skill.
 
 All 26 tasks from `docs/plans/2026-04-30-mcpoffice-word-poc-plan.md` are complete and merged (`4df3225` docs: mark Word POC final verification complete). 15 Word tools shipped.
 
-## Excel POC
+## Excel POC — DONE
 
-Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. Branch: `poc/excel-tools`.
-
-- [x] Step 1 — DevExpress Spreadsheet package references
-- [x] Step 2 — Excel DTOs and `IExcelWorkbookService`
-- [x] Step 3 — `excel_list_sheets`
-- [x] Step 4 — `excel_read_sheet` with `maxCells`
-- [x] Step 5 — Integration test for tool listing + generated-workbook read
-- [x] Step 6 — Spike `excel_extract_vba` against the Air sample
-- [x] Step 7 — Decision: in-process VBA extraction via `OpenMcdf` (landed)
-- [x] Step 7b — `excel_extract_vba` end-to-end (synthetic unit tests + real-Excel smoke + stdio integration)
-- [x] Step 8 — Formula/structure tools: `excel_get_metadata`, `excel_list_defined_names`, `excel_list_formulas`, `excel_get_structure`
-- [x] Live stdio verification of `excel_extract_vba` against `C:\Projects\mcpOffice-samples\Air.xlsm` — 107 modules extracted, 566 KB payload, hasVbaProject=true. Sample dir lives outside the repo to keep ~66 MB of unrelated business workbooks out of git history. (LLM-in-the-loop verification via Claude Code MCP registration is optional follow-up — would require wiring `mcpOffice` into the MCP config and restarting Claude Code.)
-- [ ] Open PR `poc/excel-tools` → `main` (squash). Suggested title: `feat: Excel POC (list_sheets, read_sheet, extract_vba, get_metadata, list_defined_names, list_formulas, get_structure)`
+Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped across PRs #1, #2, #3 (squash-merged into `main`; feature branches deleted). 7 Excel tools on main: `excel_list_sheets`, `excel_read_sheet`, `excel_extract_vba`, `excel_get_metadata`, `excel_list_defined_names`, `excel_list_formulas`, `excel_get_structure`. Live stdio verification against the real 107-module `C:\Projects\mcpOffice-samples\Air.xlsm` confirmed end-to-end correctness. (LLM-in-the-loop verification via Claude Code MCP registration is optional and unblocked.)
 
 ## Next Excel feature (post-PR)
 
