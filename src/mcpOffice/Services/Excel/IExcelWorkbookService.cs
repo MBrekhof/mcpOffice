@@ -30,5 +30,6 @@ public interface IExcelWorkbookService
         string path,
         bool includeProcedures,
         bool includeCallGraph,
-        bool includeReferences);
+        bool includeReferences,
+        string? moduleName = null);
 }

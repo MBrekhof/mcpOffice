@@ -20,7 +20,7 @@ dotnet build --no-restore
 dotnet test --no-restore
 ```
 
-Expected current test count: 39 passing tests.
+Expected current test count: 134 passing tests / 1 skipped (the locked-VBA fixture, awaiting a real password-protected sample).
 
 ## Run The MCP Server
 
@@ -46,7 +46,24 @@ VS Code workspace config is already committed at `.vscode/mcp.json`. It starts t
 }
 ```
 
-Run `dotnet build` before starting that server so the DLL exists.
+Claude Code config is committed at `.mcp.json` at the repo root. It uses the same Debug DLL but with an **absolute** path, since Claude Code does not expand `${workspaceFolder}`-style variables:
+
+```json
+{
+  "mcpServers": {
+    "office": {
+      "command": "dotnet",
+      "args": [
+        "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Debug\\net9.0\\mcpOffice.dll"
+      ]
+    }
+  }
+}
+```
+
+If your checkout lives at a different path, edit the `args` value before launching Claude Code in this directory. Restart Claude Code after creating or editing `.mcp.json` so it reloads the MCP server list.
+
+Run `dotnet build` before starting either server so the DLL exists.
 
 For release/client configuration, publish first:
 
@@ -99,6 +116,20 @@ Convert tools:
 
 - `word_convert(inputPath, outputPath, format?)`: converts to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`.
 
+Excel read tools:
+
+- `excel_list_sheets(path)`: returns sheets with visibility, used range, dimensions.
+- `excel_read_sheet(path, sheetName?, sheetIndex?, range?, includeFormulas=true, includeFormats=false, maxCells=50000)`: returns rows + addressed cell details for a worksheet or A1 range.
+- `excel_get_metadata(path)`: returns workbook document properties + sheet count.
+- `excel_list_defined_names(path)`: returns workbook + sheet-scoped names with `refersTo`, `comment`, `isHidden`.
+- `excel_list_formulas(path, sheetName?, includeValues=false, maxFormulas=10000)`: returns formula cells with optional cached values; raises `range_too_large` when capped.
+- `excel_get_structure(path, includeSheets=true, includeFormulaCounts=true, includeDefinedNames=true)`: returns a workbook-level rollup with optional per-sheet detail.
+
+Excel macro tools:
+
+- `excel_extract_vba(path)`: returns raw VBA module source from `.xlsm` (in-process via OpenMcdf — no Excel install required). For `.xlsx` or workbooks without macros, returns `hasVbaProject=false`.
+- `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false)`: layered structural analysis on top of `excel_extract_vba` — procedures with signatures, event handlers, FQN-resolved call graph, Excel object-model references with literal-arg capture, and file/database/network/automation/shell dependency dispatch. Tiered output via toggles.
+
 All `path`, `inputPath`, `outputPath`, and `templatePath` values must be absolute Windows paths.
 
 ## Example Calls
@@ -148,6 +179,33 @@ Mail merge:
 }
 ```
 
+Extract VBA from a macro-enabled workbook:
+
+```json
+{
+  "path": "C:\\Workbooks\\AnalysisTool.xlsm"
+}
+```
+
+Analyze VBA structure (cheap procedure list only):
+
+```json
+{
+  "path": "C:\\Workbooks\\AnalysisTool.xlsm"
+}
+```
+
+Analyze VBA with full call graph and references (heaviest output):
+
+```json
+{
+  "path": "C:\\Workbooks\\AnalysisTool.xlsm",
+  "includeProcedures": true,
+  "includeCallGraph": true,
+  "includeReferences": true
+}
+```
+
 Expected `word_get_metadata` shape:
 
 ```json
@@ -188,6 +246,11 @@ Tool errors are returned as `McpException` messages prefixed with stable codes:
 - `[merge_field_missing]`
 - `[io_error]`
 - `[internal_error]`
+- `[sheet_not_found]` — Excel: named sheet not in workbook
+- `[range_too_large]` — Excel: result would exceed `maxCells` / `maxFormulas`
+- `[vba_project_missing]` — reserved for future strict mode of `excel_extract_vba`
+- `[vba_project_locked]` — VBA project is password-protected for viewing
+- `[vba_parse_error]` — OLE walk / MS-OVBA decompression / dir-record-walk failure
 
 ## Troubleshooting
 

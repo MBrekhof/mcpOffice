@@ -46,6 +46,9 @@ public static class ToolError
     public static Exception VbaParseError(string path, string detail) =>
         Throw(ErrorCode.VbaParseError, $"Could not parse VBA project in {path}: {detail}");
 
+    public static Exception ModuleNotFound(string moduleName, IEnumerable<string> available) =>
+        Throw(ErrorCode.ModuleNotFound, $"Module not found: {moduleName}. Available modules: {string.Join(", ", available)}");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }

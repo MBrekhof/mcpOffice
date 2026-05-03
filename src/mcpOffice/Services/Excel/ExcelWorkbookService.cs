@@ -17,10 +17,11 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         {
             using var workbook = LoadWorkbook(path);
             var sheets = new List<ExcelSheetInfo>();
+            var worksheets = MaterializeWorksheets(workbook);
 
-            for (var i = 0; i < workbook.Worksheets.Count; i++)
+            for (var i = 0; i < worksheets.Count; i++)
             {
-                var worksheet = workbook.Worksheets[i];
+                var worksheet = worksheets[i];
                 var usedRange = worksheet.GetUsedRange();
                 var rowCount = usedRange.RowCount;
                 var columnCount = usedRange.ColumnCount;
@@ -115,14 +116,15 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         string path,
         bool includeProcedures,
         bool includeCallGraph,
-        bool includeReferences)
+        bool includeReferences,
+        string? moduleName = null)
     {
         PathGuard.RequireExists(path);
 
         try
         {
             var project = new VbaProjectReader().Read(path);
-            return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences);
+            return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences, moduleName);
         }
         catch (Exception ex) when (ex is not McpException)
         {
@@ -263,17 +265,18 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         try
         {
             using var workbook = LoadWorkbook(path);
+            var worksheets = MaterializeWorksheets(workbook);
 
             var definedNameCount = workbook.DefinedNames.Count
-                + workbook.Worksheets.Sum(w => w.DefinedNames.Count);
+                + worksheets.Sum(w => w.DefinedNames.Count);
 
             List<ExcelSheetStructure>? sheets = null;
             if (includeSheets)
             {
-                sheets = new List<ExcelSheetStructure>(workbook.Worksheets.Count);
-                for (var i = 0; i < workbook.Worksheets.Count; i++)
+                sheets = new List<ExcelSheetStructure>(worksheets.Count);
+                for (var i = 0; i < worksheets.Count; i++)
                 {
-                    var worksheet = workbook.Worksheets[i];
+                    var worksheet = worksheets[i];
                     var used = worksheet.GetUsedRange();
                     var formulaCount = includeFormulaCounts ? CountFormulas(used) : 0;
 
@@ -298,7 +301,7 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
                 {
                     definedNames.Add(MapDefinedName(name, scope: null));
                 }
-                foreach (var worksheet in workbook.Worksheets)
+                foreach (var worksheet in worksheets)
                 {
                     foreach (var name in worksheet.DefinedNames)
                     {
@@ -308,7 +311,7 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
             }
 
             return new ExcelWorkbookStructure(
-                workbook.Worksheets.Count,
+                worksheets.Count,
                 definedNameCount,
                 sheets,
                 definedNames);
@@ -358,6 +361,20 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         return workbook;
     }
 
+    // Workaround for a DevExpress.Spreadsheet bug observed on real-world workbooks
+    // (e.g. RingOnderzoek.xlsm): NativeWorksheetCollection.get_Item throws
+    // ArgumentOutOfRangeException at [0] even when Count >= 1, while foreach iteration
+    // works fine. Materializing via enumeration sidesteps the broken indexer.
+    private static List<Worksheet> MaterializeWorksheets(Workbook workbook)
+    {
+        var list = new List<Worksheet>(workbook.Worksheets.Count);
+        foreach (var worksheet in workbook.Worksheets)
+        {
+            list.Add(worksheet);
+        }
+        return list;
+    }
+
     private static Worksheet ResolveWorksheet(Workbook workbook, string? sheetName, int? sheetIndex)
     {
         if (!string.IsNullOrWhiteSpace(sheetName))
@@ -372,13 +389,14 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
             return worksheet;
         }
 
+        var worksheets = MaterializeWorksheets(workbook);
         var index = sheetIndex ?? DefaultSheetIndex;
-        if (index < 0 || index >= workbook.Worksheets.Count)
+        if (index < 0 || index >= worksheets.Count)
         {
-            throw ToolError.IndexOutOfRange(index, workbook.Worksheets.Count - 1);
+            throw ToolError.IndexOutOfRange(index, worksheets.Count - 1);
         }
 
-        return workbook.Worksheets[index];
+        return worksheets[index];
     }
 
     private static object? GetCellValue(CellValue value)

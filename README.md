@@ -2,10 +2,11 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 9) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx) and Excel (.xlsx / .xlsm) POCs are complete. Next: `excel_analyze_vba` for Excel-to-C# migration analysis.
+**Status:** Word (.docx) and Excel (.xlsx / .xlsm) POCs are complete, including `excel_analyze_vba` v1 (procedures, event handlers, call graph, object-model references, file/DB/network/automation/shell dependencies). Next: `excel_analyze_vba` v2 — conversion hints toward Excel-to-C# migration tooling.
 
 ## Documents
 
+- [Architecture](ARCHITECTURE.md) — layer map, domains, tool-adding pattern, error model, VBA pipeline diagram.
 - [Usage](docs/usage.md) — build, run, MCP client config, sample calls, troubleshooting.
 - [Word design](docs/plans/2026-04-30-mcpoffice-word-poc-design.md) — Word tool surface, error model.
 - [Word implementation plan](docs/plans/2026-04-30-mcpoffice-word-poc-plan.md) — task-by-task TDD plan.
@@ -14,7 +15,7 @@ An MCP (Model Context Protocol) server for Microsoft Office documents, written i
 
 ## Current Tools
 
-23 tools shipped: 1 ping + 15 Word + 7 Excel.
+24 tools shipped: 1 ping + 15 Word + 8 Excel.
 
 ### Word
 
@@ -43,6 +44,7 @@ An MCP (Model Context Protocol) server for Microsoft Office documents, written i
 - `excel_list_formulas(path, sheetName?, includeValues=false, maxFormulas=10000)` — formula cells with optional cached values.
 - `excel_get_structure(path, includeSheets=true, includeFormulas=true, includeDefinedNames=true)` — workbook rollup sized for huge workbooks.
 - `excel_extract_vba(path)` — static VBA module source via in-process MS-OVBA decompression (no Excel install required).
+- `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false, moduleName?)` — structural analysis on top of the extracted source: procedures with signatures, event handlers, call graph (with intra-workbook resolution), Excel object-model references, and external dependencies (file/DB/network/automation/shell). Pass `moduleName` to scope the heavy arrays to a single module on large workbooks; the summary stays whole-workbook.
 
 ### Other
 
@@ -81,9 +83,10 @@ Extract VBA modules from a macro-enabled workbook:
 
 1. **Word POC** — read / write / convert .docx ✓
 2. **Excel POC** — read sheets, list formulas/structure/defined names, extract VBA ✓
-3. **`excel_analyze_vba`** — call graph, event handlers, Excel object-model refs, conversion hints (next).
-4. PowerPoint (.pptx).
-5. PDF.
+3. **`excel_analyze_vba` v1** — call graph, event handlers, Excel object-model refs, external dependencies ✓
+4. **`excel_analyze_vba` v2** — conversion hints (procedure role classification, suggested C# equivalents, DOT/Mermaid call-graph rendering, cross-module coupling score).
+5. PowerPoint (.pptx).
+6. PDF.
 
 ## Built With
 

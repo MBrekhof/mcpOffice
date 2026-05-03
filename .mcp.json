@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "office": {
+      "command": "dotnet",
+      "args": [
+        "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Debug\\net9.0\\mcpOffice.dll"
+      ]
+    }
+  }
+}

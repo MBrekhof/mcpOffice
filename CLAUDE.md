@@ -8,7 +8,9 @@ mcpOffice — MCP server (stdio) exposing Office document tools, written in C# /
 
 Sources of truth (loaded on demand via @import):
 
+- @ARCHITECTURE.md — layer map, domains, tool-adding pattern, error model, VBA pipeline.
 - @SESSION_HANDOFF.md — current branch state, completed tasks, next step.
+- @TODO.md — pending work.
 - @docs/plans/2026-04-30-mcpoffice-word-poc-plan.md — TDD task list (26 tasks, exact code for each).
 - @docs/plans/2026-04-30-mcpoffice-word-poc-design.md — tool surface, error codes, design decisions.
 
