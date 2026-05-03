@@ -32,4 +32,34 @@ public static class ExcelTools
     public static object ExcelExtractVba(
         [Description("Absolute path to the .xlsm workbook")] string path)
         => Service.ExtractVba(path);
+
+    [McpServerTool(Name = "excel_get_metadata")]
+    [Description("Returns workbook document properties (author, title, subject, keywords, description, category, company, manager, application, lastModifiedBy, created, modified, printed) plus sheetCount.")]
+    public static object ExcelGetMetadata(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
+        => Service.GetMetadata(path);
+
+    [McpServerTool(Name = "excel_list_defined_names")]
+    [Description("Returns all defined names in the workbook. Each entry has {name, scope (null for workbook scope, sheet name for sheet scope), refersTo, comment, isHidden}.")]
+    public static object ExcelListDefinedNames(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path)
+        => Service.ListDefinedNames(path);
+
+    [McpServerTool(Name = "excel_list_formulas")]
+    [Description("Returns formula cells across the workbook (or a single sheet). Each entry has {sheet, address, formula, value?, valueType?}. When includeValues=true the workbook is recalculated and value/valueType are populated. maxFormulas caps the result; exceeding it raises range_too_large.")]
+    public static object ExcelListFormulas(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path,
+        [Description("Optional sheet name. When omitted, all sheets are scanned.")] string? sheetName = null,
+        [Description("Recalculate and include cached values in each result.")] bool includeValues = false,
+        [Description("Maximum number of formula cells to return.")] int maxFormulas = 10000)
+        => Service.ListFormulas(path, sheetName, includeValues, maxFormulas);
+
+    [McpServerTool(Name = "excel_get_structure")]
+    [Description("Returns a workbook-level summary: sheetCount, definedNameCount, optional sheets array (per-sheet index/name/visibility/usedRange/row+columnCount/formulaCount/tableCount), and optional definedNames. Toggle the include* flags to keep payloads small on large workbooks.")]
+    public static object ExcelGetStructure(
+        [Description("Absolute path to the .xlsx/.xlsm workbook")] string path,
+        [Description("Include the per-sheet array. Default true.")] bool includeSheets = true,
+        [Description("Include formula counts per sheet (requires scanning each used range). Default true.")] bool includeFormulaCounts = true,
+        [Description("Include the defined names array (workbook + sheet scoped). Default true.")] bool includeDefinedNames = true)
+        => Service.GetStructure(path, includeSheets, includeFormulaCounts, includeDefinedNames);
 }

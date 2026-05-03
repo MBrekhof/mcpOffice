@@ -111,6 +111,227 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         return new VbaProjectReader().Read(path);
     }
 
+    public ExcelWorkbookMetadata GetMetadata(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            var p = workbook.DocumentProperties;
+
+            return new ExcelWorkbookMetadata(
+                NullIfEmpty(p.Author),
+                NullIfEmpty(p.Title),
+                NullIfEmpty(p.Subject),
+                NullIfEmpty(p.Keywords),
+                NullIfEmpty(p.Description),
+                NullIfEmpty(p.Category),
+                NullIfEmpty(p.Company),
+                NullIfEmpty(p.Manager),
+                NullIfEmpty(p.Application),
+                NullIfEmpty(p.LastModifiedBy),
+                NormalizeDate(p.Created),
+                NormalizeDate(p.Modified),
+                NormalizeDate(p.Printed),
+                workbook.Worksheets.Count);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public IReadOnlyList<ExcelDefinedName> ListDefinedNames(string path)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            var results = new List<ExcelDefinedName>();
+
+            foreach (var name in workbook.DefinedNames)
+            {
+                results.Add(MapDefinedName(name, scope: null));
+            }
+
+            foreach (var worksheet in workbook.Worksheets)
+            {
+                foreach (var name in worksheet.DefinedNames)
+                {
+                    results.Add(MapDefinedName(name, scope: worksheet.Name));
+                }
+            }
+
+            return results;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public IReadOnlyList<ExcelFormulaCell> ListFormulas(
+        string path,
+        string? sheetName,
+        bool includeValues,
+        int maxFormulas)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            if (includeValues)
+            {
+                workbook.CalculateFull();
+            }
+            var targets = string.IsNullOrWhiteSpace(sheetName)
+                ? workbook.Worksheets.AsEnumerable()
+                : new[] { ResolveWorksheet(workbook, sheetName, sheetIndex: null) };
+
+            var results = new List<ExcelFormulaCell>();
+            foreach (var worksheet in targets)
+            {
+                var used = worksheet.GetUsedRange();
+                if (used.RowCount == 0 || used.ColumnCount == 0)
+                {
+                    continue;
+                }
+
+                for (var r = 0; r < used.RowCount; r++)
+                {
+                    for (var c = 0; c < used.ColumnCount; c++)
+                    {
+                        var cell = used[r, c];
+                        if (!cell.HasFormula)
+                        {
+                            continue;
+                        }
+
+                        if (results.Count >= maxFormulas)
+                        {
+                            throw ToolError.RangeTooLarge(used.GetReferenceA1(), results.Count + 1, maxFormulas);
+                        }
+
+                        results.Add(new ExcelFormulaCell(
+                            worksheet.Name,
+                            cell.GetReferenceA1(),
+                            cell.Formula,
+                            includeValues ? GetCellValue(cell.Value) : null,
+                            includeValues ? GetCellValueType(cell.Value) : null));
+                    }
+                }
+            }
+
+            return results;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public ExcelWorkbookStructure GetStructure(
+        string path,
+        bool includeSheets,
+        bool includeFormulaCounts,
+        bool includeDefinedNames)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+
+            var definedNameCount = workbook.DefinedNames.Count
+                + workbook.Worksheets.Sum(w => w.DefinedNames.Count);
+
+            List<ExcelSheetStructure>? sheets = null;
+            if (includeSheets)
+            {
+                sheets = new List<ExcelSheetStructure>(workbook.Worksheets.Count);
+                for (var i = 0; i < workbook.Worksheets.Count; i++)
+                {
+                    var worksheet = workbook.Worksheets[i];
+                    var used = worksheet.GetUsedRange();
+                    var formulaCount = includeFormulaCounts ? CountFormulas(used) : 0;
+
+                    sheets.Add(new ExcelSheetStructure(
+                        i,
+                        worksheet.Name,
+                        worksheet.Visible,
+                        "worksheet",
+                        used.GetReferenceA1(),
+                        used.RowCount,
+                        used.ColumnCount,
+                        formulaCount,
+                        worksheet.Tables.Count));
+                }
+            }
+
+            List<ExcelDefinedName>? definedNames = null;
+            if (includeDefinedNames)
+            {
+                definedNames = new List<ExcelDefinedName>(definedNameCount);
+                foreach (var name in workbook.DefinedNames)
+                {
+                    definedNames.Add(MapDefinedName(name, scope: null));
+                }
+                foreach (var worksheet in workbook.Worksheets)
+                {
+                    foreach (var name in worksheet.DefinedNames)
+                    {
+                        definedNames.Add(MapDefinedName(name, scope: worksheet.Name));
+                    }
+                }
+            }
+
+            return new ExcelWorkbookStructure(
+                workbook.Worksheets.Count,
+                definedNameCount,
+                sheets,
+                definedNames);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    private static int CountFormulas(CellRange range)
+    {
+        if (range.RowCount == 0 || range.ColumnCount == 0)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        for (var r = 0; r < range.RowCount; r++)
+        {
+            for (var c = 0; c < range.ColumnCount; c++)
+            {
+                if (range[r, c].HasFormula) count++;
+            }
+        }
+        return count;
+    }
+
+    private static ExcelDefinedName MapDefinedName(DefinedName name, string? scope) =>
+        new(
+            name.Name,
+            scope,
+            name.RefersTo ?? string.Empty,
+            NullIfEmpty(name.Comment),
+            name.Hidden);
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrEmpty(value) ? null : value;
+
+    private static DateTime? NormalizeDate(DateTime value) =>
+        value == default ? null : value;
+
     private static Workbook LoadWorkbook(string path)
     {
         var workbook = new Workbook();
