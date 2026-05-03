@@ -30,7 +30,6 @@ These items are surfaced by the v1 Air.xlsm benchmark as the natural next step t
 - [ ] Add `[JsonDerivedType]` discriminators to the abstract `Block` record (and concrete `HeadingBlock`/`ParagraphBlock`) when tests start asserting on `word_read_structured`'s wire JSON.
 
 ### Carried from Excel POC
-- [ ] Locked-VBA fixture: `tests/fixtures/sample-with-macros-locked.xlsm` to un-skip `VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project`. Need a real password-protected sample to learn how Excel serializes the dir stream when locked.
 - [ ] PROJECTLCID-aware code page selection in `VbaProjectReader` (currently hardcoded to cp1252). MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale.
 - [ ] `excel_get_structure`: optional pivot / chart / external-connection counts via Open XML walk (DevExpress doesn't expose them directly).
 - [ ] `excel_list_formulas`: rough dependency-token extraction (deferred — formula text is enough for now).
