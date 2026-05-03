@@ -111,6 +111,17 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         return new VbaProjectReader().Read(path);
     }
 
+    public ExcelVbaAnalysis AnalyzeVba(
+        string path,
+        bool includeProcedures,
+        bool includeCallGraph,
+        bool includeReferences)
+    {
+        PathGuard.RequireExists(path);
+        var project = new VbaProjectReader().Read(path);
+        return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences);
+    }
+
     public ExcelWorkbookMetadata GetMetadata(string path)
     {
         PathGuard.RequireExists(path);
