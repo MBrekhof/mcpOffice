@@ -2,17 +2,22 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 9) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx) POC is feature-complete through read/write/convert tools. Final release verification is next.
+**Status:** Word (.docx) and Excel (.xlsx / .xlsm) POCs are complete. Next: `excel_analyze_vba` for Excel-to-C# migration analysis.
 
 ## Documents
 
-- [Usage](docs/usage.md) - build, run, MCP client config, sample calls, troubleshooting.
-- [Design](docs/plans/2026-04-30-mcpoffice-word-poc-design.md) - architecture, tool surface, error model, packaging.
-- [Implementation plan](docs/plans/2026-04-30-mcpoffice-word-poc-plan.md) - task-by-task TDD plan.
+- [Usage](docs/usage.md) — build, run, MCP client config, sample calls, troubleshooting.
+- [Word design](docs/plans/2026-04-30-mcpoffice-word-poc-design.md) — Word tool surface, error model.
+- [Word implementation plan](docs/plans/2026-04-30-mcpoffice-word-poc-plan.md) — task-by-task TDD plan.
+- [Excel design](docs/plans/2026-05-01-mcpoffice-excel-poc-design.md) — Excel tool surface and rationale.
+- [VBA extraction plan](docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md) — MS-OVBA decompression, OpenMcdf walking.
 
 ## Current Tools
 
-- `Ping`
+23 tools shipped: 1 ping + 15 Word + 7 Excel.
+
+### Word
+
 - `word_get_outline(path)`
 - `word_get_metadata(path)`
 - `word_read_markdown(path)`
@@ -28,6 +33,20 @@ An MCP (Model Context Protocol) server for Microsoft Office documents, written i
 - `word_set_metadata(path, properties)`
 - `word_mail_merge(templatePath, outputPath, dataJson)`
 - `word_convert(inputPath, outputPath, format?)`
+
+### Excel
+
+- `excel_list_sheets(path)` — sheets in order with visibility, used range, dimensions.
+- `excel_read_sheet(path, sheetName?, sheetIndex?, range?, includeFormulas=true, includeFormats=false, maxCells=50000)` — cell data with formulas + formats.
+- `excel_get_metadata(path)` — author, title, created/modified, sheet count, document properties.
+- `excel_list_defined_names(path)` — workbook + sheet-scoped names with refersTo / scope / hidden flag.
+- `excel_list_formulas(path, sheetName?, includeValues=false, maxFormulas=10000)` — formula cells with optional cached values.
+- `excel_get_structure(path, includeSheets=true, includeFormulas=true, includeDefinedNames=true)` — workbook rollup sized for huge workbooks.
+- `excel_extract_vba(path)` — static VBA module source via in-process MS-OVBA decompression (no Excel install required).
+
+### Other
+
+- `Ping` — health check, returns `pong`.
 
 All file paths passed to tools must be absolute.
 
@@ -50,15 +69,25 @@ Create a Word document from Markdown, then convert it to PDF:
 }
 ```
 
+Extract VBA modules from a macro-enabled workbook:
+
+```json
+{
+  "path": "C:\\Workbooks\\AnalysisTool.xlsm"
+}
+```
+
 ## Roadmap
 
-1. **Word POC** - read / write / convert .docx (current).
-2. Excel (.xlsx).
-3. PowerPoint (.pptx).
-4. PDF.
+1. **Word POC** — read / write / convert .docx ✓
+2. **Excel POC** — read sheets, list formulas/structure/defined names, extract VBA ✓
+3. **`excel_analyze_vba`** — call graph, event handlers, Excel object-model refs, conversion hints (next).
+4. PowerPoint (.pptx).
+5. PDF.
 
 ## Built With
 
-- [`ModelContextProtocol`](https://github.com/modelcontextprotocol/csharp-sdk) - C# MCP SDK.
-- DevExpress RichEdit / Office File API packages - server-side Word document APIs.
-- [`MarkdownToDocxGenerator`](https://www.nuget.org/packages/MarkdownToDocxGenerator) - richer Markdown-to-DOCX import.
+- [`ModelContextProtocol`](https://github.com/modelcontextprotocol/csharp-sdk) — C# MCP SDK.
+- DevExpress RichEdit / Spreadsheet / Office File API packages — server-side document APIs.
+- [`MarkdownToDocxGenerator`](https://www.nuget.org/packages/MarkdownToDocxGenerator) — richer Markdown-to-DOCX import.
+- [`OpenMcdf`](https://www.nuget.org/packages/OpenMcdf) — OLE compound file reader for VBA project extraction.

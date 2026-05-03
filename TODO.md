@@ -17,9 +17,7 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 ## Side items
 
 ### Carried from Word POC
-- [ ] Wire DevExpress runtime license via `licenses.licx` once a non-trial feature is exercised.
 - [ ] Optional: baseline `.editorconfig` once enough files exist to enforce against.
-- [ ] Evaluate `mathieumack/MarkdownToDocxGenerator` to replace the hand-rolled markdown writer in `WordDocumentService.WriteMarkdownToDocument`. Trigger: any future task needing tables, code blocks, lists, links, or escaping. Check license + round-trip through `word_read_structured`.
 - [ ] Add `[JsonDerivedType]` discriminators to the abstract `Block` record (and concrete `HeadingBlock`/`ParagraphBlock`) when tests start asserting on `word_read_structured`'s wire JSON.
 
 ### Carried from Excel POC
