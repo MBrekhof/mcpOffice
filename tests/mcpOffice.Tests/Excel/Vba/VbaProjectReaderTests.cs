@@ -113,7 +113,4 @@ public class VbaProjectReaderTests
         Assert.Contains(project.Modules, m => m.Name == "Module1" && m.Kind == "standardModule");
         Assert.Contains(project.Modules, m => m.Name == "UserForm1" && m.Kind == "userForm");
     }
-
-    [Fact(Skip = "needs locked-project sample — see SESSION_HANDOFF.md Open Question #1")]
-    public void Throws_vba_project_locked_for_protected_project() { }
 }

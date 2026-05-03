@@ -1,24 +1,27 @@
-# Session Handoff — 2026-05-03 (excel_analyze_vba v1 complete)
+# Session Handoff — 2026-05-03 (excel_analyze_vba v1 merged + follow-ups + wiring docs)
 
 ## Where Things Stand
 
-**Branch:** `feat/excel-analyze-vba` — committed locally, not yet pushed (controller opens the PR).
-**Latest commit:** `66ab2bf` test: real-world benchmark against Air.xlsm (gated on file existence)
-**Build:** `dotnet build` is green, `0 warnings, 0 errors`.
-**Tests:** `dotnet test` is green: **130/131 passing, 1 skipped** (119 unit + 11 integration). The skip is the pre-existing locked-VBA fixture placeholder (`VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project`).
+**Branch:** `main` — clean, up to date with `origin/main`.
+**Latest commit:** `2226e62` chore: wire mcpOffice into Claude Code + refresh usage docs (#6)
+**Build:** `dotnet build` is green, 0 warnings, 0 errors.
+**Tests:** `dotnet test` is green.
 **Tool surface:** 24 tools (1 Ping + 15 Word + 8 Excel).
 
-## What Landed This Branch
+## What Landed Recently (all on main)
 
-`excel_analyze_vba` — structural analysis layer over `excel_extract_vba`. Takes a path plus three include toggles (`includeProcedures` default true, `includeCallGraph` default false, `includeReferences` default false) and returns:
+Three PRs squash-merged in the last day:
 
-- **Procedures** with signatures: name, kind (Sub/Function/Property/Event), parameters, return type, line number.
-- **Event handlers**: procedure name, object, event (e.g. `Workbook_Open`, `Worksheet_Change`), module, line.
-- **Call graph**: directed edges `{caller, callee, calleeModule, line, isResolved}`. Callee module is FQN-resolved where the callee is found in the same workbook; `isResolved=false` for external/unknown targets.
-- **Excel object-model references**: `{site, object, operation, literalArg, module, line}`. Covers `Worksheets(...)`, `Range(...)`, `Cells(...)`, `ActiveSheet`, `ActiveWorkbook`, `ThisWorkbook`, and common automation APIs.
-- **Dependencies**: `{kind, target, module, line}` where kind ∈ `File`, `Database`, `Network`, `Automation`, `Shell`.
+- **#4 — `feat: excel_analyze_vba — structural VBA analysis layer`** (`feat/excel-analyze-vba`).
+  v1 of the analyzer: procedures with signatures, event handlers, call graph, Excel object-model references, and external dependencies (file/DB/network/automation/shell).
+- **#5 — `chore: excel_analyze_vba follow-ups`** (`feat/analyze-vba-followups`).
+  Test coverage gaps closed, catch wrapper tightened, userForm classifier added.
+- **#6 — `chore: wire mcpOffice into Claude Code + refresh usage docs`** (`chore/wire-mcp-and-update-usage`).
+  Wiring instructions for `mcpOffice` as a Claude Code MCP server; `docs/usage.md` refreshed.
 
-### Air.xlsm Benchmark (107 modules — real-world evidence for v2 design)
+The orphaned spike file (`tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`) was removed as part of those changes.
+
+## Air.xlsm Benchmark (107 modules — real-world evidence for v2)
 
 Run against `C:\Projects\mcpOffice-samples\Air.xlsm` via a gated integration test (skipped when the file is absent):
 
@@ -32,9 +35,9 @@ Run against `C:\Projects\mcpOffice-samples\Air.xlsm` via a gated integration tes
 | External dependencies | 48 |
 | Wall time | ~115 ms |
 
-These numbers are the starting evidence for `excel_analyze_vba` v2 (conversion-hints layer). The high event-handler ratio and 3040 object-model sites are the two signals that will drive v2 design — see `TODO.md` for the v2 roadmap.
+These remain the starting evidence for the `excel_analyze_vba` v2 conversion-hints layer. The high event-handler ratio and 3040 object-model sites are the two signals that should drive v2 design.
 
-## Excel Tool Inventory (as of this branch)
+## Excel Tool Inventory (as of main)
 
 1. `excel_list_sheets`
 2. `excel_read_sheet`
@@ -43,44 +46,28 @@ These numbers are the starting evidence for `excel_analyze_vba` v2 (conversion-h
 5. `excel_list_defined_names`
 6. `excel_list_formulas`
 7. `excel_get_structure`
-8. `excel_analyze_vba` ← new this branch
-
-## Decisions Made This Branch
-
-1. **Regex-on-extracted-source strategy chosen** over a proper VBA tokenizer. The Air.xlsm benchmark validates this: 107 modules, 938 call edges, 3040 object-model sites parsed cleanly in ~115ms with no tokenizer. Revisit only if edge cases surface that require ambiguity resolution the regex layer can't handle.
-
-2. **`isResolved` flag on call edges.** When a callee name matches a procedure in another module in the same workbook, the edge gets `isResolved=true` and `calleeModule` is populated. Calls into unknown/external targets get `isResolved=false`. This lets a consumer distinguish intra-workbook calls from external dependencies without doing their own name resolution.
-
-3. **`literalArg` on object-model references.** When a `Range(...)` or `Worksheets(...)` call has a literal string argument, it's captured in `literalArg`. Non-literal (variable/expression) args leave it null. This is the key field for v2 conversion hints (which sheets/ranges does this code touch?).
-
-4. **Gated benchmark test.** The Air.xlsm integration test uses `File.Exists(...)` to skip when the sample is absent. It runs on the dev machine where the file lives but doesn't block CI on other machines. The numbers above come from running it locally.
-
-5. **No per-module / per-sheet filter shipped in v1.** Earlier drafts of this handoff claimed a case-insensitive `moduleName` filter; that was never implemented. The tool returns the full workbook view and relies on the include toggles for payload control. Adding `moduleName` / `sheetName` filters is a v2 follow-up — see TODO.md.
+8. `excel_analyze_vba`
 
 ## Outstanding — Action Required
 
-**1. Open PR `feat/excel-analyze-vba` → `main`.** Squash-merge. Suggested title: `feat: excel_analyze_vba — procedures, event handlers, call graph, object-model refs, dependencies`.
+**Nothing blocking.** Everything from the previous handoff (open PR, remove spike) is done.
 
-**2. Remove spike file** `tests/mcpOffice.Tests/Spikes/VbaExtractionSpike.cs`. It was deferred pending `excel_analyze_vba` landing; that's now done. See TODO.md "Actionable now" item.
+## Next Up — `excel_analyze_vba` v2 design doc
 
-## Carried-Forward Open Questions
-
-1. **Locked / password-protected VBA projects.** `VbaProjectReaderTests.Throws_vba_project_locked_for_protected_project` is `[Fact(Skip = ...)]` waiting for a real locked sample.
-
-2. **PROJECTLCID / non-Western locale code pages.** Source decoding hardcoded to cp1252. MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale. Stretch goal.
-
-3. **Form layout vs form code.** Out of scope.
-
-## What's Next (v2 conversion hints)
-
-`excel_analyze_vba` v2 — build on top of the v1 structural output:
+Per the previous session, the next step is a **design doc** for the v2 conversion-hints layer **before** touching code. Goals:
 
 - Classify procedures by role: event handler / utility / data-transform / UI glue.
-- Suggest C# equivalents: method, service class, hosted service, etc.
+- Suggest C# equivalents per role (method, service class, hosted service, etc.).
 - Emit a DOT/Mermaid call graph for visual inspection.
 - Cross-module coupling score to identify refactoring targets.
 
-The 107-module Air.xlsm benchmark gives us the right scale to design against. Start with a design doc before touching code.
+Drop the doc at `docs/plans/2026-05-04-mcpoffice-excel-analyze-vba-v2-design.md` (or today's date — keep the convention). Use the v1 design doc as the shape template (`docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`). Anchor the design against the Air.xlsm numbers above — that's the scale we're designing for.
+
+## Carried-Forward Open Questions
+
+1. **PROJECTLCID / non-Western locale code pages.** Source decoding hardcoded to cp1252. MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale. Stretch goal.
+2. **Form layout vs form code.** Out of scope.
+3. **Pagination on heavy `excel_analyze_vba` arrays.** Module filter ships; offset/limit on `callGraph` and `references` is the next lever for very large workbooks. See `TODO.md`.
 
 ## How To Resume
 
@@ -94,7 +81,10 @@ dotnet test --nologo
 
 Reference material:
 
+- v1 analyzer design: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`
+- v1 analyzer plan: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-plan.md`
 - Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
 - VBA extraction plan: `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md`
 - Sample workbook for benchmark: `C:\Projects\mcpOffice-samples\Air.xlsm`
 - Hand-authored fixture: `tests/fixtures/sample-with-macros.xlsm`
+- Wiring into Claude Code: `docs/usage.md`
