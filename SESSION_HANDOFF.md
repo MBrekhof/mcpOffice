@@ -10,7 +10,7 @@
 
 ## What Landed This Branch
 
-`excel_analyze_vba` — structural analysis layer over `excel_extract_vba`. Takes a path (and optional `sheetName` / `moduleName` filters), returns:
+`excel_analyze_vba` — structural analysis layer over `excel_extract_vba`. Takes a path plus three include toggles (`includeProcedures` default true, `includeCallGraph` default false, `includeReferences` default false) and returns:
 
 - **Procedures** with signatures: name, kind (Sub/Function/Property/Event), parameters, return type, line number.
 - **Event handlers**: procedure name, object, event (e.g. `Workbook_Open`, `Worksheet_Change`), module, line.
@@ -55,7 +55,7 @@ These numbers are the starting evidence for `excel_analyze_vba` v2 (conversion-h
 
 4. **Gated benchmark test.** The Air.xlsm integration test uses `File.Exists(...)` to skip when the sample is absent. It runs on the dev machine where the file lives but doesn't block CI on other machines. The numbers above come from running it locally.
 
-5. **`moduleName` filter is case-insensitive.** VBA module names in the wild are inconsistently cased. The filter normalizes before comparing.
+5. **No per-module / per-sheet filter shipped in v1.** Earlier drafts of this handoff claimed a case-insensitive `moduleName` filter; that was never implemented. The tool returns the full workbook view and relies on the include toggles for payload control. Adding `moduleName` / `sheetName` filters is a v2 follow-up — see TODO.md.
 
 ## Outstanding — Action Required
 
