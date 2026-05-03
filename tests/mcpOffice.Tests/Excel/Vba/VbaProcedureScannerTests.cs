@@ -122,4 +122,26 @@ public class VbaProcedureScannerTests
             "Function F(Optional x As Variant = Array(1, 2)) As Long\nEnd Function");
         Assert.Equal("Long", procs.Single().Procedure.ReturnType);
     }
+
+    [Fact]
+    public void Parses_paramarray_parameter()
+    {
+        var procs = Scan("standardModule", "M",
+            "Sub F(ParamArray args() As Variant)\nEnd Sub");
+        var p = procs.Single().Procedure;
+        var param = Assert.Single(p.Parameters);
+        Assert.Equal("args()", param.Name);   // current parser keeps the () suffix on the name
+        Assert.Equal("Variant", param.Type);
+    }
+
+    [Fact]
+    public void Recognizes_static_sub()
+    {
+        var procs = Scan("standardModule", "M",
+            "Public Static Sub Cached()\nEnd Sub");
+        var p = procs.Single().Procedure;
+        Assert.Equal("Cached", p.Name);
+        Assert.Equal("Sub", p.Kind);
+        Assert.Equal("Public", p.Scope);
+    }
 }

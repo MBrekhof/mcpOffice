@@ -67,6 +67,19 @@ internal sealed class VbaProjectReader
                 throw ToolError.VbaProjectLocked(sourceLabel);
             }
 
+            // UserForms have a same-named sub-storage at the root level (next to VBA),
+            // holding layout streams like f/o. Excel writes them at root only; the
+            // MS-OVBA spec doesn't define sub-storages inside VBA, so we don't scan there.
+            var formStorageNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var info in root.EnumerateEntries())
+            {
+                if (info.Type == EntryType.Storage &&
+                    !string.Equals(info.Name, VbaStorageName, StringComparison.OrdinalIgnoreCase))
+                {
+                    formStorageNames.Add(info.Name);
+                }
+            }
+
             var modules = new List<ExcelVbaModule>(entries.Count);
             var cp1252 = Encoding.GetEncoding(1252);
 
@@ -114,7 +127,7 @@ internal sealed class VbaProjectReader
                 var code = cp1252.GetString(sourceBytes);
                 modules.Add(new ExcelVbaModule(
                     Name: entry.Name,
-                    Kind: ClassifyKind(entry),
+                    Kind: ClassifyKind(entry, formStorageNames),
                     LineCount: CountLines(code),
                     Code: code));
             }
@@ -149,9 +162,10 @@ internal sealed class VbaProjectReader
         }
     }
 
-    private static string ClassifyKind(VbaModuleEntry entry)
+    private static string ClassifyKind(VbaModuleEntry entry, IReadOnlySet<string> formStorageNames)
     {
         if (entry.Type == 0x0021) return "standardModule";
+        if (formStorageNames.Contains(entry.Name)) return "userForm";
         if (entry.Name == "ThisWorkbook" || entry.Name.StartsWith("Sheet", StringComparison.Ordinal))
             return "documentModule";
         return "classModule";
