@@ -6,12 +6,15 @@ namespace McpOffice.Services.Excel.Vba;
 internal static partial class VbaProcedureScanner
 {
     [GeneratedRegex(
-        @"^\s*(?<scope>Public|Private|Friend)?\s*(Static\s+)?(?<kind>Sub|Function|Property\s+Get|Property\s+Let|Property\s+Set)\s+(?<name>\w+)\s*\((?<params>[^)]*)\)(\s+As\s+(?<ret>\w+))?",
+        @"^\s*(?<scope>Public|Private|Friend)?\s*(Static\s+)?(?<kind>Sub|Function|Property\s+Get|Property\s+Let|Property\s+Set)\s+(?<name>\w+)\s*\(",
         RegexOptions.IgnoreCase)]
     private static partial Regex ProcOpenRegex();
 
     [GeneratedRegex(@"^\s*End\s+(Sub|Function|Property)\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex ProcCloseRegex();
+
+    [GeneratedRegex(@"^\s+As\s+(\w+)", RegexOptions.IgnoreCase)]
+    private static partial Regex ReturnTypeRegex();
 
     public static IReadOnlyList<ScannedProcedure> Scan(string moduleKind, string moduleName, IReadOnlyList<CleanedLine> lines)
     {
@@ -21,6 +24,12 @@ internal static partial class VbaProcedureScanner
         {
             var open = ProcOpenRegex().Match(lines[i].Text);
             if (!open.Success) continue;
+
+            // The open-paren is the last char the regex matched; find its balanced close
+            // ourselves so parameter defaults like `Array(1, 2)` survive intact.
+            int openParenIdx = open.Index + open.Length - 1;
+            int closeParenIdx = FindMatchingClose(lines[i].Text, openParenIdx);
+            if (closeParenIdx < 0) continue;
 
             int startLine = lines[i].LineNumber;
             int bodyStartIdx = i + 1;
@@ -35,8 +44,13 @@ internal static partial class VbaProcedureScanner
             var kindRaw = open.Groups["kind"].Value;
             var kind = NormalizeKind(kindRaw);
             var scope = open.Groups["scope"].Success ? open.Groups["scope"].Value : null;
-            var returnType = open.Groups["ret"].Success ? open.Groups["ret"].Value : null;
-            var paramList = ParseParameters(open.Groups["params"].Value);
+
+            var paramSubstring = lines[i].Text[(openParenIdx + 1)..closeParenIdx];
+            var paramList = ParseParameters(paramSubstring);
+
+            var afterClose = lines[i].Text[(closeParenIdx + 1)..];
+            var retMatch = ReturnTypeRegex().Match(afterClose);
+            var returnType = retMatch.Success ? retMatch.Groups[1].Value : null;
 
             var (isEvent, target) = ClassifyEventHandler(moduleKind, name);
 
@@ -149,6 +163,21 @@ internal static partial class VbaProcedureScanner
             if (s[i] == '(' || s[i] == '[') depth++;
             else if (s[i] == ')' || s[i] == ']') depth--;
             else if (s[i] == '=' && depth == 0) return i;
+        }
+        return -1;
+    }
+
+    private static int FindMatchingClose(string s, int openIdx)
+    {
+        int depth = 1;
+        for (int i = openIdx + 1; i < s.Length; i++)
+        {
+            if (s[i] == '(' || s[i] == '[') depth++;
+            else if (s[i] == ')' || s[i] == ']')
+            {
+                depth--;
+                if (depth == 0) return i;
+            }
         }
         return -1;
     }

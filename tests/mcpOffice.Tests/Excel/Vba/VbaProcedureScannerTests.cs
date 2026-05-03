@@ -100,4 +100,26 @@ public class VbaProcedureScannerTests
         Assert.Equal("A", procs[0].Procedure.Name);
         Assert.Equal("B", procs[1].Procedure.Name);
     }
+
+    [Fact]
+    public void Parameter_default_with_nested_parens_is_captured_intact()
+    {
+        var procs = Scan("standardModule", "M",
+            "Sub F(Optional x As Variant = Array(1, 2)) \nEnd Sub");
+        var p = procs.Single().Procedure;
+        var param = Assert.Single(p.Parameters);
+        Assert.Equal("x", param.Name);
+        Assert.Equal("Variant", param.Type);
+        Assert.True(param.Optional);
+        Assert.NotNull(param.DefaultValue);
+        Assert.Contains("Array(1, 2)", param.DefaultValue);
+    }
+
+    [Fact]
+    public void Return_type_captured_when_parameter_list_contains_nested_parens()
+    {
+        var procs = Scan("standardModule", "M",
+            "Function F(Optional x As Variant = Array(1, 2)) As Long\nEnd Function");
+        Assert.Equal("Long", procs.Single().Procedure.ReturnType);
+    }
 }
