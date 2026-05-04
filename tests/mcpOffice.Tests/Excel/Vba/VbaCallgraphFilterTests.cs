@@ -100,4 +100,76 @@ public class VbaCallgraphFilterTests
         Assert.Empty(result.Nodes);
         Assert.Empty(result.Edges);
     }
+
+    [Fact]
+    public void Module_filter_includes_module_procedures_and_direct_neighbours()
+    {
+        // ModA calls ModB, ModC stands alone.
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ModA", "standardModule", "P1", false),
+                ("ModB", "standardModule", "Q1", false),
+                ("ModC", "standardModule", "R1", false),
+            },
+            edges: new[]
+            {
+                ("ModA.P1", "ModB.Q1", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "ModA"));
+
+        // Expect ModA.P1 (in module) + ModB.Q1 (direct neighbour). ModC.R1 dropped.
+        Assert.Equal(2, result.Nodes.Count);
+        Assert.Contains(result.Nodes, n => n.Id == "ModA.P1");
+        Assert.Contains(result.Nodes, n => n.Id == "ModB.Q1");
+        Assert.DoesNotContain(result.Nodes, n => n.Id == "ModC.R1");
+        Assert.Single(result.Edges);
+    }
+
+    [Fact]
+    public void Module_filter_pulls_in_callers_too()
+    {
+        // ModB.Q1 calls ModA.P1 (caller direction).
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ModA", "standardModule", "P1", false),
+                ("ModB", "standardModule", "Q1", false),
+            },
+            edges: new[]
+            {
+                ("ModB.Q1", "ModA.P1", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "ModA"));
+
+        Assert.Equal(2, result.Nodes.Count);
+        Assert.Single(result.Edges);
+    }
+
+    [Fact]
+    public void Module_filter_is_case_insensitive()
+    {
+        var a = Analysis(
+            procs: new[] { ("ModA", "standardModule", "P1", false) },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "moda"));
+
+        Assert.Single(result.Nodes);
+    }
+
+    [Fact]
+    public void Module_filter_unknown_throws_module_not_found()
+    {
+        var a = Analysis(
+            procs: new[] { ("ModA", "standardModule", "P1", false) },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var act = () => VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "Nope"));
+        var ex = Assert.Throws<ModelContextProtocol.McpException>(act);
+        Assert.Contains("module_not_found", ex.Message);
+        Assert.Contains("ModA", ex.Message);
+    }
 }
