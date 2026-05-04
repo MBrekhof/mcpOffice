@@ -14,14 +14,16 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 
 - [x] `excel_analyze_vba` — DONE (branch `feat/excel-analyze-vba`, merged). Procedures/functions with signatures, event handlers, call graph, Excel object-model references, file/DB/network deps. Benchmarked against the 107-module `C:\Projects\mcpOffice-samples\Air.xlsm`: 200 procedures, 110 event handlers, 938 call edges, 3040 object-model reference sites, 48 external dependencies, ~115ms wall time.
 
-## excel_analyze_vba v2 — conversion hints layer
+## excel_render_vba_callgraph — DONE (PR #9, awaiting merge)
 
-These items are surfaced by the v1 Air.xlsm benchmark as the natural next step toward Excel-to-C# migration tooling:
+Shipped on `feat/render-vba-callgraph`. Mermaid (default) + DOT renderers, layered on `excel_analyze_vba`. Three filter modes (whole / moduleName direct-neighbour / focal procedure BFS with depth+direction). External callees synthesised as deduplicated `__ext__` nodes; orphans classified per filtered view; 300-node `maxNodes` cap throws `graph_too_large`. Two layouts (clustered = subgraph-per-module, flat). 25 MCP tools total. ~196 tests passing in Release. Manual smoke (Claude Code restart + visual sanity check on Air.xlsm) is the only remaining checklist item on the PR.
 
-- [ ] Conversion hints per procedure: classify as event handler / utility / data-transform / UI glue; suggest C# equivalent (method, service class, hosted service, etc.).
-- [ ] Dependency graph rendering: emit a DOT/Mermaid call graph for agent consumption.
-- [ ] Cross-module coupling score: identify tightly coupled module clusters as refactoring targets.
-- [ ] `excel_analyze_vba` v2 design doc — capture the shape of conversion hints DTO before implementing.
+## Next Excel features (post-merge)
+
+These were originally bundled under "v2 conversion hints" but split out during brainstorming. Renderer (this PR) was v2; these are v3 / v4:
+
+- [ ] **v3 — conversion hints per procedure.** Classify as event handler / utility / data-transform / UI glue; suggest C# equivalent (method, service class, hosted service, etc.). Design doc first to capture the hints DTO.
+- [ ] **v4 — cross-module coupling score.** Identify tightly coupled module clusters as refactoring targets. Likely consumes the call graph directly.
 
 ## Side items
 
