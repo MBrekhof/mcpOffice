@@ -3,12 +3,14 @@ using McpOffice.Models;
 
 namespace McpOffice.Services.Excel.Vba.Rendering;
 
+// Renderer output is a wire format that lands in JSON-RPC payloads — line endings are LF only,
+// not host-formatted text. Both renderers (Mermaid here, DOT in DotCallgraphRenderer) follow this.
 public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
 {
     public string Render(FilteredCallgraph graph, CallgraphRenderOptions options)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("flowchart TD");
+        sb.Append("flowchart TD\n");
 
         // Layout match is exact: validation of the user-supplied value is the tool layer's job (Task 15).
         // Anything that isn't literally "clustered" falls through to flat — the safe default.
@@ -32,21 +34,21 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
 
         foreach (var group in grouped)
         {
-            sb.Append("  subgraph ").AppendLine(MangleId(group.Key));
+            sb.Append("  subgraph ").Append(MangleId(group.Key)).Append('\n');
             foreach (var node in group)
             {
                 sb.Append("    ");
                 EmitNode(sb, node, useFqnLabel: false);
-                sb.AppendLine();
+                sb.Append('\n');
             }
-            sb.AppendLine("  end");
+            sb.Append("  end\n");
         }
 
         foreach (var ext in graph.Nodes.Where(n => n.IsExternal))
         {
             sb.Append("  ");
             EmitNode(sb, ext, useFqnLabel: false);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -56,7 +58,7 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         {
             sb.Append("  ");
             EmitNode(sb, node, useFqnLabel: !node.IsExternal);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -84,15 +86,15 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         {
             sb.Append("  ").Append(MangleId(e.FromId));
             sb.Append(e.Resolved ? " --> " : " -.-> ");
-            sb.AppendLine(MangleId(e.ToId));
+            sb.Append(MangleId(e.ToId)).Append('\n');
         }
     }
 
     private static void EmitClassDefs(StringBuilder sb)
     {
-        sb.AppendLine("  classDef handler fill:#e1f5ff,stroke:#0277bd");
-        sb.AppendLine("  classDef orphan stroke-dasharray:5 5");
-        sb.AppendLine("  classDef external fill:#f5f5f5,stroke-dasharray:3 3");
+        sb.Append("  classDef handler fill:#e1f5ff,stroke:#0277bd\n");
+        sb.Append("  classDef orphan stroke-dasharray:5 5\n");
+        sb.Append("  classDef external fill:#f5f5f5,stroke-dasharray:3 3\n");
     }
 
     private static string MangleId(string id)
