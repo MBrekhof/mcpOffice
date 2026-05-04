@@ -380,4 +380,19 @@ public class VbaCallgraphFilterTests
         Assert.Contains("direction", ex.Message);
         Assert.Contains("sideways", ex.Message);
     }
+
+    [Fact]
+    public void ProcedureName_without_moduleName_throws_invalid_render_option()
+    {
+        var a = Analysis(
+            procs: new[] { ("M", "standardModule", "P1", false) },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var act = () => VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ProcedureName: "P1"));
+        var ex = Assert.Throws<ModelContextProtocol.McpException>(act);
+        Assert.Contains("invalid_render_option", ex.Message);
+        Assert.Contains("procedureName", ex.Message);
+        Assert.Contains("requires moduleName", ex.Message);
+    }
 }
