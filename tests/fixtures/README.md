@@ -14,7 +14,30 @@ Used by:
 - `tests/mcpOffice.Tests/Excel/Vba/VbaProjectReaderTests.Reads_modules_from_real_excel_fixture` — exercises the zip path and Excel's real copy-token compressed chunks (synthetic builder tests use literal-only chunks only).
 - `tests/mcpOffice.Tests.Integration/ExcelWorkflowTests.Extract_vba_via_stdio_returns_modules` — stdio integration test for `excel_extract_vba`.
 
+## synthetic-vba.xlsm
+
+Richer `.xlsm` for end-to-end pipeline tests (xlsm → vbaProject.bin → MS-OVBA decompression → analyzer). Contains:
+
+- `Module1` (standard module): `Main`, `Process(ByVal r As Range)`, `Variadic(ParamArray args() As Variant)`, `Static Sub StatefulCount`. Exercises ParamArray and Static-Sub forms in a real Excel-authored project (synthetic `VbaProjectBinBuilder` covers them too, but only via literal-only compressed chunks).
+- `ThisWorkbook` (document module): `Private Sub Workbook_Open()` that calls `Main` — load-bearing cross-module call edge for the call-graph assertion.
+- `Blad1` / `Sheet1` (document module, codename is locale-dependent): `Private Sub Worksheet_Change(ByVal Target As Range)`.
+- `Class1` (class module): `Public Sub Greet(ByVal who As String)`.
+
+Used by:
+
+- `tests/mcpOffice.Tests/Excel/Vba/SyntheticAnalyzeTests.cs` — unconditional end-to-end pipeline test, complements the gated `AirSampleAnalysisTests` so suites running on machines without `C:\Projects\mcpOffice-samples\Air.xlsm` still get full-pipeline coverage.
+
 ### Regenerating
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/fixtures/Generate-SyntheticVbaXlsm.ps1
+```
+
+Requires Excel installed and "Trust access to the VBA project object model" enabled (File → Options → Trust Center → Trust Center Settings → Macro Settings). On Dutch Excel: "Vertrouwen geven aan toegang tot het VBA-projectobjectmodel".
+
+The script discovers the workbook/sheet codenames at runtime via VBComponents enumeration (locale-independent — works on Dutch, English, etc.).
+
+## Regenerating sample-with-macros.xlsm
 
 DevExpress.Spreadsheet cannot author VBA, so this fixture is created manually:
 
