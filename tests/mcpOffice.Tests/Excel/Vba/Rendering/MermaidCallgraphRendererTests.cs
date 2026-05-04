@@ -71,4 +71,59 @@ public class MermaidCallgraphRendererTests
 
         Assert.Matches(@"M_P1\s*-\.->\s*__ext__MsgBox", output);
     }
+
+    [Fact]
+    public void Procedure_name_with_brackets_is_escaped_in_label()
+    {
+        var node = new CallgraphNode("M.[Bracketed Name]", "[Bracketed Name]", "M", false, false, false);
+        var output = R.Render(
+            new FilteredCallgraph(new[] { node }, Array.Empty<CallgraphEdge>()),
+            new CallgraphRenderOptions(Layout: "flat"));
+
+        Assert.DoesNotContain("[[Bracketed Name]]", output);
+        Assert.Contains("&#91;Bracketed Name&#93;", output);
+    }
+
+    [Fact]
+    public void Procedure_name_with_parens_is_escaped_in_handler_node()
+    {
+        var node = new CallgraphNode("M.Foo(bar)", "Foo(bar)", "M",
+            IsEventHandler: true, IsOrphan: false, IsExternal: false);
+        var output = R.Render(
+            new FilteredCallgraph(new[] { node }, Array.Empty<CallgraphEdge>()),
+            new CallgraphRenderOptions(Layout: "flat"));
+
+        Assert.Contains("Foo&#40;bar&#41;", output);
+    }
+
+    [Fact]
+    public void Module_name_with_space_is_mangled_in_subgraph_id()
+    {
+        var node = new CallgraphNode("Sheet 1.P1", "P1", "Sheet 1", false, false, false);
+        var output = R.Render(
+            new FilteredCallgraph(new[] { node }, Array.Empty<CallgraphEdge>()),
+            new CallgraphRenderOptions(Layout: "clustered"));
+
+        Assert.Contains("subgraph Sheet_1", output);
+    }
+
+    [Fact]
+    public void Subgraph_open_count_matches_end_count()
+    {
+        var nodes = new[]
+        {
+            new CallgraphNode("M1.A", "A", "M1", false, false, false),
+            new CallgraphNode("M1.B", "B", "M1", false, false, false),
+            new CallgraphNode("M2.C", "C", "M2", false, false, false),
+            new CallgraphNode("__ext__MsgBox", "MsgBox", null, false, false, true),
+        };
+        var output = R.Render(
+            new FilteredCallgraph(nodes, Array.Empty<CallgraphEdge>()),
+            new CallgraphRenderOptions(Layout: "clustered"));
+
+        var subgraphCount = System.Text.RegularExpressions.Regex.Matches(output, @"^\s*subgraph\b", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+        var endCount = System.Text.RegularExpressions.Regex.Matches(output, @"^\s*end\s*$", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+        Assert.Equal(subgraphCount, endCount);
+        Assert.Equal(2, subgraphCount);
+    }
 }
