@@ -1,6 +1,7 @@
 using DevExpress.Spreadsheet;
 using McpOffice.Models;
 using McpOffice.Services.Excel.Vba;
+using McpOffice.Services.Excel.Vba.Rendering;
 using ModelContextProtocol;
 
 namespace McpOffice.Services.Excel;
@@ -125,6 +126,59 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         {
             var project = new VbaProjectReader().Read(path);
             return VbaSourceAnalyzer.Analyze(project, includeProcedures, includeCallGraph, includeReferences, moduleName);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public string RenderVbaCallgraph(
+        string path,
+        string format,
+        string? moduleName,
+        string? procedureName,
+        int depth,
+        string direction,
+        string layout,
+        int maxNodes)
+    {
+        PathGuard.RequireExists(path);
+
+        ICallgraphRenderer renderer = format switch
+        {
+            "mermaid" => new MermaidCallgraphRenderer(),
+            "dot" => new DotCallgraphRenderer(),
+            _ => throw ToolError.InvalidRenderOption(
+                "format", format, "Use one of mermaid, dot."),
+        };
+
+        if (layout != "clustered" && layout != "flat")
+            throw ToolError.InvalidRenderOption(
+                "layout", layout, "Use one of clustered, flat.");
+
+        try
+        {
+            var project = new VbaProjectReader().Read(path);
+            var analysis = VbaSourceAnalyzer.Analyze(
+                project, includeProcedures: true, includeCallGraph: true, includeReferences: false);
+
+            if (!analysis.HasVbaProject)
+            {
+                return renderer.Render(
+                    new FilteredCallgraph(Array.Empty<CallgraphNode>(), Array.Empty<CallgraphEdge>()),
+                    new CallgraphRenderOptions(layout));
+            }
+
+            var filtered = VbaCallgraphFilter.Apply(analysis,
+                new CallgraphFilterOptions(
+                    ModuleName: moduleName,
+                    ProcedureName: procedureName,
+                    Depth: depth,
+                    Direction: direction,
+                    MaxNodes: maxNodes));
+
+            return renderer.Render(filtered, new CallgraphRenderOptions(layout));
         }
         catch (Exception ex) when (ex is not McpException)
         {
