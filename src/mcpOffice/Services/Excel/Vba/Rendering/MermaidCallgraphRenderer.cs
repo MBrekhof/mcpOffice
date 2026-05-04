@@ -10,6 +10,8 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         var sb = new StringBuilder();
         sb.AppendLine("flowchart TD");
 
+        // Layout match is exact: validation of the user-supplied value is the tool layer's job (Task 15).
+        // Anything that isn't literally "clustered" falls through to flat — the safe default.
         if (options.Layout == "clustered")
             EmitClustered(sb, graph);
         else
@@ -63,6 +65,9 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         var id = MangleId(node.Id);
         var label = EscapeLabel(useFqnLabel ? node.Id : node.Label);
 
+        // Shape priority differs from class priority: handlers get the rounded shape, externals
+        // get the :::external class. Per BuildOutput, externals never have IsEventHandler=true,
+        // so the shape/class disagreement on a single node is unreachable.
         if (node.IsEventHandler)
             sb.Append(id).Append("([").Append(label).Append("])");
         else
@@ -92,6 +97,9 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
 
     private static string MangleId(string id)
     {
+        // Mermaid IDs accept [A-Za-z0-9_] only. We replace everything else with '_'.
+        // Theoretical collision: a module literally named "M_P1" mangles to the same id as
+        // FQN "M.P1". Real workbooks haven't hit this; revisit with a bijective mapping if needed.
         var chars = id.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_').ToArray();
         return new string(chars);
     }
