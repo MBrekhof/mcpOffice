@@ -28,7 +28,6 @@ public static class VbaCallgraphFilter
             moduleFilter = match.Name;
         }
 
-        // Build the full procedure-node set first (every parsed procedure across all modules).
         var allNodesById = new Dictionary<string, CallgraphNode>();
         foreach (var m in analysis.Modules)
         {
@@ -66,13 +65,16 @@ public static class VbaCallgraphFilter
         var survivingIds = new HashSet<string>(moduleProcIds);
         foreach (var e in allEdges)
         {
-            if (moduleProcIds.Contains(e.From) && allNodesById.ContainsKey(e.To))
+            var fromInModule = moduleProcIds.Contains(e.From);
+            var toInModule = moduleProcIds.Contains(e.To);
+            if (fromInModule && allNodesById.ContainsKey(e.To))
                 survivingIds.Add(e.To);
-            if (moduleProcIds.Contains(e.To) && allNodesById.ContainsKey(e.From))
+            if (toInModule && allNodesById.ContainsKey(e.From))
                 survivingIds.Add(e.From);
         }
 
-        var moduleNodes = survivingIds.Select(id => allNodesById[id]).ToList();
+        // Iterate the dictionary so node order follows declaration order (deterministic for renderers).
+        var moduleNodes = allNodesById.Values.Where(n => survivingIds.Contains(n.Id)).ToList();
         var moduleEdges = allEdges
             .Where(e => survivingIds.Contains(e.From) && survivingIds.Contains(e.To))
             .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
