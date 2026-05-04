@@ -17,4 +17,7 @@ public static class ErrorCode
     public const string VbaProjectLocked = "vba_project_locked";
     public const string VbaParseError = "vba_parse_error";
     public const string ModuleNotFound = "module_not_found";
+    public const string ProcedureNotFound = "procedure_not_found";
+    public const string GraphTooLarge = "graph_too_large";
+    public const string InvalidRenderOption = "invalid_render_option";
 }

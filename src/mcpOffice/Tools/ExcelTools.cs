@@ -72,4 +72,17 @@ public static class ExcelTools
         [Description("Include object-model and dependency references. Default false (heaviest output).")] bool includeReferences = false,
         [Description("Optional case-insensitive VBA module name to scope the modules/callGraph/references arrays to. Summary remains whole-workbook. Throws module_not_found if the name is unknown.")] string? moduleName = null)
         => Service.AnalyzeVba(path, includeProcedures, includeCallGraph, includeReferences, moduleName);
+
+    [McpServerTool(Name = "excel_render_vba_callgraph")]
+    [Description("Renders the VBA call graph as Mermaid (default) or DOT for visual inspection. Layered on excel_analyze_vba. Use moduleName / procedureName / depth / direction to narrow on large workbooks; without filters, large workbooks throw graph_too_large. Returns the rendered string directly — no JSON wrapper.")]
+    public static object ExcelRenderVbaCallgraph(
+        [Description("Absolute path to the .xlsm/.xlsb workbook")] string path,
+        [Description("Output format: 'mermaid' (default, renders inline in Markdown) or 'dot' (Graphviz).")] string format = "mermaid",
+        [Description("Optional case-insensitive module name to scope the graph to a single module's neighbourhood.")] string? moduleName = null,
+        [Description("Optional case-insensitive focal procedure name within moduleName. Requires moduleName.")] string? procedureName = null,
+        [Description("BFS hops out from the focal procedure. Used only with procedureName. Default 2.")] int depth = 2,
+        [Description("BFS direction: 'callees', 'callers', or 'both'. Used only with procedureName. Default 'both'.")] string direction = "both",
+        [Description("Layout: 'clustered' (subgraph per module, default) or 'flat'.")] string layout = "clustered",
+        [Description("Hard cap on rendered node count. Throws graph_too_large past this. Default 300.")] int maxNodes = 300)
+        => Service.RenderVbaCallgraph(path, format, moduleName, procedureName, depth, direction, layout, maxNodes);
 }

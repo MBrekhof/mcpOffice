@@ -161,6 +161,55 @@ public class ExcelWorkflowTests
         Assert.Contains("\"modules\":", text);
     }
 
+    [Fact]
+    public async Task Render_vba_callgraph_via_stdio_returns_mermaid()
+    {
+        var fixture = ResolveFixturePath("sample-with-macros.xlsm");
+        if (!File.Exists(fixture)) return;
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_render_vba_callgraph",
+            new Dictionary<string, object?>
+            {
+                ["path"] = fixture,
+                ["format"] = "mermaid",
+                ["layout"] = "flat"
+            });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+        Assert.NotEmpty(text);
+        Assert.Contains("flowchart TD", text);
+    }
+
+    [Fact]
+    public async Task Render_vba_callgraph_returns_empty_flowchart_for_xlsx_without_macros()
+    {
+        var path = TempPath(".xlsx");
+        try
+        {
+            using (var workbook = new Workbook())
+            {
+                workbook.Worksheets[0].Cells["A1"].Value = "x";
+                workbook.SaveDocument(path, SpreadsheetFormat.Xlsx);
+            }
+
+            await using var harness = await ServerHarness.StartAsync();
+            var result = await harness.Client.CallToolAsync(
+                "excel_render_vba_callgraph",
+                new Dictionary<string, object?> { ["path"] = path });
+
+            var text = result.Content.OfType<TextContentBlock>().Single().Text;
+            Assert.Contains("flowchart TD", text);
+            Assert.DoesNotContain("subgraph", text);
+            Assert.DoesNotContain("-->", text);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     private static string ResolveFixturePath(string name)
     {
         var asmDir = Path.GetDirectoryName(typeof(ExcelWorkflowTests).Assembly.Location)!;

@@ -32,4 +32,13 @@ public interface IExcelWorkbookService
         bool includeCallGraph,
         bool includeReferences,
         string? moduleName = null);
+    string RenderVbaCallgraph(
+        string path,
+        string format,
+        string? moduleName,
+        string? procedureName,
+        int depth,
+        string direction,
+        string layout,
+        int maxNodes);
 }
