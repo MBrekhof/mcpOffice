@@ -1,3 +1,4 @@
+using System.Globalization;
 using DevExpress.Spreadsheet;
 using McpOffice.Models;
 using McpOffice.Services.Excel.Vba;
@@ -357,6 +358,11 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
     private static Workbook LoadWorkbook(string path)
     {
         var workbook = new Workbook();
+        // Pin to InvariantCulture so formula text we return to the agent (DefinedName.RefersTo,
+        // CellRange.Formula, etc.) uses "." as the decimal separator and "," as the argument
+        // separator regardless of the host's locale. The MCP API contract is locale-neutral;
+        // an agent on a Dutch dev box and a CI runner in en-US should see identical output.
+        workbook.Options.Culture = CultureInfo.InvariantCulture;
         workbook.LoadDocument(path);
         return workbook;
     }
