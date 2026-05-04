@@ -572,4 +572,31 @@ public class VbaCallgraphFilterTests
         Assert.True(noFilterResult.Nodes.Single(n => n.Id == "ModA.X").IsOrphan);
         Assert.False(noFilterResult.Nodes.Single(n => n.Id == "ModA.P1").IsOrphan);
     }
+
+    [Fact]
+    public void Exceeds_maxNodes_throws_graph_too_large()
+    {
+        var procs = Enumerable.Range(0, 5)
+            .Select(i => ("M", "standardModule", $"P{i}", false))
+            .ToArray();
+        var a = Analysis(procs, Array.Empty<(string, string, bool)>());
+
+        var act = () => VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(MaxNodes: 3));
+        var ex = Assert.Throws<ModelContextProtocol.McpException>(act);
+        Assert.Contains("graph_too_large", ex.Message);
+        Assert.Contains("5", ex.Message);
+        Assert.Contains("3", ex.Message);
+    }
+
+    [Fact]
+    public void Equal_to_maxNodes_does_not_throw()
+    {
+        var procs = Enumerable.Range(0, 3)
+            .Select(i => ("M", "standardModule", $"P{i}", false))
+            .ToArray();
+        var a = Analysis(procs, Array.Empty<(string, string, bool)>());
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(MaxNodes: 3));
+        Assert.Equal(3, result.Nodes.Count);
+    }
 }

@@ -91,7 +91,7 @@ public static class VbaCallgraphFilter
                 survivingProcIds: visited.Where(allNodesById.ContainsKey).ToHashSet(),
                 allNodesById,
                 allEdges);
-            return new FilteredCallgraph(bfsNodes, bfsEdges);
+            return Cap(new FilteredCallgraph(bfsNodes, bfsEdges), options.MaxNodes);
         }
 
         // Branch 2: moduleName-only direct-neighbour expansion.
@@ -113,13 +113,20 @@ public static class VbaCallgraphFilter
             }
 
             var (moduleNodes, moduleEdges) = BuildOutput(survivingIds, allNodesById, allEdges);
-            return new FilteredCallgraph(moduleNodes, moduleEdges);
+            return Cap(new FilteredCallgraph(moduleNodes, moduleEdges), options.MaxNodes);
         }
 
         // Branch 3: no filter — return everything.
         var allProcIds = allNodesById.Keys.ToHashSet();
         var (allNodes, allEdgesOut) = BuildOutput(allProcIds, allNodesById, allEdges);
-        return new FilteredCallgraph(allNodes, allEdgesOut);
+        return Cap(new FilteredCallgraph(allNodes, allEdgesOut), options.MaxNodes);
+    }
+
+    private static FilteredCallgraph Cap(FilteredCallgraph graph, int maxNodes)
+    {
+        if (graph.Nodes.Count > maxNodes)
+            throw ToolError.GraphTooLarge(graph.Nodes.Count, maxNodes);
+        return graph;
     }
 
     private const string ExternalIdPrefix = "__ext__";
