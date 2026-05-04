@@ -89,14 +89,10 @@ public static class VbaCallgraphFilter
                 frontier = next;
             }
 
-            var bfsNodes = visited
-                .Where(allNodesById.ContainsKey)
-                .Select(id => allNodesById[id])
-                .ToList();
-            var bfsEdges = allEdges
-                .Where(e => visited.Contains(e.From) && visited.Contains(e.To))
-                .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
-                .ToList();
+            var (bfsNodes, bfsEdges) = BuildOutput(
+                survivingProcIds: visited.Where(allNodesById.ContainsKey).ToHashSet(),
+                allNodesById,
+                allEdges);
             return new FilteredCallgraph(bfsNodes, bfsEdges);
         }
 
@@ -118,20 +114,58 @@ public static class VbaCallgraphFilter
                     survivingIds.Add(e.From);
             }
 
-            // Iterate the dictionary so node order follows declaration order (deterministic for renderers).
-            var moduleNodes = allNodesById.Values.Where(n => survivingIds.Contains(n.Id)).ToList();
-            var moduleEdges = allEdges
-                .Where(e => survivingIds.Contains(e.From) && survivingIds.Contains(e.To))
-                .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
-                .ToList();
+            var (moduleNodes, moduleEdges) = BuildOutput(survivingIds, allNodesById, allEdges);
             return new FilteredCallgraph(moduleNodes, moduleEdges);
         }
 
         // Branch 3: no filter — return everything.
-        var passThruEdges = allEdges
-            .Where(e => allNodesById.ContainsKey(e.From) && allNodesById.ContainsKey(e.To))
-            .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
-            .ToList();
-        return new FilteredCallgraph(allNodesById.Values.ToList(), passThruEdges);
+        var allProcIds = allNodesById.Keys.ToHashSet();
+        var (allNodes, allEdgesOut) = BuildOutput(allProcIds, allNodesById, allEdges);
+        return new FilteredCallgraph(allNodes, allEdgesOut);
+    }
+
+    private const string ExternalIdPrefix = "__ext__";
+    private static string ExternalId(string calleeName) => ExternalIdPrefix + calleeName;
+
+    private static (List<CallgraphNode> Nodes, List<CallgraphEdge> Edges) BuildOutput(
+        HashSet<string> survivingProcIds,
+        Dictionary<string, CallgraphNode> allNodesById,
+        IReadOnlyList<ExcelVbaCallEdge> allEdges)
+    {
+        // Iterate the dictionary so procedure-node order follows declaration order (deterministic for renderers).
+        var outNodes = allNodesById.Values.Where(n => survivingProcIds.Contains(n.Id)).ToList();
+
+        var externalNodes = new Dictionary<string, CallgraphNode>(StringComparer.Ordinal);
+        var outEdges = new List<CallgraphEdge>();
+
+        foreach (var e in allEdges)
+        {
+            var fromIsProc = survivingProcIds.Contains(e.From);
+            var toIsProc = allNodesById.ContainsKey(e.To) && survivingProcIds.Contains(e.To);
+
+            if (fromIsProc && toIsProc)
+            {
+                outEdges.Add(new CallgraphEdge(e.From, e.To, e.Resolved));
+            }
+            else if (fromIsProc && !e.Resolved)
+            {
+                var extId = ExternalId(e.To);
+                if (!externalNodes.ContainsKey(extId))
+                {
+                    externalNodes[extId] = new CallgraphNode(
+                        Id: extId,
+                        Label: e.To,
+                        Module: null,
+                        IsEventHandler: false,
+                        IsOrphan: false,
+                        IsExternal: true);
+                }
+                outEdges.Add(new CallgraphEdge(e.From, extId, false));
+            }
+            // else: edge dropped (To is unknown but Resolved=true, or From not in surviving set).
+        }
+
+        outNodes.AddRange(externalNodes.Values);
+        return (outNodes, outEdges);
     }
 }

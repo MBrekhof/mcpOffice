@@ -395,4 +395,75 @@ public class VbaCallgraphFilterTests
         Assert.Contains("procedureName", ex.Message);
         Assert.Contains("requires moduleName", ex.Message);
     }
+
+    [Fact]
+    public void Unresolved_callees_become_single_external_node_per_name()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+            },
+            edges: new[]
+            {
+                ("M.P1", "MsgBox", false),
+                ("M.P2", "MsgBox", false),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        var externals = result.Nodes.Where(n => n.IsExternal).ToList();
+        Assert.Single(externals);
+        Assert.Equal("MsgBox", externals[0].Label);
+        Assert.True(externals[0].IsExternal);
+        Assert.Null(externals[0].Module);
+
+        var externalEdges = result.Edges.Where(e => e.ToId == externals[0].Id).ToList();
+        Assert.Equal(2, externalEdges.Count);
+        Assert.All(externalEdges, e => Assert.False(e.Resolved));
+    }
+
+    [Fact]
+    public void Distinct_unresolved_names_get_distinct_external_nodes()
+    {
+        var a = Analysis(
+            procs: new[] { ("M", "standardModule", "P1", false) },
+            edges: new[]
+            {
+                ("M.P1", "MsgBox", false),
+                ("M.P1", "CreateObject", false),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        var externals = result.Nodes.Where(n => n.IsExternal).ToList();
+        Assert.Equal(2, externals.Count);
+        Assert.Contains(externals, e => e.Label == "MsgBox");
+        Assert.Contains(externals, e => e.Label == "CreateObject");
+    }
+
+    [Fact]
+    public void External_nodes_appear_only_when_caller_is_in_filtered_set()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ModA", "standardModule", "P1", false),
+                ("ModB", "standardModule", "Q1", false),
+            },
+            edges: new[]
+            {
+                ("ModA.P1", "MsgBox", false),
+                ("ModB.Q1", "MsgBox", false),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "ModA"));
+
+        var externals = result.Nodes.Where(n => n.IsExternal).ToList();
+        Assert.Single(externals);
+        var externalEdges = result.Edges.Where(e => e.ToId == externals[0].Id).ToList();
+        Assert.Single(externalEdges);
+        Assert.Equal("ModA.P1", externalEdges[0].FromId);
+    }
 }
