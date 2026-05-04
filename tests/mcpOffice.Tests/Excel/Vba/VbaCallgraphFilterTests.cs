@@ -305,6 +305,30 @@ public class VbaCallgraphFilterTests
     }
 
     [Fact]
+    public void Focal_procedure_cycle_terminates()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+            },
+            edges: new[]
+            {
+                ("M.P1", "M.P2", true),
+                ("M.P2", "M.P1", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 5,
+            Direction: "both"));
+
+        Assert.Equal(2, result.Nodes.Count);
+    }
+
+    [Fact]
     public void ProcedureName_unknown_throws_procedure_not_found()
     {
         var a = Analysis(

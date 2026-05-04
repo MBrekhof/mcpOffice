@@ -17,14 +17,15 @@ public static class VbaCallgraphFilter
         if (!analysis.HasVbaProject || analysis.Modules is null)
             return new FilteredCallgraph(Array.Empty<CallgraphNode>(), Array.Empty<CallgraphEdge>());
 
+        ExcelVbaModuleAnalysis? moduleMatch = null;
         string? moduleFilter = null;
         if (!string.IsNullOrWhiteSpace(options.ModuleName))
         {
-            var match = analysis.Modules.FirstOrDefault(m =>
+            moduleMatch = analysis.Modules.FirstOrDefault(m =>
                 string.Equals(m.Name, options.ModuleName, StringComparison.OrdinalIgnoreCase));
-            if (match is null)
+            if (moduleMatch is null)
                 throw ToolError.ModuleNotFound(options.ModuleName, analysis.Modules.Select(m => m.Name));
-            moduleFilter = match.Name;
+            moduleFilter = moduleMatch.Name;
         }
 
         var allNodesById = new Dictionary<string, CallgraphNode>();
@@ -53,9 +54,7 @@ public static class VbaCallgraphFilter
                     "procedureName", options.ProcedureName,
                     "procedureName requires moduleName — bare procedure names aren't unique.");
 
-            var moduleProcs = analysis.Modules
-                .Single(m => m.Name == moduleFilter)
-                .Procedures;
+            var moduleProcs = moduleMatch!.Procedures;
             var focalMatch = moduleProcs.FirstOrDefault(p =>
                 string.Equals(p.Name, options.ProcedureName, StringComparison.OrdinalIgnoreCase));
             if (focalMatch is null)
@@ -76,6 +75,8 @@ public static class VbaCallgraphFilter
                 var next = new HashSet<string>();
                 foreach (var e in allEdges)
                 {
+                    // Unresolved callees join `visited` so Task 8 can synthesize __ext__ nodes for them.
+                    // Safe: e.From must be in frontier (a real node), so we never traverse external→external.
                     if (followCallees && frontier.Contains(e.From) && !visited.Contains(e.To)
                         && (allNodesById.ContainsKey(e.To) || !e.Resolved))
                         next.Add(e.To);
