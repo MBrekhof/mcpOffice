@@ -516,4 +516,60 @@ public class VbaCallgraphFilterTests
         Assert.Equal("MsgBox", externals[0].Label);
         Assert.Single(result.Edges, e => e.ToId == externals[0].Id);
     }
+
+    [Fact]
+    public void Orphan_procedure_with_no_edges_marked_isOrphan()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "Connected1", false),
+                ("M", "standardModule", "Connected2", false),
+                ("M", "standardModule", "Lonely", false),
+            },
+            edges: new[] { ("M.Connected1", "M.Connected2", true) });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        var lonely = Assert.Single(result.Nodes, n => n.Id == "M.Lonely");
+        Assert.True(lonely.IsOrphan);
+        Assert.False(result.Nodes.Single(n => n.Id == "M.Connected1").IsOrphan);
+    }
+
+    [Fact]
+    public void Event_handler_with_no_edges_is_NOT_marked_orphan()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ThisWorkbook", "documentModule", "Workbook_Open", true),
+            },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        var node = Assert.Single(result.Nodes);
+        Assert.True(node.IsEventHandler);
+        Assert.False(node.IsOrphan);
+    }
+
+    [Fact]
+    public void Orphan_classification_is_per_filtered_view_not_per_workbook()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ModA", "standardModule", "P1", false),
+                ("ModA", "standardModule", "X", false),
+                ("ModB", "standardModule", "Q1", false),
+            },
+            edges: new[] { ("ModA.P1", "ModB.Q1", true) });
+
+        var moduleResult = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(ModuleName: "ModA"));
+        var noFilterResult = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        Assert.True(moduleResult.Nodes.Single(n => n.Id == "ModA.X").IsOrphan);
+        Assert.True(noFilterResult.Nodes.Single(n => n.Id == "ModA.X").IsOrphan);
+        Assert.False(noFilterResult.Nodes.Single(n => n.Id == "ModA.P1").IsOrphan);
+    }
 }

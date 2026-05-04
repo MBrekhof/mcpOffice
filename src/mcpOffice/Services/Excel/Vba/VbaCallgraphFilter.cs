@@ -130,9 +130,6 @@ public static class VbaCallgraphFilter
         Dictionary<string, CallgraphNode> allNodesById,
         IReadOnlyList<ExcelVbaCallEdge> allEdges)
     {
-        // Iterate the dictionary so procedure-node order follows declaration order (deterministic for renderers).
-        var outNodes = allNodesById.Values.Where(n => survivingProcIds.Contains(n.Id)).ToList();
-
         var externalNodes = new Dictionary<string, CallgraphNode>(StringComparer.Ordinal);
         var outEdges = new List<CallgraphEdge>();
 
@@ -163,7 +160,25 @@ public static class VbaCallgraphFilter
             // else: edge dropped (To is unknown but Resolved=true, or From not in surviving set).
         }
 
+        // Degree per surviving node id (procedures + externals). Used for IsOrphan classification.
+        var degree = new Dictionary<string, int>();
+        foreach (var e in outEdges)
+        {
+            degree[e.FromId] = degree.GetValueOrDefault(e.FromId) + 1;
+            degree[e.ToId] = degree.GetValueOrDefault(e.ToId) + 1;
+        }
+
+        // Iterate the dictionary so procedure-node order follows declaration order (deterministic for renderers).
+        // Re-stamp IsOrphan per filtered view: zero in/out edges and not an event handler.
+        var outNodes = new List<CallgraphNode>(survivingProcIds.Count + externalNodes.Count);
+        foreach (var node in allNodesById.Values)
+        {
+            if (!survivingProcIds.Contains(node.Id)) continue;
+            var isOrphan = !node.IsEventHandler && !degree.ContainsKey(node.Id);
+            outNodes.Add(node with { IsOrphan = isOrphan });
+        }
         outNodes.AddRange(externalNodes.Values);
+
         return (outNodes, outEdges);
     }
 }
