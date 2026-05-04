@@ -17,7 +17,6 @@ public static class VbaCallgraphFilter
         if (!analysis.HasVbaProject || analysis.Modules is null)
             return new FilteredCallgraph(Array.Empty<CallgraphNode>(), Array.Empty<CallgraphEdge>());
 
-        // Resolve module filter (case-insensitive) — produces canonical casing for downstream comparisons.
         string? moduleFilter = null;
         if (!string.IsNullOrWhiteSpace(options.ModuleName))
         {
@@ -46,40 +45,92 @@ public static class VbaCallgraphFilter
 
         var allEdges = analysis.CallGraph ?? Array.Empty<ExcelVbaCallEdge>();
 
-        if (moduleFilter is null)
+        // Branch 1: focal-procedure BFS.
+        if (!string.IsNullOrWhiteSpace(options.ProcedureName))
         {
-            // No-filter mode: return all procedure nodes + all edges between known nodes.
-            var passThruEdges = allEdges
-                .Where(e => allNodesById.ContainsKey(e.From) && allNodesById.ContainsKey(e.To))
+            if (moduleFilter is null)
+                throw ToolError.InvalidRenderOption(
+                    "procedureName", options.ProcedureName,
+                    "procedureName requires moduleName — bare procedure names aren't unique.");
+
+            var moduleProcs = analysis.Modules
+                .Single(m => m.Name == moduleFilter)
+                .Procedures;
+            var focalMatch = moduleProcs.FirstOrDefault(p =>
+                string.Equals(p.Name, options.ProcedureName, StringComparison.OrdinalIgnoreCase));
+            if (focalMatch is null)
+                throw ToolError.ProcedureNotFound(options.ProcedureName, moduleProcs.Select(p => p.Name));
+
+            var focalId = focalMatch.FullyQualifiedName;
+            var followCallees = options.Direction is "callees" or "both";
+            var followCallers = options.Direction is "callers" or "both";
+            if (!followCallees && !followCallers)
+                throw ToolError.InvalidRenderOption(
+                    "direction", options.Direction,
+                    "Use one of callees, callers, both.");
+
+            var visited = new HashSet<string> { focalId };
+            var frontier = new HashSet<string> { focalId };
+            for (var hop = 0; hop < options.Depth; hop++)
+            {
+                var next = new HashSet<string>();
+                foreach (var e in allEdges)
+                {
+                    if (followCallees && frontier.Contains(e.From) && !visited.Contains(e.To)
+                        && (allNodesById.ContainsKey(e.To) || !e.Resolved))
+                        next.Add(e.To);
+                    if (followCallers && frontier.Contains(e.To) && !visited.Contains(e.From)
+                        && allNodesById.ContainsKey(e.From))
+                        next.Add(e.From);
+                }
+                if (next.Count == 0) break;
+                foreach (var id in next) visited.Add(id);
+                frontier = next;
+            }
+
+            var bfsNodes = visited
+                .Where(allNodesById.ContainsKey)
+                .Select(id => allNodesById[id])
+                .ToList();
+            var bfsEdges = allEdges
+                .Where(e => visited.Contains(e.From) && visited.Contains(e.To))
                 .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
                 .ToList();
-            return new FilteredCallgraph(allNodesById.Values.ToList(), passThruEdges);
+            return new FilteredCallgraph(bfsNodes, bfsEdges);
         }
 
-        // Module-only mode: seed = procs in module; expand one hop both directions.
-        var moduleProcIds = allNodesById.Values
-            .Where(n => n.Module == moduleFilter)
-            .Select(n => n.Id)
-            .ToHashSet();
-
-        var survivingIds = new HashSet<string>(moduleProcIds);
-        foreach (var e in allEdges)
+        // Branch 2: moduleName-only direct-neighbour expansion.
+        if (moduleFilter is not null)
         {
-            var fromInModule = moduleProcIds.Contains(e.From);
-            var toInModule = moduleProcIds.Contains(e.To);
-            if (fromInModule && allNodesById.ContainsKey(e.To))
-                survivingIds.Add(e.To);
-            if (toInModule && allNodesById.ContainsKey(e.From))
-                survivingIds.Add(e.From);
+            var moduleProcIds = allNodesById.Values
+                .Where(n => n.Module == moduleFilter)
+                .Select(n => n.Id)
+                .ToHashSet();
+            var survivingIds = new HashSet<string>(moduleProcIds);
+            foreach (var e in allEdges)
+            {
+                var fromInModule = moduleProcIds.Contains(e.From);
+                var toInModule = moduleProcIds.Contains(e.To);
+                if (fromInModule && allNodesById.ContainsKey(e.To))
+                    survivingIds.Add(e.To);
+                if (toInModule && allNodesById.ContainsKey(e.From))
+                    survivingIds.Add(e.From);
+            }
+
+            // Iterate the dictionary so node order follows declaration order (deterministic for renderers).
+            var moduleNodes = allNodesById.Values.Where(n => survivingIds.Contains(n.Id)).ToList();
+            var moduleEdges = allEdges
+                .Where(e => survivingIds.Contains(e.From) && survivingIds.Contains(e.To))
+                .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
+                .ToList();
+            return new FilteredCallgraph(moduleNodes, moduleEdges);
         }
 
-        // Iterate the dictionary so node order follows declaration order (deterministic for renderers).
-        var moduleNodes = allNodesById.Values.Where(n => survivingIds.Contains(n.Id)).ToList();
-        var moduleEdges = allEdges
-            .Where(e => survivingIds.Contains(e.From) && survivingIds.Contains(e.To))
+        // Branch 3: no filter — return everything.
+        var passThruEdges = allEdges
+            .Where(e => allNodesById.ContainsKey(e.From) && allNodesById.ContainsKey(e.To))
             .Select(e => new CallgraphEdge(e.From, e.To, e.Resolved))
             .ToList();
-
-        return new FilteredCallgraph(moduleNodes, moduleEdges);
+        return new FilteredCallgraph(allNodesById.Values.ToList(), passThruEdges);
     }
 }

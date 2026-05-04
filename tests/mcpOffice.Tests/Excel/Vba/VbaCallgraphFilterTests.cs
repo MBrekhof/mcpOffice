@@ -172,4 +172,188 @@ public class VbaCallgraphFilterTests
         Assert.Contains("module_not_found", ex.Message);
         Assert.Contains("ModA", ex.Message);
     }
+
+    [Fact]
+    public void Focal_procedure_callees_only_depth_1()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+                ("M", "standardModule", "P3", false),
+                ("M", "standardModule", "P4", false),
+            },
+            edges: new[]
+            {
+                ("M.P1", "M.P2", true),
+                ("M.P2", "M.P3", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 1,
+            Direction: "callees"));
+
+        Assert.Equal(2, result.Nodes.Count);
+        Assert.Contains(result.Nodes, n => n.Id == "M.P1");
+        Assert.Contains(result.Nodes, n => n.Id == "M.P2");
+        Assert.DoesNotContain(result.Nodes, n => n.Id == "M.P3");
+        Assert.DoesNotContain(result.Nodes, n => n.Id == "M.P4");
+    }
+
+    [Fact]
+    public void Focal_procedure_callees_depth_2_pulls_in_grandchildren()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+                ("M", "standardModule", "P3", false),
+            },
+            edges: new[]
+            {
+                ("M.P1", "M.P2", true),
+                ("M.P2", "M.P3", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 2,
+            Direction: "callees"));
+
+        Assert.Equal(3, result.Nodes.Count);
+    }
+
+    [Fact]
+    public void Focal_procedure_callers_walks_inbound_edges()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+                ("M", "standardModule", "P3", false),
+                ("M", "standardModule", "P4", false),
+            },
+            edges: new[]
+            {
+                ("M.P2", "M.P1", true),
+                ("M.P3", "M.P2", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 2,
+            Direction: "callers"));
+
+        Assert.Equal(3, result.Nodes.Count);
+        Assert.DoesNotContain(result.Nodes, n => n.Id == "M.P4");
+    }
+
+    [Fact]
+    public void Focal_procedure_both_unions_callees_and_callers()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P0", false),
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+                ("M", "standardModule", "P3", false),
+            },
+            edges: new[]
+            {
+                ("M.P0", "M.P1", true),
+                ("M.P1", "M.P2", true),
+                ("M.P3", "M.P1", true),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 1,
+            Direction: "both"));
+
+        Assert.Equal(4, result.Nodes.Count);
+    }
+
+    [Fact]
+    public void Focal_procedure_depth_zero_returns_just_the_seed()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+            },
+            edges: new[] { ("M.P1", "M.P2", true) });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 0,
+            Direction: "both"));
+
+        Assert.Single(result.Nodes);
+        Assert.Equal("M.P1", result.Nodes[0].Id);
+        Assert.Empty(result.Edges);
+    }
+
+    [Fact]
+    public void ProcedureName_unknown_throws_procedure_not_found()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+            },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var act = () => VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "Nope"));
+        var ex = Assert.Throws<ModelContextProtocol.McpException>(act);
+        Assert.Contains("procedure_not_found", ex.Message);
+        Assert.Contains("Nope", ex.Message);
+        Assert.Contains("P1", ex.Message);
+        Assert.Contains("P2", ex.Message);
+    }
+
+    [Fact]
+    public void ProcedureName_is_case_insensitive_within_module()
+    {
+        var a = Analysis(
+            procs: new[] { ("M", "standardModule", "ReadExports", false) },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "readexports",
+            Depth: 0));
+
+        Assert.Single(result.Nodes);
+    }
+
+    [Fact]
+    public void Direction_unknown_value_throws_invalid_render_option()
+    {
+        var a = Analysis(
+            procs: new[] { ("M", "standardModule", "P1", false) },
+            edges: Array.Empty<(string, string, bool)>());
+
+        var act = () => VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Direction: "sideways"));
+        var ex = Assert.Throws<ModelContextProtocol.McpException>(act);
+        Assert.Contains("invalid_render_option", ex.Message);
+        Assert.Contains("direction", ex.Message);
+        Assert.Contains("sideways", ex.Message);
+    }
 }
