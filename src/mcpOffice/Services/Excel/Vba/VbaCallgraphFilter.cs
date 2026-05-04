@@ -75,10 +75,8 @@ public static class VbaCallgraphFilter
                 var next = new HashSet<string>();
                 foreach (var e in allEdges)
                 {
-                    // Unresolved callees join `visited` so Task 8 can synthesize __ext__ nodes for them.
-                    // Safe: e.From must be in frontier (a real node), so we never traverse external→external.
                     if (followCallees && frontier.Contains(e.From) && !visited.Contains(e.To)
-                        && (allNodesById.ContainsKey(e.To) || !e.Resolved))
+                        && allNodesById.ContainsKey(e.To))
                         next.Add(e.To);
                     if (followCallers && frontier.Contains(e.To) && !visited.Contains(e.From)
                         && allNodesById.ContainsKey(e.From))
@@ -141,7 +139,7 @@ public static class VbaCallgraphFilter
         foreach (var e in allEdges)
         {
             var fromIsProc = survivingProcIds.Contains(e.From);
-            var toIsProc = allNodesById.ContainsKey(e.To) && survivingProcIds.Contains(e.To);
+            var toIsProc = survivingProcIds.Contains(e.To);
 
             if (fromIsProc && toIsProc)
             {

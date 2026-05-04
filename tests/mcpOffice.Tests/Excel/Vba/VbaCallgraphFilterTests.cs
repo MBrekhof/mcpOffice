@@ -466,4 +466,54 @@ public class VbaCallgraphFilterTests
         Assert.Single(externalEdges);
         Assert.Equal("ModA.P1", externalEdges[0].FromId);
     }
+
+    [Fact]
+    public void External_dedup_works_across_modules_in_no_filter_mode()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("ModA", "standardModule", "P1", false),
+                ("ModB", "standardModule", "Q1", false),
+            },
+            edges: new[]
+            {
+                ("ModA.P1", "Helper", false),
+                ("ModB.Q1", "Helper", false),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions());
+
+        var externals = result.Nodes.Where(n => n.IsExternal).ToList();
+        Assert.Single(externals);
+        Assert.Equal("Helper", externals[0].Label);
+        Assert.Equal(2, result.Edges.Count(e => e.ToId == externals[0].Id));
+    }
+
+    [Fact]
+    public void Focal_BFS_emits_external_for_unresolved_callee()
+    {
+        var a = Analysis(
+            procs: new[]
+            {
+                ("M", "standardModule", "P1", false),
+                ("M", "standardModule", "P2", false),
+            },
+            edges: new[]
+            {
+                ("M.P1", "M.P2", true),
+                ("M.P2", "MsgBox", false),
+            });
+
+        var result = VbaCallgraphFilter.Apply(a, new CallgraphFilterOptions(
+            ModuleName: "M",
+            ProcedureName: "P1",
+            Depth: 2,
+            Direction: "callees"));
+
+        var externals = result.Nodes.Where(n => n.IsExternal).ToList();
+        Assert.Single(externals);
+        Assert.Equal("MsgBox", externals[0].Label);
+        Assert.Single(result.Edges, e => e.ToId == externals[0].Id);
+    }
 }
