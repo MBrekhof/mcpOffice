@@ -4,6 +4,12 @@ An MCP (Model Context Protocol) server for Microsoft Office documents, written i
 
 **Status:** Word (.docx) and Excel (.xlsx / .xlsm) POCs are complete, including `excel_analyze_vba` v1 (procedures, event handlers, call graph, object-model references, file/DB/network/automation/shell dependencies). Next: `excel_analyze_vba` v2 — conversion hints toward Excel-to-C# migration tooling.
 
+## Architecture
+
+![mcpOffice architecture](docs/img/architecture.svg)
+
+Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (open in [Excalidraw](https://excalidraw.com)). See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layer map.
+
 ## Documents
 
 - [Architecture](ARCHITECTURE.md) — layer map, domains, tool-adding pattern, error model, VBA pipeline diagram.

@@ -1,0 +1,481 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 380,
+      "y": 10,
+      "width": 460,
+      "height": 36,
+      "text": "mcpOffice — Architecture",
+      "fontSize": 28,
+      "fontFamily": 5,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "agent",
+      "type": "rectangle",
+      "x": 400,
+      "y": 70,
+      "width": 420,
+      "height": 70,
+      "backgroundColor": "#fff9c4",
+      "strokeColor": "#827717",
+      "label": {
+        "text": "AI Agent  (Claude Code / Desktop)"
+      },
+      "fontSize": 18,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "host",
+      "type": "rectangle",
+      "x": 360,
+      "y": 220,
+      "width": 500,
+      "height": 70,
+      "backgroundColor": "#bbdefb",
+      "strokeColor": "#0d47a1",
+      "label": {
+        "text": "Program.cs  (MCP host • Serilog → stderr)"
+      },
+      "fontSize": 18,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "ping-tools",
+      "type": "rectangle",
+      "x": 60,
+      "y": 380,
+      "width": 240,
+      "height": 70,
+      "backgroundColor": "#c8e6c9",
+      "strokeColor": "#1b5e20",
+      "label": {
+        "text": "Tools/PingTools"
+      },
+      "fontSize": 16,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "word-tools",
+      "type": "rectangle",
+      "x": 360,
+      "y": 380,
+      "width": 260,
+      "height": 70,
+      "backgroundColor": "#c8e6c9",
+      "strokeColor": "#1b5e20",
+      "label": {
+        "text": "Tools/WordTools  (15)"
+      },
+      "fontSize": 16,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "excel-tools",
+      "type": "rectangle",
+      "x": 680,
+      "y": 380,
+      "width": 280,
+      "height": 70,
+      "backgroundColor": "#c8e6c9",
+      "strokeColor": "#1b5e20",
+      "label": {
+        "text": "Tools/ExcelTools  (9)"
+      },
+      "fontSize": 16,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "word-svc",
+      "type": "rectangle",
+      "x": 360,
+      "y": 540,
+      "width": 260,
+      "height": 80,
+      "backgroundColor": "#ffe0b2",
+      "strokeColor": "#e65100",
+      "label": {
+        "text": "Services/Word\nWordDocumentService"
+      },
+      "fontSize": 15,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "excel-svc",
+      "type": "rectangle",
+      "x": 680,
+      "y": 540,
+      "width": 280,
+      "height": 80,
+      "backgroundColor": "#ffe0b2",
+      "strokeColor": "#e65100",
+      "label": {
+        "text": "Services/Excel\nExcelWorkbookService + VBA pipeline"
+      },
+      "fontSize": 14,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "devex",
+      "type": "rectangle",
+      "x": 200,
+      "y": 720,
+      "width": 760,
+      "height": 80,
+      "backgroundColor": "#e1bee7",
+      "strokeColor": "#4a148c",
+      "label": {
+        "text": "DevExpress.Document.Processor\n(RichEditDocumentServer • SpreadsheetControl • Open XML)"
+      },
+      "fontSize": 16,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "docx-file",
+      "type": "rectangle",
+      "x": 280,
+      "y": 870,
+      "width": 280,
+      "height": 70,
+      "backgroundColor": "#eceff1",
+      "strokeColor": "#37474f",
+      "strokeStyle": "dashed",
+      "label": {
+        "text": ".docx"
+      },
+      "fontSize": 18,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "xlsx-file",
+      "type": "rectangle",
+      "x": 600,
+      "y": 870,
+      "width": 360,
+      "height": 70,
+      "backgroundColor": "#eceff1",
+      "strokeColor": "#37474f",
+      "strokeStyle": "dashed",
+      "label": {
+        "text": ".xlsx  /  .xlsm  (incl. VBA)"
+      },
+      "fontSize": 18,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobuv8jq3fjnar",
+      "type": "arrow",
+      "x": 610,
+      "y": 148,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          64
+        ]
+      ],
+      "start": {
+        "id": "agent"
+      },
+      "end": {
+        "id": "host"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobvnk5cn3oik",
+      "type": "text",
+      "x": 620,
+      "y": 165,
+      "width": 180,
+      "height": 24,
+      "strokeColor": "#555",
+      "text": "JSON-RPC over stdio",
+      "fontSize": 14,
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobvgzgamlhw9f",
+      "type": "arrow",
+      "x": 508.4397251915395,
+      "y": 292.78986969617137,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -226.87945038307896,
+          84.42026060765727
+        ]
+      ],
+      "start": {
+        "id": "host"
+      },
+      "end": {
+        "id": "ping-tools"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobm2kwl5u5u0s",
+      "type": "arrow",
+      "x": 578.95,
+      "y": 296.4,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -57.90000000000009,
+          77.20000000000005
+        ]
+      ],
+      "start": {
+        "id": "host"
+      },
+      "end": {
+        "id": "word-tools"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobbio4cl5141a",
+      "type": "arrow",
+      "x": 662.30095376026,
+      "y": 294.84834572210286,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          105.39809247948006,
+          80.30330855579427
+        ]
+      ],
+      "start": {
+        "id": "host"
+      },
+      "end": {
+        "id": "excel-tools"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobtmbwidphp1m",
+      "type": "arrow",
+      "x": 490,
+      "y": 458,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          74
+        ]
+      ],
+      "start": {
+        "id": "word-tools"
+      },
+      "end": {
+        "id": "word-svc"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobx4ox2nuqm9o",
+      "type": "arrow",
+      "x": 820,
+      "y": 458,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          74
+        ]
+      ],
+      "start": {
+        "id": "excel-tools"
+      },
+      "end": {
+        "id": "excel-svc"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobj1s56b88vq",
+      "type": "arrow",
+      "x": 513.5777087639997,
+      "y": 627.1554175279994,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          42.84458247200064,
+          85.68916494400128
+        ]
+      ],
+      "start": {
+        "id": "word-svc"
+      },
+      "end": {
+        "id": "devex"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobllaizcut14g",
+      "type": "arrow",
+      "x": 760.2666666666667,
+      "y": 624.8,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -120.5333333333333,
+          90.40000000000009
+        ]
+      ],
+      "start": {
+        "id": "excel-svc"
+      },
+      "end": {
+        "id": "devex"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zob3w4tfwij0ja",
+      "type": "arrow",
+      "x": 529.9341733540293,
+      "y": 805.3721553979109,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -65.385588087369,
+          59.255689204178225
+        ]
+      ],
+      "start": {
+        "id": "devex"
+      },
+      "end": {
+        "id": "docx-file"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    },
+    {
+      "id": "moue8zobvtdi3onnvc7",
+      "type": "arrow",
+      "x": 641.6492973402586,
+      "y": 804.6957405716875,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          83.5979570436208,
+          60.608518856625096
+        ]
+      ],
+      "start": {
+        "id": "devex"
+      },
+      "end": {
+        "id": "xlsx-file"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-05-06T18:31:45.572Z",
+      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}
