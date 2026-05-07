@@ -61,4 +61,14 @@ public class VbaErrorCodeTests
         Assert.Contains("invalid_render_option", ex.Message);
         Assert.Contains("procedureName requires moduleName", ex.Message);
     }
+
+    [Fact]
+    public void UnsupportedParadigm_throws_McpException_with_code_in_message()
+    {
+        var ex = ToolError.UnsupportedParadigm("blazor", new[] { "classLibrary", "workerService" });
+        Assert.IsType<McpException>(ex);
+        Assert.Contains("unsupported_paradigm", ex.Message);
+        Assert.Contains("blazor", ex.Message);
+        Assert.Contains("classLibrary", ex.Message);
+    }
 }

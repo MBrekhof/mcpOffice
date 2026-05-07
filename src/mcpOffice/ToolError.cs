@@ -58,6 +58,10 @@ public static class ToolError
     public static Exception InvalidRenderOption(string detail) =>
         Throw(ErrorCode.InvalidRenderOption, $"Invalid render option: {detail}");
 
+    public static Exception UnsupportedParadigm(string paradigm, IEnumerable<string> supported) =>
+        Throw(ErrorCode.UnsupportedParadigm,
+            $"Unsupported targetParadigm: {paradigm}. Supported values: {string.Join(", ", supported)}");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }
