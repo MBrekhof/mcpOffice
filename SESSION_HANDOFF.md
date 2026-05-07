@@ -1,92 +1,89 @@
-# Session Handoff — 2026-05-04 (synthetic test + locale fix + render_vba_callgraph v2 merged)
+# Session Handoff — 2026-05-07 (Markdig md→docx converter branch ready for PR)
 
 ## Where Things Stand
 
-**Branch:** `main` — clean, up to date with `origin/main`.
-**Latest commit:** `f93831c` feat: excel_render_vba_callgraph - Mermaid/DOT call-graph renderer (analyzer v2) (#12)
+**Branch:** `feat/markdown-to-docx-markdig` — 22 commits ahead of `main`, clean, NOT yet pushed.
+**Latest commit:** `a9b3869` test: real-world fidelity for Markdig path (LimsBasic fn_send_email_callers)
 **Build:** `dotnet build -c Release` is green, 0 warnings, 0 errors.
-**Tests:** `dotnet test -c Release` is green — 181 unit + 13 integration on a Dutch (nl-NL) host.
-**Tool surface:** 25 tools (1 Ping + 15 Word + 9 Excel).
+**Tests:** `dotnet test -c Release` is green — 206 unit + 13 integration.
+**Tool surface:** 25 tools (unchanged from main — this branch fixes quality, not surface area).
 
-## What Landed Recently (all on main)
+## What Landed This Session
 
-Three PRs squash-merged this session:
+**Branch `feat/markdown-to-docx-markdig`** — replaces the lossy `MarkdownToDocxGenerator` (v1.2.0 MdDoc-backed) with a custom Markdig AST walker (`MarkdownToDocxConverter`). The old generator was a thin wrapper around a NuGet package that couldn't preserve tables, inline code, or complex bold/italic. The new converter walks the Markdig AST directly and drives the DevExpress RichEdit API node-by-node.
 
-- **#10 — `test: synthetic extract->analyze integration test using Excel-authored .xlsm`** (`feat/synthetic-analyze-test`).
-  Adds `tests/fixtures/synthetic-vba.xlsm` (real Excel-authored, 4 modules covering standard / document(×2) / class, `ParamArray`, `Static Sub`, event handlers, cross-module call edge) plus `tests/fixtures/Generate-SyntheticVbaXlsm.ps1` and an unconditional end-to-end test in `SyntheticAnalyzeTests.cs`. Closes the coverage gap on machines without `Air.xlsm`.
-- **#11 — `fix: pin DevExpress Workbook culture to invariant for locale-stable formulas`** (`fix/devexpress-defined-name-refersto`).
-  `Workbook.Options.Culture = CultureInfo.InvariantCulture` set in both `ExcelWorkbookService.LoadWorkbook` (read side) and `TestExcelWorkbooks.Create` (test fixture write side). Fixes nl-NL failures where `=0.21` was rejected by DevExpress's defined-name validator and `RefersTo` came back as `=0,21`. MCP API now serves locale-neutral formula text regardless of host locale.
-- **#12 — `feat: excel_render_vba_callgraph — Mermaid/DOT call-graph renderer (analyzer v2)`** (`feat/render-vba-callgraph`).
-  v2 of the analyzer: a new MCP tool (24 → 25) that renders the VBA call graph as Mermaid (default) or DOT, layered on `excel_analyze_vba`. New `VbaCallgraphFilter` (pure function) does whole-workbook / `moduleName` direct-neighbour / focal-procedure BFS with `depth` + `direction`. Two renderers (`MermaidCallgraphRenderer`, `DotCallgraphRenderer`) share `ICallgraphRenderer`. New error codes: `procedure_not_found`, `graph_too_large`, `invalid_render_option`. 51 new tests (filter + renderer + Air.xlsm gated benchmark + stdio integration). Supersedes the stale PR #9 which predated #10/#11 and was closed without merge.
+**Affected tools:** `word_create_from_markdown`, `word_append_markdown`, `word_convert` (`.md` input branch).
 
-## Air.xlsm Benchmark (107 modules — same evidence base, now also drives the renderer)
+### Converter feature coverage (22 commits)
 
-Run against `C:\Projects\mcpOffice-samples\Air.xlsm` via gated tests (silently skip when the file is absent):
-
-| Metric | Value |
+| Feature | Details |
 |---|---|
-| Modules parsed | 107 / 107 |
-| Procedures | 200 |
-| Event handlers | 110 (55% of procedures — heavily event-driven) |
-| Call edges | 938 |
-| Object-model reference sites | 3040 |
-| External dependencies | 48 |
-| Wall time (analyze) | ~115 ms |
-| Whole-workbook render | trips `graph_too_large` (300-node cap) — confirms the cap is the safety net it was meant to be |
-| Single-module render + focal BFS depth=1 | < 500 ms wall time, full pipeline |
+| Paragraphs + literal inline | plain text runs |
+| Headings 1–6 | maps to `Heading {N}` paragraph style |
+| Ordered + unordered lists | `ListLevel` tracking via `MarkdownListState` |
+| Nested lists | `ListLevel` depth correct |
+| Fenced + indented code blocks | Consolas font, no-wrap paragraph border |
+| Blockquotes | left indent |
+| Thematic breaks | hr-style paragraph border |
+| GFM pipe tables | bold+shaded header row, column alignment |
+| Bold / italic / bold-italic | `CharacterProperties.Bold/Italic` |
+| Inline code | Consolas, character-level |
+| Hyperlinks + autolinks | `Document.Hyperlinks.Create(range)` |
+| Hard + soft line breaks | `\n` insertion workaround (no `InsertParagraph(pos)` in DevExpress 25.2) |
+| Local image embed | base64-decoded, inserted at cursor |
+| Remote / missing image | silently dropped with a `//` comment |
 
-## Excel Tool Inventory (as of main)
+### DevExpress API discoveries (documented in commits)
 
-1. `excel_list_sheets`
-2. `excel_read_sheet`
-3. `excel_extract_vba`
-4. `excel_get_metadata`
-5. `excel_list_defined_names`
-6. `excel_list_formulas`
-7. `excel_get_structure`
-8. `excel_analyze_vba`
-9. `excel_render_vba_callgraph` *(new)*
+- `Document.InsertParagraph(pos)` does not exist in DevExpress 25.2 — use `InsertText("\n")` instead.
+- `CharacterProperties.Bold/Italic` (not `FontBold/FontItalic`).
+- `BackColor` works for cell shading.
+- `LineWidth` (not `LineThickness`) for paragraph border thickness.
+- `Document.Hyperlinks.Create(range)` is the correct hyperlink API.
 
-## Outstanding — Action Required
+### Net code change
 
-**Nothing blocking.** Three merges in, no open PRs.
+- `+` ~500 lines: `MarkdownToDocxConverter.cs` + supporting types (`MarkdownListState`, etc.)
+- `-` 144 lines: old `MarkdownToDocxGenerator.cs` + post-process helpers
+- `-` 1 NuGet package: `MdDoc` removed from `mcpOffice.csproj`
 
-## Next Up — pick one of the v2-conversion-hints follow-ups
+### New tests
 
-The render layer is in. The remaining v2 ideas surfaced by the Air.xlsm benchmark are still the natural next targets — but they're independent from each other; pick by which signal you most want from the migration tooling:
+- ~20 tests in `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs` (paragraph, headings, lists, nested lists, code blocks, blockquote, hr, tables, emphasis, inline code, hyperlinks, line breaks, images)
+- 1 test in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs` — real-world fidelity against `tests/fixtures/fn_send_email_callers.md` (4+ tables, inline code, bold)
+- 1 test in `tests/mcpOffice.Tests/Word/ConvertTests.cs` — `word_convert` .md→.docx end-to-end
 
-- **Conversion hints per procedure.** Classify event handler / utility / data-transform / UI glue, suggest C# equivalents (method, service class, hosted service, ...). Highest narrative value for the Excel→C# story.
-- **Cross-module coupling score.** Quantitative refactoring guidance — which module clusters are tangled? Shorter-scope, builds on the call graph that's already there.
-- **`VbaProcedureScanner` unit tests for `ParamArray` and `Static Sub`.** Pipeline-level coverage exists via `SyntheticAnalyzeTests`; targeted scanner tests are still on the carry-over list. Tiny, hour or less.
-- **Pagination (`offset` / `limit`) on `excel_analyze_vba` `callGraph` / `references` arrays.** With the module filter and the new render layer, this is now genuinely a "wait for someone to hit the size limit" item.
+### Live smoke verification
 
-If a v2-conversion-hints design doc is the right next step, drop it at `docs/plans/2026-05-05-mcpoffice-excel-analyze-vba-v3-design.md` (or today's date). Use `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md` as the shape template.
+Converted `C:\Projects\LimsBasic\docs\fn_send_email_callers.md` → `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx` (9.8 KB). File written and size-checked this session. Open in Word to visually confirm tables, inline code spans, bold text, and heading hierarchy render correctly.
 
-## Carried-Forward Open Questions
+## Known Limitation — Table Cell Inline Formatting
 
-1. **PROJECTLCID / non-Western locale code pages.** Source decoding still hardcoded to cp1252. MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale. Stretch goal.
-2. **Form layout vs form code.** Out of scope.
-3. **Pagination on heavy arrays.** Same as above — module filter ships, render layer ships, pagination is the third lever for very large workbooks.
+`WriteTable` uses `CollectCellText()` which flattens cell content to plain text. This means backtick spans, bold, italic inside table cells are not rendered with their respective formatting — they appear as literal `code`, `**bold**` etc. The real-world fidelity test passes because it asserts inline code in the *body* text, not in cells. However, the source document (`fn_send_email_callers.md`) does have backtick-wrapped procedure names in table cells — those will appear unformatted until this is fixed.
 
-## How To Resume
+This is the primary carry-forward item from this branch. See TODO.md.
+
+## How To Resume / What To Do Next
 
 ```powershell
 cd C:\Projects\mcpOffice
-git status
-git log --oneline -5
-dotnet build --nologo
-dotnet test --nologo
+git log --oneline main..HEAD   # confirm 22 commits
+dotnet build -c Release --nologo
+dotnet test -c Release --nologo
 ```
 
-Reference material:
+To push and open a PR:
+```powershell
+git push -u origin feat/markdown-to-docx-markdig
+# then open PR on GitHub targeting main; squash-merge
+```
 
-- v2 render design: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md`
-- v2 render plan: `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-plan.md`
-- v1 analyzer design: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`
-- v1 analyzer plan: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-plan.md`
-- Excel POC design: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`
-- VBA extraction plan: `docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md`
-- Sample workbook for benchmark: `C:\Projects\mcpOffice-samples\Air.xlsm`
-- In-repo synthetic fixture (no Excel needed at test runtime): `tests/fixtures/synthetic-vba.xlsm` (regenerator: `tests/fixtures/Generate-SyntheticVbaXlsm.ps1`)
-- Hand-authored compact fixture: `tests/fixtures/sample-with-macros.xlsm`
-- Wiring into Claude Code: `docs/usage.md`
+After merge, the natural follow-up is **table cell inline formatting** — refactor `WriteTable`/`CollectCellText` to call `WriteInline` per cell so backtick code, bold, etc. inside cells render correctly.
+
+## Reference Material
+
+- Converter: `src/mcpOffice/Services/Word/MarkdownToDocxConverter.cs`
+- Converter tests: `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs`
+- Real-world fixture: `tests/fixtures/fn_send_email_callers.md` (copied from LimsBasic docs)
+- Live smoke output (not committed): `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx`
+- Previous handoff (v2 render layer): tag `2f4092f` on main

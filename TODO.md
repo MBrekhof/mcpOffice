@@ -23,6 +23,11 @@ These remain as the natural next step toward Excel-to-C# migration tooling once 
 - [ ] Cross-module coupling score: identify tightly coupled module clusters as refactoring targets.
 - [ ] v3 design doc — capture the shape of conversion-hints DTO before implementing. Use `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md` as the shape template.
 
+## Word md→docx fidelity — Markdig converter (branch ready for PR)
+
+- [x] **Replace lossy `MarkdownToDocxGenerator` with Markdig AST walker.** DONE (branch `feat/markdown-to-docx-markdig`, 22 commits, NOT yet merged). `MarkdownToDocxConverter` handles paragraphs, headings 1–6, ordered/unordered/nested lists, fenced + indented code blocks, blockquotes, thematic breaks, GFM tables (bold+shaded header, column alignment), bold/italic/bold-italic, inline code (Consolas), hyperlinks, autolinks, hard+soft line breaks, local image embed, remote image drop. Affects `word_create_from_markdown`, `word_append_markdown`, `word_convert` (.md input). Real-world fidelity verified against `fn_send_email_callers.md` (4+ tables, inline code, bold). 206 unit + 13 integration green.
+- [ ] **Table cell inline formatting.** `WriteTable` currently calls `CollectCellText()` which flattens cell content to plain text. Backtick code, bold, italic inside table cells do not render with their formatting — they appear as literal markup text. Refactor to call `WriteInline` per cell so inline spans are applied correctly. The real-world test source (`fn_send_email_callers.md`) has backtick-wrapped procedure names in table cells that will look wrong until this is fixed.
+
 ## Side items
 
 ### Carried from Word POC
