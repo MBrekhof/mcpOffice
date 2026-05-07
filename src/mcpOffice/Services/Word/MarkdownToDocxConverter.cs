@@ -1,3 +1,4 @@
+using DevExpress.Office.Utils;
 using DevExpress.XtraRichEdit.API.Native;
 using Markdig;
 using Markdig.Syntax;
@@ -33,6 +34,9 @@ internal static class MarkdownToDocxConverter
             case ListBlock list:
                 WriteList(ctx, list, level: 0);
                 break;
+            case QuoteBlock q:
+                WriteQuote(ctx, q);
+                break;
             // Other block kinds added in subsequent tasks.
             default:
                 // Unknown blocks silently skipped; Serilog warning attached in Task 21.
@@ -65,6 +69,22 @@ internal static class MarkdownToDocxConverter
         if (block.Inline is null) return;
         foreach (var inline in block.Inline)
             WriteInline(ctx, para, inline);
+    }
+
+    private static void WriteQuote(ConversionContext ctx, QuoteBlock block)
+    {
+        foreach (var child in block)
+        {
+            if (child is ParagraphBlock p)
+            {
+                var para = AppendNewParagraph(ctx);
+                // 0.25" expressed in DevExpress document units (1/300th of an inch).
+                para.LeftIndent = Units.InchesToDocumentsF(0.25f);
+                if (p.Inline is null) continue;
+                foreach (var inline in p.Inline)
+                    WriteInline(ctx, para, inline);
+            }
+        }
     }
 
     private static Paragraph AppendNewParagraph(ConversionContext ctx)

@@ -85,4 +85,17 @@ public class MarkdownToDocxConverterTests
         Assert.Equal(0, paras[0].ListLevel);
         Assert.Equal(1, paras[1].ListLevel);
     }
+
+    [Fact]
+    public void Blockquote_indents_left_quarter_inch()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "> quoted text", null);
+        var doc = server.Document;
+        var quotedPara = doc.Paragraphs
+            .FirstOrDefault(p => doc.GetText(p.Range).Contains("quoted text"));
+        Assert.NotNull(quotedPara);
+        Assert.True(quotedPara!.LeftIndent > 0,
+            $"expected LeftIndent > 0, got {quotedPara.LeftIndent}");
+    }
 }
