@@ -84,4 +84,54 @@ public class CouplingComputerTests
         Assert.Equal(1, c.Ce);
         Assert.Equal(0.5, c.Instability);
     }
+
+    [Fact]
+    public void Pairs_emit_directional_edge_counts_sorted_desc()
+    {
+        var edges = new[]
+        {
+            Edge("A.f", "B.g"),
+            Edge("A.f", "B.h"),
+            Edge("A.k", "B.g"),
+            Edge("B.g", "A.f")
+        };
+        var result = CouplingComputer.Compute(Modules("A", "B"), edges);
+
+        Assert.Equal(2, result.Pairs.Count);
+        var ab = result.Pairs.First();
+        Assert.Equal("A", ab.From);
+        Assert.Equal("B", ab.To);
+        Assert.Equal(3, ab.EdgeCount);
+
+        var ba = result.Pairs.Last();
+        Assert.Equal("B", ba.From);
+        Assert.Equal("A", ba.To);
+        Assert.Equal(1, ba.EdgeCount);
+    }
+
+    [Fact]
+    public void Pairs_omit_zero_count_pairs()
+    {
+        var result = CouplingComputer.Compute(Modules("A", "B", "C"),
+            new[] { Edge("A.f", "B.g") });
+        // Only A→B is non-zero.
+        Assert.Single(result.Pairs);
+        Assert.Equal("A", result.Pairs[0].From);
+        Assert.Equal("B", result.Pairs[0].To);
+    }
+
+    [Fact]
+    public void Pairs_stable_sort_alphabetical_within_same_count()
+    {
+        var edges = new[]
+        {
+            Edge("Z.f", "A.g"),
+            Edge("M.f", "B.g")
+        };
+        var result = CouplingComputer.Compute(Modules("A", "B", "M", "Z"), edges);
+        Assert.Equal(2, result.Pairs.Count);
+        // Both have edgeCount=1; alphabetical by From: M before Z.
+        Assert.Equal("M", result.Pairs[0].From);
+        Assert.Equal("Z", result.Pairs[1].From);
+    }
 }

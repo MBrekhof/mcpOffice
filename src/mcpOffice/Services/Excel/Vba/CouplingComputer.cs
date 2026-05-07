@@ -60,8 +60,14 @@ internal static class CouplingComputer
             return new ModuleCoupling(m.Name, ca_, ce_, i, internalEdges[m.Name]);
         }).ToList();
 
-        // Pairs computed; sort/produce in Task 8.
-        return new Result(coupling, Array.Empty<CouplingPair>());
+        var pairList = pairs
+            .Select(kv => new CouplingPair(kv.Key.From, kv.Key.To, kv.Value))
+            .OrderByDescending(p => p.EdgeCount)
+            .ThenBy(p => p.From, StringComparer.Ordinal)
+            .ThenBy(p => p.To, StringComparer.Ordinal)
+            .ToList();
+
+        return new Result(coupling, pairList);
     }
 
     private static (string Module, string Procedure)? SplitFqn(string fqn)
