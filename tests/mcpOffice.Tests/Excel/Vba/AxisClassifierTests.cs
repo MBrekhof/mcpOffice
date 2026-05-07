@@ -179,4 +179,67 @@ public class AxisClassifierTests
             deps);
         Assert.Equal("pure", axes.Purity);
     }
+
+    [Fact]
+    public void Shape_leaf_when_no_callees()
+    {
+        var proc = Proc("Module1", "P");
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Equal("leaf", axes.Shape);
+    }
+
+    [Fact]
+    public void Shape_orchestrator_when_three_callees()
+    {
+        var proc = Proc("Module1", "P");
+        var edges = new[]
+        {
+            Edge("Module1.P", "Module1.A"),
+            Edge("Module1.P", "Module1.B"),
+            Edge("Module1.P", "Module1.C")
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard", edges,
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Equal("orchestrator", axes.Shape);
+    }
+
+    [Fact]
+    public void Shape_null_when_one_or_two_callees()
+    {
+        var proc = Proc("Module1", "P");
+        var edges = new[]
+        {
+            Edge("Module1.P", "Module1.A"),
+            Edge("Module1.P", "Module1.B")
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard", edges,
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Null(axes.Shape);
+    }
+
+    [Fact]
+    public void Shape_orchestrator_includes_unresolved_callees()
+    {
+        // Unresolved edges still count as fan-out for shape purposes.
+        var proc = Proc("Module1", "P");
+        var edges = new[]
+        {
+            Edge("Module1.P", "Module1.A"),
+            Edge("Module1.P", "Module1.B"),
+            Edge("Module1.P", "X.Unknown", resolved: false)
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard", edges,
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Equal("orchestrator", axes.Shape);
+    }
 }

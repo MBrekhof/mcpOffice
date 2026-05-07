@@ -13,7 +13,7 @@ internal static class AxisClassifier
     {
         var trigger = ClassifyTrigger(proc, moduleKind, callGraph);
         var purity = ClassifyPurity(proc, objectModel, dependencies);
-        string? shape = null;                // implemented in Task 5
+        var shape = ClassifyShape(proc, callGraph);
         IReadOnlyList<string> deps = Array.Empty<string>(); // implemented in Task 6
         return new ProcedureAxes(trigger, purity, shape, deps);
     }
@@ -48,6 +48,20 @@ internal static class AxisClassifier
             string.Equals(r.Module, ProcModule(proc), StringComparison.OrdinalIgnoreCase) &&
             string.Equals(r.Procedure, proc.Name, StringComparison.OrdinalIgnoreCase));
         return hasOwnObjRef ? "readsState" : "pure";
+    }
+
+    private static string? ClassifyShape(
+        ExcelVbaProcedure proc,
+        IReadOnlyList<ExcelVbaCallEdge> callGraph)
+    {
+        int calleeCount = callGraph.Count(e =>
+            string.Equals(e.From, proc.FullyQualifiedName, StringComparison.OrdinalIgnoreCase));
+        return calleeCount switch
+        {
+            0 => "leaf",
+            >= 3 => "orchestrator",
+            _ => null
+        };
     }
 
     private static string ProcModule(ExcelVbaProcedure proc) =>
