@@ -303,4 +303,26 @@ public class MarkdownToDocxConverterTests
             finally { doc.EndUpdateCharacters(props); }
         }
     }
+
+    [Fact]
+    public void Hyperlink_emits_field_with_target()
+    {
+        var md = "see [the docs](https://example.com/x) here";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        Assert.True(server.Document.Hyperlinks.Count > 0,
+            $"expected at least one hyperlink, got {server.Document.Hyperlinks.Count}");
+        Assert.Equal("https://example.com/x", server.Document.Hyperlinks[0].NavigateUri);
+    }
+
+    [Fact]
+    public void Autolink_emits_hyperlink_with_url_as_text()
+    {
+        var md = "see <https://example.com/y>";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        Assert.Contains(server.Document.Hyperlinks.Cast<Hyperlink>(),
+            h => h.NavigateUri == "https://example.com/y");
+    }
 }

@@ -330,7 +330,29 @@ internal static class MarkdownToDocxConverter
                 finally { ctx.Document.EndUpdateCharacters(props); }
                 break;
             }
-            // Links etc. added in subsequent tasks.
+            case LinkInline link when !link.IsImage:
+            {
+                // Concatenate inner literal text as display text. Falls back to URL if empty.
+                var displayText = string.Concat(
+                    link.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
+                if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
+                if (displayText.Length == 0) break;
+
+                var insertedRange = ctx.Document.InsertText(para.Range.End, displayText);
+                var hl = ctx.Document.Hyperlinks.Create(insertedRange);
+                hl.NavigateUri = link.Url ?? string.Empty;
+                break;
+            }
+            case AutolinkInline autolink:
+            {
+                var url = autolink.Url ?? string.Empty;
+                if (url.Length == 0) break;
+                var insertedRange = ctx.Document.InsertText(para.Range.End, url);
+                var hl = ctx.Document.Hyperlinks.Create(insertedRange);
+                hl.NavigateUri = url;
+                break;
+            }
+            // Image links handled in Task 16.
         }
     }
 }
