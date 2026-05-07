@@ -1,8 +1,6 @@
 using DevExpress.XtraRichEdit;
 using DevExpress.XtraRichEdit.API.Native;
-using MarkdownToDocxGenerator;
 using McpOffice.Models;
-using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol;
 using System.Text;
 using System.Text.Json;
@@ -306,6 +304,20 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    private static RichEditDocumentServer LoadInput(string inputPath)
+    {
+        var ext = Path.GetExtension(inputPath);
+        if (ext.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            var server = new RichEditDocumentServer();
+            var md = File.ReadAllText(inputPath, Encoding.UTF8);
+            MarkdownToDocxConverter.Apply(server.Document, md, Path.GetDirectoryName(inputPath));
+            return server;
+        }
+        return LoadOpenXml(inputPath);
+    }
+
     public string Convert(string inputPath, string outputPath, string? format)
     {
         PathGuard.RequireExists(inputPath);
@@ -315,7 +327,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(inputPath);
+            using var server = LoadInput(inputPath);
 
             switch (outputFormat)
             {
@@ -478,8 +490,8 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = LoadOpenXml(path);
-            using var markdownServer = CreateDocumentFromMarkdown(markdown);
-            server.Document.AppendDocumentContent(markdownServer.Document.Range);
+            var baseDir = Path.GetDirectoryName(path);
+            MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
             server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
@@ -495,7 +507,9 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = CreateDocumentFromMarkdown(markdown);
+            using var server = new RichEditDocumentServer();
+            var baseDir = Path.GetDirectoryName(path);
+            MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
             server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
@@ -646,147 +660,6 @@ public sealed class WordDocumentService : IWordDocumentService
         }
 
         return runs;
-    }
-
-    private static RichEditDocumentServer CreateDocumentFromMarkdown(string? markdown)
-    {
-        var generator = new MdReportGenenerator(
-            NullLogger<MdReportGenenerator>.Instance,
-            new MdToOxmlEngine(NullLogger<MdToOxmlEngine>.Instance));
-
-        using var stream = generator.TransformWithStream([markdown ?? string.Empty]);
-        if (stream.CanSeek)
-        {
-            stream.Position = 0;
-        }
-
-        var server = new RichEditDocumentServer();
-        server.LoadDocument(stream, RichEditFormat.OpenXml);
-        NormalizeMarkdownGeneratedDocument(server.Document, markdown);
-        return server;
-    }
-
-    private sealed record MarkdownHeading(int Level, string Text);
-
-    private static void NormalizeMarkdownGeneratedDocument(Document document, string? markdown)
-    {
-        ApplyMarkdownHeadingStyles(document, ExtractMarkdownHeadings(markdown));
-        ApplyMarkdownItalicStyles(document, ExtractMarkdownItalicSpans(markdown));
-
-        foreach (var paragraph in document.Paragraphs)
-        {
-            var styleName = paragraph.Style?.Name;
-            var match = styleName is null
-                ? System.Text.RegularExpressions.Match.Empty
-                : Regex.Match(styleName, @"^Titre(?<level>[1-6])$", RegexOptions.IgnoreCase);
-
-            if (!match.Success)
-            {
-                continue;
-            }
-
-            var headingStyle = $"Heading {match.Groups["level"].Value}";
-            EnsureParagraphStyle(document, headingStyle);
-            paragraph.Style = document.ParagraphStyles[headingStyle];
-        }
-    }
-
-    private static IReadOnlyList<MarkdownHeading> ExtractMarkdownHeadings(string? markdown)
-    {
-        if (string.IsNullOrWhiteSpace(markdown))
-        {
-            return [];
-        }
-
-        var headings = new List<MarkdownHeading>();
-        var normalized = markdown.Replace("\r\n", "\n").Replace("\r", "\n");
-        foreach (var line in normalized.Split('\n'))
-        {
-            var match = Regex.Match(line, @"^\s*(#{1,6})\s+(.+?)\s*#*\s*$");
-            if (!match.Success)
-            {
-                continue;
-            }
-
-            headings.Add(new MarkdownHeading(
-                match.Groups[1].Value.Length,
-                StripInlineMarkdown(match.Groups[2].Value.Trim())));
-        }
-
-        return headings;
-    }
-
-    private static void ApplyMarkdownHeadingStyles(Document document, IReadOnlyList<MarkdownHeading> headings)
-    {
-        if (headings.Count == 0)
-        {
-            return;
-        }
-
-        var headingIndex = 0;
-        foreach (var paragraph in document.Paragraphs)
-        {
-            if (headingIndex >= headings.Count)
-            {
-                return;
-            }
-
-            var text = document.GetText(paragraph.Range).Trim();
-            var heading = headings[headingIndex];
-            if (!string.Equals(text, heading.Text, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var headingStyle = $"Heading {heading.Level}";
-            EnsureParagraphStyle(document, headingStyle);
-            paragraph.Style = document.ParagraphStyles[headingStyle];
-            headingIndex++;
-        }
-    }
-
-    private static string StripInlineMarkdown(string text)
-    {
-        var result = Regex.Replace(text, @"\*\*(.+?)\*\*", "$1");
-        result = Regex.Replace(result, @"\*(.+?)\*", "$1");
-        result = Regex.Replace(result, @"\[(.+?)\]\(.+?\)", "$1");
-        return result;
-    }
-
-    private static IReadOnlyList<string> ExtractMarkdownItalicSpans(string? markdown)
-    {
-        if (string.IsNullOrWhiteSpace(markdown))
-        {
-            return [];
-        }
-
-        var spans = new List<string>();
-        var withoutCodeFences = Regex.Replace(markdown, @"```.*?```", string.Empty, RegexOptions.Singleline);
-        foreach (System.Text.RegularExpressions.Match match in Regex.Matches(
-                     withoutCodeFences,
-                     @"(?<!\*)\*(?!\*)(?<text>.+?)(?<!\*)\*(?!\*)"))
-        {
-            var text = match.Groups["text"].Value.Trim();
-            if (text.Length > 0)
-            {
-                spans.Add(StripInlineMarkdown(text));
-            }
-        }
-
-        return spans.Distinct(StringComparer.Ordinal).ToList();
-    }
-
-    private static void ApplyMarkdownItalicStyles(Document document, IReadOnlyList<string> spans)
-    {
-        foreach (var span in spans)
-        {
-            foreach (var range in document.FindAll(span, SearchOptions.None))
-            {
-                var properties = document.BeginUpdateCharacters(range);
-                properties.Italic = true;
-                document.EndUpdateCharacters(properties);
-            }
-        }
     }
 
     private static void EnsureParagraphStyle(Document doc, string styleName)

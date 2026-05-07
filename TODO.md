@@ -23,6 +23,11 @@ These remain as the natural next step toward Excel-to-C# migration tooling once 
 - [ ] Cross-module coupling score: identify tightly coupled module clusters as refactoring targets.
 - [ ] v3 design doc — capture the shape of conversion-hints DTO before implementing. Use `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md` as the shape template.
 
+## Word md→docx fidelity — Markdig converter (branch ready for PR)
+
+- [x] **Replace lossy `MarkdownToDocxGenerator` with Markdig AST walker.** DONE (branch `feat/markdown-to-docx-markdig`, 22 commits, NOT yet merged). `MarkdownToDocxConverter` handles paragraphs, headings 1–6, ordered/unordered/nested lists, fenced + indented code blocks, blockquotes, thematic breaks, GFM tables (bold+shaded header, column alignment), bold/italic/bold-italic, inline code (Consolas), hyperlinks, autolinks, hard+soft line breaks, local image embed, remote image drop. Affects `word_create_from_markdown`, `word_append_markdown`, `word_convert` (.md input). Real-world fidelity verified against `fn_send_email_callers.md` (4+ tables, inline code, bold). 206 unit + 13 integration green.
+- [x] **Table cell inline formatting.** DONE (commit on `feat/markdown-to-docx-markdig`). `CollectCellText` removed; `WriteTable` now uses a `CellCursor` + `WriteCellInline` that anchors each inline write to the live `dxCell.ContentRange` so backtick code (Consolas), bold, italic, hyperlinks and line breaks inside table cells all render with their proper formatting. Root cause was that `doc.Paragraphs.Get(cellContentRange)` returns stale paragraph positions in table cells — fixed by re-reading `dxCell.ContentRange.Start` fresh for each cell and tracking the cursor forward through insertions. New test: `Table_cells_render_inline_formatting`.
+
 ## Side items
 
 ### Carried from Word POC
