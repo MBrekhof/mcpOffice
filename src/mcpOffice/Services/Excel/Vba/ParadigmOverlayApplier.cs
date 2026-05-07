@@ -31,8 +31,33 @@ internal static class ParadigmOverlayApplier
     }
 
     // Implemented in Task 10.
-    private static CSharpSuggestion ApplyClassLibrary(string c, string m, bool pub, ProcedureAxes axes) =>
-        new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+    private static CSharpSuggestion ApplyClassLibrary(string c, string m, bool pub, ProcedureAxes axes)
+    {
+        if (axes.Trigger == "eventHandler")
+            return new("requiresManualReview", c, m, null, pub,
+                new[] { "event_handler_no_pure_classlib_target" });
+
+        bool depsEmpty = axes.Dependencies.Count == 0;
+        bool excelOnly = axes.Dependencies.Count == 1 && axes.Dependencies[0] == "excelObjectModel";
+        bool hasDbOrNet = axes.Dependencies.Any(d => d == "database" || d == "network");
+
+        if (axes.Purity == "pure" && axes.Shape == "leaf")
+            return new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+
+        if ((axes.Purity == "pure" || axes.Purity == "readsState") && depsEmpty)
+            return new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+
+        if (axes.Purity == "sideEffectful" && hasDbOrNet)
+            return new("instanceMethod", c, m, "scoped", pub,
+                new[] { "requires_external_dependency_injection" });
+
+        if (axes.Purity == "writesState" && excelOnly)
+            return new("instanceMethod", c, m, "scoped", pub,
+                new[] { "depends_on_excel_object_model" });
+
+        // Catch-all: instance method, conservative.
+        return new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+    }
 
     // Implemented in Task 11.
     private static CSharpSuggestion ApplyWorkerService(string c, string m, bool pub, ProcedureAxes axes) =>

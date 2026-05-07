@@ -67,4 +67,43 @@ public class ParadigmOverlayApplierTests
         Assert.True(pub.IsPublic);
         Assert.False(priv.IsPublic);
     }
+
+    [Fact]
+    public void ClassLib_pure_leaf_static_method_no_blockers()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "P", "Public",
+            Axes(purity: "pure", shape: "leaf"), "classLibrary");
+        Assert.Equal("staticMethod", s.TargetType);
+        Assert.Equal("static", s.Lifetime);
+        Assert.Empty(s.Blockers);
+    }
+
+    [Fact]
+    public void ClassLib_readsState_no_deps_static_method()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "P", "Public",
+            Axes(purity: "readsState", shape: "leaf"), "classLibrary");
+        Assert.Equal("staticMethod", s.TargetType);
+    }
+
+    [Fact]
+    public void ClassLib_sideEffectful_database_instance_method_with_blocker()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "P", "Public",
+            Axes(purity: "sideEffectful", shape: null, dependencies: new[] { "database" }),
+            "classLibrary");
+        Assert.Equal("instanceMethod", s.TargetType);
+        Assert.Equal("scoped", s.Lifetime);
+        Assert.Contains("requires_external_dependency_injection", s.Blockers);
+    }
+
+    [Fact]
+    public void ClassLib_eventHandler_requires_manual_review()
+    {
+        var s = ParadigmOverlayApplier.Apply("Sheet1", "Worksheet_Change", "Public",
+            Axes(trigger: "eventHandler"), "classLibrary");
+        Assert.Equal("requiresManualReview", s.TargetType);
+        Assert.Null(s.Lifetime);
+        Assert.Contains("event_handler_no_pure_classlib_target", s.Blockers);
+    }
 }
