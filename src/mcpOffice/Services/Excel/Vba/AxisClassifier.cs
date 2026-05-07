@@ -14,7 +14,7 @@ internal static class AxisClassifier
         var trigger = ClassifyTrigger(proc, moduleKind, callGraph);
         var purity = ClassifyPurity(proc, objectModel, dependencies);
         var shape = ClassifyShape(proc, callGraph);
-        IReadOnlyList<string> deps = Array.Empty<string>(); // implemented in Task 6
+        var deps = ClassifyDependencies(proc, objectModel, dependencies);
         return new ProcedureAxes(trigger, purity, shape, deps);
     }
 
@@ -66,4 +66,32 @@ internal static class AxisClassifier
 
     private static string ProcModule(ExcelVbaProcedure proc) =>
         proc.FullyQualifiedName.Split('.', 2)[0];
+
+    private static IReadOnlyList<string> ClassifyDependencies(
+        ExcelVbaProcedure proc,
+        IReadOnlyList<ExcelVbaObjectModelRef> objectModel,
+        IReadOnlyList<ExcelVbaDependency> dependencies)
+    {
+        var module = ProcModule(proc);
+        var set = new SortedSet<string>(StringComparer.Ordinal);
+
+        if (objectModel.Any(r =>
+                string.Equals(r.Module, module, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(r.Procedure, proc.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            set.Add("excelObjectModel");
+        }
+
+        foreach (var d in dependencies)
+        {
+            if (!string.Equals(d.Module, module, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.Equals(d.Procedure, proc.Name, StringComparison.OrdinalIgnoreCase)) continue;
+            var kind = string.Equals(d.Kind, "automation", StringComparison.OrdinalIgnoreCase)
+                ? "shell"
+                : d.Kind;
+            set.Add(kind);
+        }
+
+        return set.ToArray();
+    }
 }

@@ -242,4 +242,65 @@ public class AxisClassifierTests
             Array.Empty<ExcelVbaDependency>());
         Assert.Equal("orchestrator", axes.Shape);
     }
+
+    [Fact]
+    public void Dependencies_empty_when_no_refs()
+    {
+        var proc = Proc("Module1", "P");
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Empty(axes.Dependencies);
+    }
+
+    [Fact]
+    public void Dependencies_includes_excelObjectModel_when_object_refs_present()
+    {
+        var proc = Proc("Module1", "P");
+        var refs = new[] { new ExcelVbaObjectModelRef("Module1", "P", 5, "Range", null) };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            refs,
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Contains("excelObjectModel", axes.Dependencies);
+    }
+
+    [Fact]
+    public void Dependencies_dedup_and_sorted()
+    {
+        var proc = Proc("Module1", "P");
+        var refs = new[]
+        {
+            new ExcelVbaObjectModelRef("Module1", "P", 1, "Range", null),
+            new ExcelVbaObjectModelRef("Module1", "P", 2, "Worksheets", null)
+        };
+        var deps = new[]
+        {
+            new ExcelVbaDependency("Module1", "P", 5, "filesystem", null, null),
+            new ExcelVbaDependency("Module1", "P", 6, "database", null, null),
+            new ExcelVbaDependency("Module1", "P", 7, "filesystem", null, null) // duplicate kind
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            refs, deps);
+        Assert.Equal(new[] { "database", "excelObjectModel", "filesystem" }, axes.Dependencies);
+    }
+
+    [Fact]
+    public void Dependencies_maps_automation_to_shell()
+    {
+        var proc = Proc("Module1", "P");
+        var deps = new[] { new ExcelVbaDependency("Module1", "P", 5, "automation", null, null) };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            deps);
+        Assert.Contains("shell", axes.Dependencies);
+        Assert.DoesNotContain("automation", axes.Dependencies);
+    }
 }
