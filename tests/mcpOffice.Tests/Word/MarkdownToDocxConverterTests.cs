@@ -21,4 +21,16 @@ public class MarkdownToDocxConverterTests
         Assert.Single(server.Document.Paragraphs);
         Assert.Equal(string.Empty, server.Document.GetText(server.Document.Range).Trim());
     }
+
+    [Fact]
+    public void Plain_paragraphs_become_paragraphs_with_literal_text()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "hello world\n\nsecond para", null);
+        var text = server.Document.GetText(server.Document.Range).Trim();
+        Assert.Contains("hello world", text);
+        Assert.Contains("second para", text);
+        Assert.True(server.Document.Paragraphs.Count >= 2,
+            $"expected ≥2 paragraphs, got {server.Document.Paragraphs.Count}");
+    }
 }
