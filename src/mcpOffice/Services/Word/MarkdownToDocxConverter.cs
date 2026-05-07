@@ -24,7 +24,16 @@ internal static class MarkdownToDocxConverter
             WriteBlock(ctx, block);
     }
 
-    private sealed record ConversionContext(Document Document, string? BaseDirectory);
+    private sealed class ConversionContext(Document Document, string? BaseDirectory)
+    {
+        public Document Document { get; } = Document;
+        public string? BaseDirectory { get; } = BaseDirectory;
+
+        // Accumulated emphasis depth from enclosing EmphasisInline nodes.
+        // Bold when boldDepth > 0; Italic when italicDepth > 0.
+        public int BoldDepth { get; set; }
+        public int ItalicDepth { get; set; }
+    }
 
     private static void WriteBlock(ConversionContext ctx, Block block)
     {
@@ -278,9 +287,34 @@ internal static class MarkdownToDocxConverter
         switch (inline)
         {
             case LiteralInline lit:
-                ctx.Document.InsertText(para.Range.End, lit.Content.ToString());
+            {
+                var text = lit.Content.ToString();
+                if (text.Length == 0) break;
+                var insertedRange = ctx.Document.InsertText(para.Range.End, text);
+                // Always apply explicit character properties to prevent DevExpress
+                // run-inheritance from bleeding bold/italic from adjacent runs.
+                var props = ctx.Document.BeginUpdateCharacters(insertedRange);
+                try
+                {
+                    props.Bold   = ctx.BoldDepth   > 0;
+                    props.Italic = ctx.ItalicDepth > 0;
+                }
+                finally { ctx.Document.EndUpdateCharacters(props); }
                 break;
-            // Bold/italic/code/links etc. added in subsequent tasks.
+            }
+            case EmphasisInline em:
+            {
+                // Push emphasis state before writing children; pop afterwards.
+                // Markdig 1.x represents ***both*** as nested em(1) { em(2) { ... } }.
+                if (em.DelimiterCount >= 2) ctx.BoldDepth++;
+                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth++;
+                foreach (var child in em)
+                    WriteInline(ctx, para, child);
+                if (em.DelimiterCount >= 2) ctx.BoldDepth--;
+                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth--;
+                break;
+            }
+            // Code spans/links etc. added in subsequent tasks.
         }
     }
 }

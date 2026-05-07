@@ -223,6 +223,39 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Emphasis_produces_bold_italic_runs()
+    {
+        var md = "**bold** *italic* ***both***";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        Assert.Contains("bold", doc.GetText(doc.Range));
+        Assert.Contains("italic", doc.GetText(doc.Range));
+        Assert.Contains("both", doc.GetText(doc.Range));
+
+        Assert.True(HasRunMatching(doc, p => p.Bold == true && p.Italic != true),
+            "expected at least one bold-only run");
+        Assert.True(HasRunMatching(doc, p => p.Italic == true && p.Bold != true),
+            "expected at least one italic-only run");
+        Assert.True(HasRunMatching(doc, p => p.Bold == true && p.Italic == true),
+            "expected at least one bold-italic run");
+
+        static bool HasRunMatching(Document doc, Func<CharacterProperties, bool> pred)
+        {
+            var totalChars = doc.Range.End.ToInt() - doc.Range.Start.ToInt();
+            for (int i = 0; i < totalChars; i++)
+            {
+                var range = doc.CreateRange(doc.Range.Start.ToInt() + i, 1);
+                var props = doc.BeginUpdateCharacters(range);
+                try { if (pred(props)) return true; }
+                finally { doc.EndUpdateCharacters(props); }
+            }
+            return false;
+        }
+    }
+
+    [Fact]
     public void Indented_code_block_each_line_is_monospace_paragraph()
     {
         // Four-space indent = code block in Markdown
