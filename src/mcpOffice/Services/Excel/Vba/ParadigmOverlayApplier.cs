@@ -60,8 +60,27 @@ internal static class ParadigmOverlayApplier
     }
 
     // Implemented in Task 11.
-    private static CSharpSuggestion ApplyWorkerService(string c, string m, bool pub, ProcedureAxes axes) =>
-        new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+    private static CSharpSuggestion ApplyWorkerService(string c, string m, bool pub, ProcedureAxes axes)
+    {
+        bool isBackgroundEntry =
+            (axes.Trigger == "macroEntryPoint" &&
+             (axes.Purity == "writesState" || axes.Purity == "sideEffectful")) ||
+            (axes.Trigger == "eventHandler" && IsBackgroundEventName(m));
+
+        var blockers = new List<string>();
+        if (axes.Dependencies.Contains("excelObjectModel"))
+            blockers.Add("depends_on_excel_object_model");
+
+        if (isBackgroundEntry)
+            return new("backgroundService", c, m, "singleton", pub, blockers);
+
+        return new("instanceMethod", c, m, "scoped", pub, blockers);
+    }
+
+    private static bool IsBackgroundEventName(string method) =>
+        string.Equals(method, "WorkbookOpen", StringComparison.Ordinal) ||
+        string.Equals(method, "AutoOpen", StringComparison.Ordinal) ||
+        method.Contains("OnTime", StringComparison.Ordinal);
 
     // Implemented in Task 12.
     private static CSharpSuggestion ApplyWebApi(string c, string m, bool pub, ProcedureAxes axes) =>

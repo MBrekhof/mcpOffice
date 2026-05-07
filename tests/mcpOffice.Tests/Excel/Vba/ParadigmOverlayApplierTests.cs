@@ -106,4 +106,48 @@ public class ParadigmOverlayApplierTests
         Assert.Null(s.Lifetime);
         Assert.Contains("event_handler_no_pure_classlib_target", s.Blockers);
     }
+
+    [Fact]
+    public void Worker_macroEntryPoint_writesState_becomes_backgroundService()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Main", "Public",
+            Axes(trigger: "macroEntryPoint", purity: "writesState"), "workerService");
+        Assert.Equal("backgroundService", s.TargetType);
+        Assert.Equal("singleton", s.Lifetime);
+    }
+
+    [Fact]
+    public void Worker_eventHandler_workbook_open_becomes_backgroundService()
+    {
+        var s = ParadigmOverlayApplier.Apply("ThisWorkbook", "Workbook_Open", "Public",
+            Axes(trigger: "eventHandler"), "workerService");
+        Assert.Equal("backgroundService", s.TargetType);
+    }
+
+    [Fact]
+    public void Worker_eventHandler_auto_open_becomes_backgroundService()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Auto_Open", "Public",
+            Axes(trigger: "eventHandler"), "workerService");
+        Assert.Equal("backgroundService", s.TargetType);
+    }
+
+    [Fact]
+    public void Worker_other_procedure_becomes_instanceMethod()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Helper", "Public",
+            Axes(trigger: "calledOnly", purity: "pure"), "workerService");
+        Assert.Equal("instanceMethod", s.TargetType);
+        Assert.Equal("scoped", s.Lifetime);
+    }
+
+    [Fact]
+    public void Worker_appends_excel_object_model_blocker()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Main", "Public",
+            Axes(trigger: "macroEntryPoint", purity: "sideEffectful",
+                 dependencies: new[] { "excelObjectModel" }),
+            "workerService");
+        Assert.Contains("depends_on_excel_object_model", s.Blockers);
+    }
 }
