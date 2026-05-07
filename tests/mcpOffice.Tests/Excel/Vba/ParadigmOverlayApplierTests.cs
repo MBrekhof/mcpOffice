@@ -178,4 +178,33 @@ public class ParadigmOverlayApplierTests
             "webApi");
         Assert.Contains("depends_on_excel_object_model", s.Blockers);
     }
+
+    [Fact]
+    public void Console_macroEntryPoint_becomes_consoleEntryPoint()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Main", "Public",
+            Axes(trigger: "macroEntryPoint"), "console");
+        Assert.Equal("consoleEntryPoint", s.TargetType);
+        Assert.Null(s.Lifetime);
+    }
+
+    [Fact]
+    public void Console_pure_helper_becomes_staticMethod()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Helper", "Public",
+            Axes(trigger: "calledOnly", purity: "pure"), "console");
+        Assert.Equal("staticMethod", s.TargetType);
+        Assert.Equal("static", s.Lifetime);
+    }
+
+    [Fact]
+    public void Console_sideEffectful_helper_becomes_instanceMethod()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "Doer", "Public",
+            Axes(trigger: "calledOnly", purity: "sideEffectful",
+                 dependencies: new[] { "filesystem" }),
+            "console");
+        Assert.Equal("instanceMethod", s.TargetType);
+        Assert.Equal("scoped", s.Lifetime);
+    }
 }

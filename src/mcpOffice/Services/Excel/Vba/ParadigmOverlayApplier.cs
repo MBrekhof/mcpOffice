@@ -96,8 +96,16 @@ internal static class ParadigmOverlayApplier
     }
 
     // Implemented in Task 13.
-    private static CSharpSuggestion ApplyConsole(string c, string m, bool pub, ProcedureAxes axes) =>
-        new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+    private static CSharpSuggestion ApplyConsole(string c, string m, bool pub, ProcedureAxes axes)
+    {
+        if (axes.Trigger == "macroEntryPoint")
+            return new("consoleEntryPoint", c, m, null, pub, Array.Empty<string>());
+
+        bool isStaticCandidate = axes.Purity == "pure" || axes.Purity == "readsState";
+        return isStaticCandidate
+            ? new("staticMethod", c, m, "static", pub, Array.Empty<string>())
+            : new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+    }
 
     private static string StripModulePrefix(string moduleName)
     {
