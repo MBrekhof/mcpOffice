@@ -30,7 +30,6 @@ internal static class ParadigmOverlayApplier
         };
     }
 
-    // Implemented in Task 10.
     private static CSharpSuggestion ApplyClassLibrary(string c, string m, bool pub, ProcedureAxes axes)
     {
         if (axes.Trigger == "eventHandler")
@@ -59,7 +58,6 @@ internal static class ParadigmOverlayApplier
         return new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
     }
 
-    // Implemented in Task 11.
     private static CSharpSuggestion ApplyWorkerService(string c, string m, bool pub, ProcedureAxes axes)
     {
         bool isBackgroundEntry =
@@ -82,7 +80,6 @@ internal static class ParadigmOverlayApplier
         string.Equals(method, "AutoOpen", StringComparison.Ordinal) ||
         method.Contains("OnTime", StringComparison.Ordinal);
 
-    // Implemented in Task 12.
     private static CSharpSuggestion ApplyWebApi(string c, string m, bool pub, ProcedureAxes axes)
     {
         var blockers = new List<string>();
@@ -95,7 +92,6 @@ internal static class ParadigmOverlayApplier
         return new("instanceMethod", c, m, "scoped", pub, blockers);
     }
 
-    // Implemented in Task 13.
     private static CSharpSuggestion ApplyConsole(string c, string m, bool pub, ProcedureAxes axes)
     {
         if (axes.Trigger == "macroEntryPoint")
