@@ -26,7 +26,7 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 - [ ] `blazor` / `winforms` / `wpf` paradigms — need form-layout analysis the regex layer can't reliably do.
 - [ ] Cyclomatic complexity per procedure — needs a deeper VBA parser.
 - [ ] Module-scope-write detection regex — currently `purity` collapses to 3 values (`pure` / `readsState` / `sideEffectful`); `writesState` activates when `ExcelVbaObjectModelRef.Mode` lands.
-- [ ] `automation` → `shell` mapping in dependencies axis is currently a hardcoded transform; if other unexpected dependency kinds surface from real workbooks, tighten the closed set.
+- [ ] Dependencies-axis schema drift: design's closed set said `{excelObjectModel, filesystem, database, network, registry, shell}` but v1's `VbaReferenceCollector` emits `file` (not `filesystem`) — observed on RingOnderzoek.xlsm. v3 currently only renames `automation → shell` and passes everything else through. Either rename `file → filesystem` in v3's mapping or change v1 to emit the design's spelling. Probably the latter (keeps v1's emissions intelligible to other consumers).
 - [ ] `ParadigmOverlayApplier.StripModulePrefix` only handles `mod` / `cls` / `frm`. Real-world Air.xlsm uses `mdl` (e.g. `mdlAIR`, `mdlBalans`) — currently passes through as `MdlAIR`. Either extend the prefix list (`mdl`, `bas`, `srv`, etc.) or make it configurable per workbook. Surfaced via 2026-05-07 live verification.
 
 ## Word md→docx fidelity — Markdig converter — DONE
