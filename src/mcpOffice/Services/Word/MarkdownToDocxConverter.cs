@@ -30,6 +30,9 @@ internal static class MarkdownToDocxConverter
             case ParagraphBlock p:
                 WriteParagraph(ctx, p);
                 break;
+            case ListBlock list:
+                WriteList(ctx, list, level: 0);
+                break;
             // Other block kinds added in subsequent tasks.
             default:
                 // Unknown blocks silently skipped; Serilog warning attached in Task 21.
@@ -71,6 +74,45 @@ internal static class MarkdownToDocxConverter
         // project pattern (WordDocumentService.InsertParagraph) of inserting "\n".
         doc.InsertText(doc.Range.End, "\n");
         return doc.Paragraphs[doc.Paragraphs.Count - 1];
+    }
+
+    private static void WriteList(ConversionContext ctx, ListBlock list, int level)
+    {
+        var doc = ctx.Document;
+
+        // Create the abstract numbering list from the appropriate template.
+        var template = list.IsOrdered
+            ? doc.AbstractNumberingLists.NumberedListTemplate
+            : doc.AbstractNumberingLists.BulletedListTemplate;
+        var abstractList = template.CreateNew();
+        doc.AbstractNumberingLists.Add(abstractList);
+
+        // Create the concrete numbering list that references the abstract one.
+        var numberingList = doc.NumberingLists.Add(abstractList.Index);
+        var listIndex = numberingList.Index;
+
+        foreach (var item in list.OfType<ListItemBlock>())
+        {
+            foreach (var sub in item)
+            {
+                switch (sub)
+                {
+                    case ParagraphBlock p:
+                    {
+                        var para = AppendNewParagraph(ctx);
+                        para.ListIndex = listIndex;
+                        para.ListLevel = level;
+                        if (p.Inline is null) break;
+                        foreach (var inline in p.Inline)
+                            WriteInline(ctx, para, inline);
+                        break;
+                    }
+                    case ListBlock nested:
+                        WriteList(ctx, nested, level + 1);
+                        break;
+                }
+            }
+        }
     }
 
     private static void WriteInline(ConversionContext ctx, Paragraph para, Inline inline)

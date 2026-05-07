@@ -51,4 +51,27 @@ public class MarkdownToDocxConverterTests
             Assert.Equal($"Heading {i + 1}", headingParas[i].Style!.Name);
         }
     }
+
+    [Fact]
+    public void Unordered_list_produces_bulleted_paragraphs()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "- a\n- b\n- c", null);
+        var listParas = server.Document.Paragraphs
+            .Where(p => p.ListIndex >= 0)
+            .ToList();
+        Assert.Equal(3, listParas.Count);
+        Assert.All(listParas, p => Assert.Equal(0, p.ListLevel));
+    }
+
+    [Fact]
+    public void Ordered_list_produces_numbered_paragraphs()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "1. one\n2. two", null);
+        var listParas = server.Document.Paragraphs
+            .Where(p => p.ListIndex >= 0)
+            .ToList();
+        Assert.Equal(2, listParas.Count);
+    }
 }
