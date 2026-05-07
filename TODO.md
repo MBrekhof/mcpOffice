@@ -17,7 +17,7 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 
 ## excel_analyze_vba v3 — conversion-hints layer — DONE
 
-`excel_suggest_vba_conversion` (26th tool) shipped on `feat/excel-vba-conversion-hints-v3` (not yet merged). Per-procedure axes (trigger / purity / shape / dependencies), optional `targetParadigm` overlay (classLibrary / workerService / webApi / console), workbook-wide module coupling (Ca/Ce/instability + pairwise pairs). Synthetic fixture + Air.xlsm benchmark verified end-to-end. Plan: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-plan.md`. Design: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md`.
+`excel_suggest_vba_conversion` (26th tool) merged to `main` (fast-forward, 25 commits, latest `e724e44`). Per-procedure axes (trigger / purity / shape / dependencies), optional `targetParadigm` overlay (classLibrary / workerService / webApi / console), workbook-wide module coupling (Ca/Ce/instability + pairwise pairs). Synthetic fixture + Air.xlsm benchmark + live verification against three real workbooks (`Air.xlsm`, `RingOnderzoek.xlsm`, `OlieGC - LABWARE PRD.xlsm`) all green. Plan: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-plan.md`. Design: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md`.
 
 ### Deferred follow-ups
 
