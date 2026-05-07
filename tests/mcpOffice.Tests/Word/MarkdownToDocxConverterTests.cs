@@ -74,4 +74,15 @@ public class MarkdownToDocxConverterTests
             .ToList();
         Assert.Equal(2, listParas.Count);
     }
+
+    [Fact]
+    public void Nested_list_indents_per_depth()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "- outer\n  - inner", null);
+        var paras = server.Document.Paragraphs.Where(p => p.ListIndex >= 0).ToList();
+        Assert.Equal(2, paras.Count);
+        Assert.Equal(0, paras[0].ListLevel);
+        Assert.Equal(1, paras[1].ListLevel);
+    }
 }
