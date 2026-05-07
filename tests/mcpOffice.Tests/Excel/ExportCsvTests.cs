@@ -397,6 +397,39 @@ public class ExportCsvTests
     }
 
     [Fact]
+    public void TrimTrailingEmptyRows_treats_formula_cells_producing_empty_text_as_empty()
+    {
+        // Real-world ScreeningDB-V2.xlsm pattern: trailing rows have IF formulas that evaluate
+        // to "" when their inputs are missing. DevExpress reports those as IsText=true, not
+        // IsEmpty. Trim should treat them as empty so the output ends at the last actual data row.
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["A1"].Value = "h1";
+            sheet.Cells["A2"].Value = "data";
+            // Row 3: formula that evaluates to "" — the row LOOKS empty in CSV but isn't IsEmpty.
+            sheet.Cells["A3"].Formula = "=IF(1=2,\"x\",\"\")";
+            workbook.Calculate();
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:A3",
+                overwrite: false, maxRows: 1_048_576, trimTrailingEmptyRows: true);
+
+            Assert.Equal(2, result.RowCount);
+            Assert.Equal("h1\r\ndata", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
     public void TrimTrailingEmptyRows_treats_error_cells_as_empty()
     {
         var input = TestExcelWorkbooks.Create(workbook =>

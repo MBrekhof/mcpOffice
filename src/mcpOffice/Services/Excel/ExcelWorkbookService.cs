@@ -184,8 +184,13 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
             for (var c = 0; c < cols; c++)
             {
                 var v = cellRange[r, c].Value;
+                // Considered "empty for trim purposes" — would emit an empty CSV field anyway:
                 if (v.IsEmpty) continue;
                 if (v.Type == CellValueType.Error) continue;
+                // Real-world workbooks (e.g. ScreeningDB-V2.xlsm Compounds-N) extend the used
+                // range with formulas like =IF(OR(...),"","value") that evaluate to "" — those
+                // cells have IsEmpty=false, Type=Text, but produce an empty CSV field.
+                if (v.IsText && string.IsNullOrEmpty(v.TextValue)) continue;
                 return r;
             }
         }
