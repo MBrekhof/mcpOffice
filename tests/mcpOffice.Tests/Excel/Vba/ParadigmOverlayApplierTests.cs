@@ -150,4 +150,32 @@ public class ParadigmOverlayApplierTests
             "workerService");
         Assert.Contains("depends_on_excel_object_model", s.Blockers);
     }
+
+    [Fact]
+    public void WebApi_macroEntryPoint_public_becomes_apiAction()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "GetOrders", "Public",
+            Axes(trigger: "macroEntryPoint"), "webApi");
+        Assert.Equal("apiAction", s.TargetType);
+        Assert.Equal("scoped", s.Lifetime);
+    }
+
+    [Fact]
+    public void WebApi_macroEntryPoint_private_becomes_instanceMethod()
+    {
+        // Should never happen (private cannot be macroEntryPoint per the trigger rule),
+        // but the table still says "any other" for non-public-entry rows.
+        var s = ParadigmOverlayApplier.Apply("Module1", "GetOrders", "Private",
+            Axes(trigger: "calledOnly"), "webApi");
+        Assert.Equal("instanceMethod", s.TargetType);
+    }
+
+    [Fact]
+    public void WebApi_appends_excel_blocker()
+    {
+        var s = ParadigmOverlayApplier.Apply("Module1", "GetOrders", "Public",
+            Axes(trigger: "macroEntryPoint", dependencies: new[] { "excelObjectModel" }),
+            "webApi");
+        Assert.Contains("depends_on_excel_object_model", s.Blockers);
+    }
 }

@@ -83,8 +83,17 @@ internal static class ParadigmOverlayApplier
         method.Contains("OnTime", StringComparison.Ordinal);
 
     // Implemented in Task 12.
-    private static CSharpSuggestion ApplyWebApi(string c, string m, bool pub, ProcedureAxes axes) =>
-        new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+    private static CSharpSuggestion ApplyWebApi(string c, string m, bool pub, ProcedureAxes axes)
+    {
+        var blockers = new List<string>();
+        if (axes.Dependencies.Contains("excelObjectModel"))
+            blockers.Add("depends_on_excel_object_model");
+
+        if (axes.Trigger == "macroEntryPoint" && pub)
+            return new("apiAction", c, m, "scoped", pub, blockers);
+
+        return new("instanceMethod", c, m, "scoped", pub, blockers);
+    }
 
     // Implemented in Task 13.
     private static CSharpSuggestion ApplyConsole(string c, string m, bool pub, ProcedureAxes axes) =>
