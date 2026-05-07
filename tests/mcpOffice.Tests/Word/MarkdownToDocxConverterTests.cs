@@ -176,6 +176,30 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Pipe_table_creates_real_table_with_bold_shaded_header()
+    {
+        var md = "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        Assert.Single(doc.Tables);
+        var table = doc.Tables[0];
+        Assert.Equal(3, table.Rows.Count);                // header + 2 data rows
+        Assert.Equal(2, table.Rows[0].Cells.Count);
+
+        // Header cell shading == #F2F2F2
+        var headerCell = table.Rows[0].Cells[0];
+        var bg = headerCell.BackgroundColor;
+        Assert.Equal(System.Drawing.Color.FromArgb(0xF2, 0xF2, 0xF2).ToArgb(), bg.ToArgb());
+
+        // Header runs bold — check via BeginUpdateCharacters on the content range
+        var props = doc.BeginUpdateCharacters(headerCell.ContentRange);
+        try { Assert.Equal(true, props.Bold); }
+        finally { doc.EndUpdateCharacters(props); }
+    }
+
+    [Fact]
     public void Indented_code_block_each_line_is_monospace_paragraph()
     {
         // Four-space indent = code block in Markdown

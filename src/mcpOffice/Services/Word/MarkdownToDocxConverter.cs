@@ -2,6 +2,9 @@ using System.Drawing;
 using DevExpress.Office.Utils;
 using DevExpress.XtraRichEdit.API.Native;
 using Markdig;
+using MdTable = Markdig.Extensions.Tables.Table;
+using MdTableRow = Markdig.Extensions.Tables.TableRow;
+using MdTableCell = Markdig.Extensions.Tables.TableCell;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
@@ -46,6 +49,9 @@ internal static class MarkdownToDocxConverter
                 break;
             case CodeBlock code:
                 WriteCodeBlock(ctx, code.Lines.ToString());
+                break;
+            case MdTable mdTable:
+                WriteTable(ctx, mdTable);
                 break;
             // Other block kinds added in subsequent tasks.
             default:
@@ -179,6 +185,74 @@ internal static class MarkdownToDocxConverter
             props.Borders.BottomBorder.LineWidth = 0.5f;
         }
         finally { ctx.Document.EndUpdateParagraphs(props); }
+    }
+
+    private static readonly Color HeaderBackground = Color.FromArgb(0xF2, 0xF2, 0xF2);
+
+    private static void WriteTable(ConversionContext ctx, MdTable table)
+    {
+        var doc = ctx.Document;
+        var rows = table.OfType<MdTableRow>().ToList();
+        if (rows.Count == 0) return;
+
+        var colCount = rows.Max(r => r.Count);
+        if (colCount == 0) return;
+
+        var dxTable = doc.Tables.Create(doc.Range.End, rows.Count, colCount);
+
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var mdRow = rows[r];
+            for (int c = 0; c < mdRow.Count; c++)
+            {
+                var mdCell = (MdTableCell)mdRow[c];
+                var dxCell = dxTable.Rows[r].Cells[c];
+
+                // Collect the plain text from all inlines in the cell.
+                // Using InsertText at ContentRange.Start matches WordDocumentService.InsertTable convention.
+                var cellText = CollectCellText(mdCell);
+                DocumentRange? insertedRange = null;
+                if (cellText.Length > 0)
+                    insertedRange = doc.InsertText(dxCell.ContentRange.Start, cellText);
+
+                if (mdRow.IsHeader)
+                {
+                    dxCell.BackgroundColor = HeaderBackground;
+                    // Bold the inserted text range (not ContentRange, which may include
+                    // the trailing paragraph mark with undefined Bold).
+                    if (insertedRange is not null)
+                    {
+                        var props = doc.BeginUpdateCharacters(insertedRange);
+                        try { props.Bold = true; }
+                        finally { doc.EndUpdateCharacters(props); }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the plain-text content of a Markdig table cell.
+    /// Concatenates all literal inlines; other inline types will be handled
+    /// in Phase C (emphasis/links) by replacing this helper with per-inline WriteInline calls.
+    /// </summary>
+    private static string CollectCellText(MdTableCell cell)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var child in cell)
+        {
+            if (child is ParagraphBlock p && p.Inline is not null)
+            {
+                foreach (var inline in p.Inline)
+                {
+                    if (inline is LiteralInline lit)
+                        sb.Append(lit.Content.ToString());
+                    else if (inline is LineBreakInline)
+                        sb.Append(' ');
+                }
+            }
+        }
+        return sb.ToString();
     }
 
     private static void WriteInline(ConversionContext ctx, Paragraph para, Inline inline)
