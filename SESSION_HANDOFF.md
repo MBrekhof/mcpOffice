@@ -1,67 +1,76 @@
-# Session Handoff — 2026-05-07 (analyzer v3 merged to main)
+# Session Handoff — 2026-05-07 (excel_export_csv on feature branch)
 
 ## Where Things Stand
 
-**Branch:** `main` — fast-forward merged from `feat/excel-vba-conversion-hints-v3`. Branch deleted locally.
-**Latest commit:** `e724e44` chore: TODO — sharpen dependencies-axis schema-drift entry.
+**Branch:** `feat/excel-export-csv` — 16 commits ahead of `main` (last shared commit `586588c`, the export-csv plan doc).
+**Latest commit:** `fbaad72` docs: update TODO + SESSION_HANDOFF for excel_export_csv.
 **Build:** `dotnet build -c Release` — 0 warnings, 0 errors.
-**Tests:** `dotnet test -c Release` — 271 unit + 14 integration pass, 1 skipped.
-**Tool surface:** 26 tools (was 25 — `excel_suggest_vba_conversion` is the new tool).
-**Origin:** local `main` is 25 commits ahead of `origin/main`. Push when ready.
+**Tests:** `dotnet test -c Release` — 290 unit + 15 integration pass, 1 skipped.
+**Tool surface:** 27 tools (was 26 — `excel_export_csv` is the new tool).
+**Origin:** `feat/excel-export-csv` is local-only; not pushed.
 
 ## What Landed
 
-`excel_suggest_vba_conversion` (analyzer v3) — a new MCP tool that consumes `excel_analyze_vba`'s structural model and emits conversion hints:
+`excel_export_csv` — the 27th MCP tool. Streams a worksheet (or A1 range) to a CSV file on disk for `pandas.read_csv` / `polars.read_csv` consumption.
 
-- **Per-procedure axes**: `trigger` (eventHandler / macroEntryPoint / calledOnly), `purity` (pure / readsState / sideEffectful — `writesState` deferred until v1 records expose Mode), `shape` (leaf / orchestrator / null), `dependencies` (sorted, deduped subset of {excelObjectModel, file, database, network, registry, shell} — see TODO note about `file` vs `filesystem`).
-- **Per-procedure rationale** (always emitted): plain-text summary of axes + paradigm hint when paradigm is set.
-- **Optional `targetParadigm` overlay** for one of `classLibrary` / `workerService` / `webApi` / `console`. Produces a structured `csharpSuggestion` with `targetType`, `suggestedClassName`, `suggestedMethodName`, `lifetime`, `isPublic`, `blockers[]`. Errors with `unsupported_paradigm` for any other value.
-- **Workbook-wide module coupling**: per-module `Ca` / `Ce` / `instability` / `internalEdges`, plus directional `couplingPairs[]` sorted by edge count then alphabetical. Always whole-workbook even when `moduleName` filters per-procedure hints.
+- **Tool surface:** `excel_export_csv(path, outputPath, sheetName?, sheetIndex?, range?, overwrite=false, maxRows=1_048_576) -> { outputPath, rowCount, columnCount, bytesWritten }`.
+- **CSV dialect:** RFC 4180 — UTF-8 no BOM, CRLF line endings, comma separator, minimal quoting (`"…"` only when value contains `,` `"` `\r` `\n`; embedded `"` doubled). Numbers via invariant culture, no thousand separators. `DateTime` as ISO 8601 (`yyyy-MM-ddTHH:mm:ss`). Booleans lowercase. Empty cells emit empty unquoted fields (pandas reads as `NaN`). Formula cells emit their cached value, never formula text.
+- **Errors:** reuses existing codes — `file_not_found`, `invalid_path`, `file_exists`, `index_out_of_range`, `sheet_not_found`, `parse_error`, `range_too_large`, `io_error`. New `ToolError.RangeTooLargeRows` helper produces a row-flavoured message under the same `range_too_large` code so agents recover by trimming rows, not cells.
 
-### New components under `src/mcpOffice/`
+### New components
 
-- `Models/`: `ConversionHints`, `ConversionHintsSummary`, `ProcedureHint`, `ProcedureAxes`, `CSharpSuggestion`, `ModuleCoupling`, `CouplingPair`.
-- `Services/Excel/Vba/`: `AxisClassifier`, `CouplingComputer`, `ParadigmOverlayApplier`, `VbaConversionHintBuilder`.
-- `Tools/ExcelTools.cs`: `ExcelSuggestVbaConversion` (the 26th tool).
-- `ErrorCode.cs` + `ToolError.cs`: new `unsupported_paradigm` code.
+- `Models/ExcelExportCsvResult.cs` — `record (string OutputPath, int RowCount, int ColumnCount, long BytesWritten)`.
+- `Services/Excel/Csv/CsvWriter.cs` — `internal sealed class`, `IDisposable`, RFC 4180 quoting + invariant-culture / ISO 8601 / lowercase-bool formatting. `leaveOpen: true` so the caller can `fileStream.Length` after the writer disposes.
+- `Services/Excel/ExcelWorkbookService.ExportCsv` — orchestrator; reuses `LoadWorkbook`, `ResolveWorksheet`, `GetCellValue`. PathGuard runs before workbook load (fail fast on bad output paths). `RangeTooLargeRows` thrown when `cellRange.RowCount > maxRows`.
+- `Tools/ExcelTools.ExcelExportCsv` — one-line delegate.
+
+### Sibling bug fix
+
+`GetCellValue` and `GetCellValueType` (the shared private helpers in `ExcelWorkbookService`) now check `IsDateTime` **before** `IsNumeric`. DevExpress flags date-formatted cells as **both**, and the previous order silently returned Excel serial numbers as `double` for date cells. This was a latent bug in `excel_read_sheet` too — no test caught it because no test exercised a date-formatted cell. Tightens `ReadSheet`'s contract: date-formatted cells now surface as `DateTime` / `valueType: "datetime"` (was `double` / `"number"`).
 
 ### Live verification (2026-05-07)
 
-End-to-end run of `excel_suggest_vba_conversion(targetParadigm: "classLibrary")` against three real workbooks confirmed correct shape and sensible classifications:
+`excel_export_csv` against `C:\Projects\mcpOffice-samples\Air.xlsm`, sheet `WO`:
 
-| Workbook | Procs | Modules | Pairs | wallTimeMs | targetType breakdown |
-|---|---|---|---|---|---|
-| `Air.xlsm` | 200 | 107 | 30 | 34 | requiresManualReview=110, instanceMethod=73, staticMethod=17 |
-| `RingOnderzoek.xlsm` | 14 | 6 | 0 | 8 | requiresManualReview=7, instanceMethod=6, staticMethod=1 |
-| `OlieGC - LABWARE PRD.xlsm` | 13 | 10 | 1 | 8 | requiresManualReview=7, instanceMethod=6, staticMethod=0 |
+| Metric | Value |
+|---|---|
+| RowCount | 47 |
+| ColumnCount | 210 |
+| BytesWritten | 10,092 |
+| First 2 KB sanity | UTF-8, no BOM, contains commas |
 
-The verification surfaced two real-world findings, both logged on TODO as deferred follow-ups:
-1. v1's `VbaReferenceCollector` emits dependency kind `file` (not `filesystem` as the design's closed set claimed). v3 passes the kind through verbatim, so the closed set isn't enforced. Repair belongs in v1.
-2. `ParadigmOverlayApplier.StripModulePrefix` only knows `mod` / `cls` / `frm`. Air.xlsm uses `mdl` (e.g. `mdlAIR` → `MdlAIR` instead of `AIR`). Extend the list or make it workbook-configurable.
+Dimensions match `excel_list_sheets`'s reported `usedRange` for that sheet — round-trip clean.
 
 ## Outstanding — Action Required
 
-**Push `main` to `origin/main`.** Local is 25 commits ahead. No PR (merged locally per user choice). After push, this handoff goes to a clean steady-state.
+**Decide how to integrate the branch.** Two options:
+- Squash-merge locally to `main` and delete the branch (matches the v3 / md-converter pattern).
+- Push to `origin` and open a PR via `gh pr create`.
+
+User has been asked to choose. Do not push or merge without explicit direction.
 
 ## Next Up
 
 Pick one of:
 
-- **`excel_export_csv`** — already on TODO. Stream a sheet to CSV for `pandas.read_csv` / `polars.read_csv` consumption. Replaces the JSON cell-grid path for "load this sheet as a dataframe" workflows.
-- **v3 conversion-hints follow-ups** (all on TODO): cluster detection (Louvain on the module graph), pagination on `procedureHints[]`, `blazor` / `winforms` / `wpf` paradigms, cyclomatic complexity, the two live-verification findings above.
-- **Smaller polish:** unify `WriteCellInline` / `WriteInline` in the Markdig converter (left over from PR #15).
+- **`excel_export_ndjson`** — column-typed sibling for `pandas.read_json(lines=True)` consumers. Shares streaming infrastructure with `excel_export_csv`.
+- **`.csv.gz` compression** for `excel_export_csv` — wrap the `FileStream` in `GZipStream` when `outputPath` ends in `.gz`. Trivial follow-up.
+- **v3 conversion-hints follow-ups** (all on TODO): cluster detection (Louvain), pagination on `procedureHints[]`, `blazor`/`winforms`/`wpf` paradigms, cyclomatic complexity, the two live-verification findings (`file` vs `filesystem` dependency-axis spelling, `mdl` prefix in `StripModulePrefix`).
+- **Markdig follow-up** — unify `WriteCellInline` / `WriteInline` (left over from PR #15).
 
 ## How To Resume
 
 ```powershell
 cd C:\Projects\mcpOffice
 git status
-git log --oneline -25
-dotnet build --nologo
-dotnet test --nologo
+git log --oneline 586588c..HEAD
+dotnet build -c Release --nologo
+dotnet test -c Release --nologo
 ```
 
 Reference material:
+- export-csv design: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md`
+- export-csv plan: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-plan.md`
 - v3 design: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md`
 - v3 plan: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-plan.md`
 - v1 (analyzer) design: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`

@@ -28,6 +28,9 @@ public static class ToolError
     public static Exception RangeTooLarge(string range, int cellCount, int maxCells) =>
         Throw(ErrorCode.RangeTooLarge, $"Range {range} contains {cellCount} cells, which exceeds maxCells={maxCells}.");
 
+    public static Exception RangeTooLargeRows(string range, int rowCount, int maxRows) =>
+        Throw(ErrorCode.RangeTooLarge, $"Range {range} contains {rowCount} rows, which exceeds maxRows={maxRows}.");
+
     public static Exception MergeFieldMissing(IEnumerable<string> fields) =>
         Throw(ErrorCode.MergeFieldMissing, $"Template fields with no value in dataJson: {string.Join(", ", fields)}");
 

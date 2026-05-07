@@ -45,4 +45,12 @@ public interface IExcelWorkbookService
         string path,
         string? moduleName,
         string? targetParadigm);
+    ExcelExportCsvResult ExportCsv(
+        string path,
+        string outputPath,
+        string? sheetName,
+        int? sheetIndex,
+        string? range,
+        bool overwrite,
+        int maxRows);
 }

@@ -27,6 +27,18 @@ public static class ExcelTools
         [Description("Maximum cells to return. Prevents accidental huge sheet reads.")] int maxCells = 50000)
         => Service.ReadSheet(path, sheetName, sheetIndex, range, includeFormulas, includeFormats, maxCells);
 
+    [McpServerTool(Name = "excel_export_csv")]
+    [Description("Streams a worksheet (or A1 range) to a CSV file on disk for pandas/polars consumption. RFC 4180 dialect, UTF-8 (no BOM), CRLF line endings, invariant-culture numbers, ISO 8601 datetimes, lowercase booleans. Formula cells emit their cached value (no formula text). Returns {outputPath, rowCount, columnCount, bytesWritten}.")]
+    public static object ExcelExportCsv(
+        [Description("Absolute path to the .xlsx/.xlsm input workbook")] string path,
+        [Description("Absolute path to the .csv output file. Parent directory is created if missing.")] string outputPath,
+        [Description("Worksheet name. If omitted, sheetIndex is used.")] string? sheetName = null,
+        [Description("0-based worksheet index used when sheetName is omitted. Defaults to 0.")] int? sheetIndex = null,
+        [Description("Optional A1 range such as A1:D20. Defaults to the worksheet used range.")] string? range = null,
+        [Description("Overwrite outputPath if it already exists. Defaults to false.")] bool overwrite = false,
+        [Description("Maximum rows to export. Defaults to 1,048,576 (Excel row ceiling). Trips range_too_large if exceeded.")] int maxRows = 1_048_576)
+        => Service.ExportCsv(path, outputPath, sheetName, sheetIndex, range, overwrite, maxRows);
+
     [McpServerTool(Name = "excel_extract_vba")]
     [Description("Statically extracts VBA module source from an .xlsm workbook without launching Excel. Returns hasVbaProject and a list of {name, kind, lineCount, code}. For .xlsx or workbooks without macros, returns hasVbaProject=false and an empty list.")]
     public static object ExcelExtractVba(

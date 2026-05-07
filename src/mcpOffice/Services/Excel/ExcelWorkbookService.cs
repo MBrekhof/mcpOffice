@@ -1,6 +1,7 @@
 using System.Globalization;
 using DevExpress.Spreadsheet;
 using McpOffice.Models;
+using McpOffice.Services.Excel.Csv;
 using McpOffice.Services.Excel.Vba;
 using McpOffice.Services.Excel.Vba.Rendering;
 using ModelContextProtocol;
@@ -101,6 +102,62 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
                 false,
                 rows,
                 cells);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public ExcelExportCsvResult ExportCsv(
+        string path,
+        string outputPath,
+        string? sheetName,
+        int? sheetIndex,
+        string? range,
+        bool overwrite,
+        int maxRows)
+    {
+        PathGuard.RequireExists(path);
+        PathGuard.RequireWritable(outputPath, overwrite);
+
+        try
+        {
+            using var workbook = LoadWorkbook(path);
+            var worksheet = ResolveWorksheet(workbook, sheetName, sheetIndex);
+            var cellRange = string.IsNullOrWhiteSpace(range)
+                ? worksheet.GetUsedRange()
+                : worksheet.Range[range];
+
+            var rangeReference = cellRange.GetReferenceA1();
+            if (cellRange.RowCount > maxRows)
+            {
+                throw ToolError.RangeTooLargeRows(rangeReference, cellRange.RowCount, maxRows);
+            }
+
+            long bytesWritten;
+            using (var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                using (var csv = new CsvWriter(fileStream))
+                {
+                    for (var r = 0; r < cellRange.RowCount; r++)
+                    {
+                        var row = new object?[cellRange.ColumnCount];
+                        for (var c = 0; c < cellRange.ColumnCount; c++)
+                        {
+                            row[c] = GetCellValue(cellRange[r, c].Value);
+                        }
+                        csv.WriteRow(row);
+                    }
+                }
+                bytesWritten = fileStream.Length;
+            }
+
+            return new ExcelExportCsvResult(
+                outputPath,
+                cellRange.RowCount,
+                cellRange.ColumnCount,
+                bytesWritten);
         }
         catch (Exception ex) when (ex is not McpException)
         {
@@ -497,14 +554,17 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
             return value.BooleanValue;
         }
 
-        if (value.IsNumeric)
-        {
-            return value.NumericValue;
-        }
-
+        // IsDateTime must be checked before IsNumeric: in DevExpress, date-formatted
+        // cells report both true, but the caller-meaningful representation is DateTime,
+        // not the Excel serial number.
         if (value.IsDateTime)
         {
             return value.DateTimeValue;
+        }
+
+        if (value.IsNumeric)
+        {
+            return value.NumericValue;
         }
 
         if (value.IsText)
@@ -519,8 +579,8 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
     {
         if (value.IsEmpty) return "empty";
         if (value.IsBoolean) return "boolean";
-        if (value.IsNumeric) return "number";
         if (value.IsDateTime) return "datetime";
+        if (value.IsNumeric) return "number";
         if (value.IsText) return "text";
         return "unknown";
     }

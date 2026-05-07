@@ -238,6 +238,47 @@ public class ExcelWorkflowTests
         Assert.Contains("\"targetParadigm\":\"classLibrary\"", text);
     }
 
+    [Fact]
+    public async Task Export_csv_via_stdio()
+    {
+        var input = TempPath(".xlsx");
+        var output = TempPath(".csv");
+        try
+        {
+            using (var workbook = new Workbook())
+            {
+                var sheet = workbook.Worksheets[0];
+                sheet.Name = "Data";
+                sheet.Cells["A1"].Value = "Name";
+                sheet.Cells["B1"].Value = "Amount";
+                sheet.Cells["A2"].Value = "Ada";
+                sheet.Cells["B2"].Value = 0.21;
+                workbook.SaveDocument(input, SpreadsheetFormat.Xlsx);
+            }
+
+            await using var harness = await ServerHarness.StartAsync();
+            var result = await harness.Client.CallToolAsync(
+                "excel_export_csv",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = input,
+                    ["outputPath"] = output,
+                    ["sheetName"] = "Data",
+                });
+            var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+            Assert.Contains("\"rowCount\":2", text);
+            Assert.Contains("\"columnCount\":2", text);
+            Assert.True(File.Exists(output));
+            Assert.Equal("Name,Amount\r\nAda,0.21", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input))  File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
     private static string ResolveFixturePath(string name)
     {
         var asmDir = Path.GetDirectoryName(typeof(ExcelWorkflowTests).Assembly.Location)!;

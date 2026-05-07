@@ -8,6 +8,7 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "excel_analyze_vba",
+            "excel_export_csv",
             "excel_extract_vba",
             "excel_get_metadata",
             "excel_get_structure",
