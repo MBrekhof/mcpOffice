@@ -187,6 +187,32 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public ConversionHints SuggestVbaConversion(
+        string path,
+        string? moduleName,
+        string? targetParadigm)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            // Run the full analyzer with no module filter — the coupling scorer needs the whole graph.
+            var project = new VbaProjectReader().Read(path);
+            var analysis = VbaSourceAnalyzer.Analyze(
+                project,
+                includeProcedures: true,
+                includeCallGraph: true,
+                includeReferences: true,
+                moduleName: null);
+
+            return VbaConversionHintBuilder.Build(analysis, moduleName, targetParadigm);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
     public ExcelWorkbookMetadata GetMetadata(string path)
     {
         PathGuard.RequireExists(path);

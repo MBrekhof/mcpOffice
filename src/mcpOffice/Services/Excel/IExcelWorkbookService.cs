@@ -41,4 +41,8 @@ public interface IExcelWorkbookService
         string direction,
         string layout,
         int maxNodes);
+    ConversionHints SuggestVbaConversion(
+        string path,
+        string? moduleName,
+        string? targetParadigm);
 }
