@@ -372,4 +372,47 @@ public class MarkdownToDocxConverterTests
             .ToList();
         Assert.Single(nonEmpty);
     }
+
+    [Fact]
+    public void Image_local_file_is_embedded()
+    {
+        using var tmpDir = new TempDir();
+        var pngPath = Path.Combine(tmpDir.Path, "dot.png");
+        File.WriteAllBytes(pngPath, OnePixelPng());
+        var md = "![dot](dot.png)";
+
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, tmpDir.Path);
+        Assert.Single(server.Document.Images);
+    }
+
+    [Fact]
+    public void Image_missing_local_file_is_dropped_no_throw()
+    {
+        using var tmpDir = new TempDir();
+        var md = "![](missing.png)";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, tmpDir.Path);
+        Assert.Empty(server.Document.Images);
+    }
+
+    [Fact]
+    public void Image_remote_url_is_dropped_no_throw()
+    {
+        var md = "![](https://example.com/x.png)";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        Assert.Empty(server.Document.Images);
+    }
+
+    private static byte[] OnePixelPng() => Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+
+    private sealed class TempDir : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            $"mcpoffice-md-{Guid.NewGuid():N}");
+        public TempDir() => Directory.CreateDirectory(Path);
+        public void Dispose() { try { Directory.Delete(Path, true); } catch { } }
+    }
 }

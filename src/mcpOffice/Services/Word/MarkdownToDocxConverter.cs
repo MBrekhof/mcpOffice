@@ -330,6 +330,17 @@ internal static class MarkdownToDocxConverter
                 finally { ctx.Document.EndUpdateCharacters(props); }
                 break;
             }
+            case LinkInline imgLink when imgLink.IsImage:
+            {
+                if (TryResolveLocalImage(imgLink.Url, ctx.BaseDirectory, out var resolved))
+                {
+                    var imgSource = DocumentImageSource.FromFile(resolved!);
+                    ctx.Document.Images.Append(imgSource);
+                }
+                // Remote URLs and missing local files: silently dropped.
+                // Serilog warning hook is added in Task 21.
+                break;
+            }
             case LinkInline link when !link.IsImage:
             {
                 // Concatenate inner literal text as display text. Falls back to URL if empty.
@@ -357,7 +368,19 @@ internal static class MarkdownToDocxConverter
                 // Soft break (single newline): insert a single space.
                 ctx.Document.InsertText(para.Range.End, br.IsHard ? "\v" : " ");
                 break;
-            // Image links handled in Task 16.
         }
+    }
+
+    private static bool TryResolveLocalImage(string? url, string? baseDir, out string? resolved)
+    {
+        resolved = null;
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return false;
+
+        var candidate = Path.IsPathFullyQualified(url) ? url : Path.Combine(baseDir ?? string.Empty, url);
+        if (!File.Exists(candidate)) return false;
+        resolved = candidate;
+        return true;
     }
 }
