@@ -306,6 +306,20 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
+    private static RichEditDocumentServer LoadInput(string inputPath)
+    {
+        var ext = Path.GetExtension(inputPath);
+        if (ext.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            var server = new RichEditDocumentServer();
+            var md = File.ReadAllText(inputPath, Encoding.UTF8);
+            MarkdownToDocxConverter.Apply(server.Document, md, Path.GetDirectoryName(inputPath));
+            return server;
+        }
+        return LoadOpenXml(inputPath);
+    }
+
     public string Convert(string inputPath, string outputPath, string? format)
     {
         PathGuard.RequireExists(inputPath);
@@ -315,7 +329,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(inputPath);
+            using var server = LoadInput(inputPath);
 
             switch (outputFormat)
             {

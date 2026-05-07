@@ -1,3 +1,4 @@
+using DevExpress.XtraRichEdit;
 using McpOffice.Services.Word;
 using ModelContextProtocol;
 using System.Text;
@@ -51,6 +52,34 @@ public class ConvertTests
         {
             DeleteIfExists(input);
             DeleteIfExists(output);
+        }
+    }
+
+    [Fact]
+    public void Convert_md_input_to_docx_preserves_inline_code_and_tables()
+    {
+        var mdPath = Path.Combine(Path.GetTempPath(), $"mcpoffice-mdinput-{Guid.NewGuid():N}.md");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"mcpoffice-mdout-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            File.WriteAllText(mdPath,
+                "# Title\n\nUse `Foo()` to call. Tables:\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+                Encoding.UTF8);
+
+            var svc = new WordDocumentService();
+            svc.Convert(mdPath, docxPath, format: null);
+
+            Assert.True(File.Exists(docxPath));
+            using var server = new DevExpress.XtraRichEdit.RichEditDocumentServer();
+            server.LoadDocument(docxPath, DevExpress.XtraRichEdit.DocumentFormat.OpenXml);
+            Assert.Contains("Foo()", server.Document.GetText(server.Document.Range));
+            Assert.True(server.Document.Tables.Count >= 1);
+        }
+        finally
+        {
+            DeleteIfExists(mdPath);
+            DeleteIfExists(docxPath);
         }
     }
 
