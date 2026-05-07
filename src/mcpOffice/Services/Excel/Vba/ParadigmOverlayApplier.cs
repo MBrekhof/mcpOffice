@@ -1,0 +1,70 @@
+using McpOffice.Models;
+
+namespace McpOffice.Services.Excel.Vba;
+
+internal static class ParadigmOverlayApplier
+{
+    public static readonly IReadOnlyList<string> SupportedParadigms = new[]
+    {
+        "classLibrary", "workerService", "webApi", "console"
+    };
+
+    public static CSharpSuggestion Apply(
+        string module,
+        string procedureName,
+        string? scope,
+        ProcedureAxes axes,
+        string paradigm)
+    {
+        var className = StripModulePrefix(module);
+        var methodName = ToPascalCase(procedureName);
+        var isPublic = !string.Equals(scope, "Private", StringComparison.OrdinalIgnoreCase);
+
+        return paradigm switch
+        {
+            "classLibrary" => ApplyClassLibrary(className, methodName, isPublic, axes),
+            "workerService" => ApplyWorkerService(className, methodName, isPublic, axes),
+            "webApi" => ApplyWebApi(className, methodName, isPublic, axes),
+            "console" => ApplyConsole(className, methodName, isPublic, axes),
+            _ => throw new ArgumentException($"Unsupported paradigm '{paradigm}'", nameof(paradigm))
+        };
+    }
+
+    // Implemented in Task 10.
+    private static CSharpSuggestion ApplyClassLibrary(string c, string m, bool pub, ProcedureAxes axes) =>
+        new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+
+    // Implemented in Task 11.
+    private static CSharpSuggestion ApplyWorkerService(string c, string m, bool pub, ProcedureAxes axes) =>
+        new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+
+    // Implemented in Task 12.
+    private static CSharpSuggestion ApplyWebApi(string c, string m, bool pub, ProcedureAxes axes) =>
+        new("instanceMethod", c, m, "scoped", pub, Array.Empty<string>());
+
+    // Implemented in Task 13.
+    private static CSharpSuggestion ApplyConsole(string c, string m, bool pub, ProcedureAxes axes) =>
+        new("staticMethod", c, m, "static", pub, Array.Empty<string>());
+
+    private static string StripModulePrefix(string moduleName)
+    {
+        foreach (var prefix in new[] { "mod", "cls", "frm" })
+        {
+            if (moduleName.Length > prefix.Length &&
+                moduleName.StartsWith(prefix, StringComparison.Ordinal) &&
+                char.IsUpper(moduleName[prefix.Length]))
+            {
+                return moduleName[prefix.Length..];
+            }
+        }
+        return ToPascalCase(moduleName);
+    }
+
+    private static string ToPascalCase(string identifier)
+    {
+        if (string.IsNullOrEmpty(identifier)) return identifier;
+        var parts = identifier.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Select(p =>
+            char.ToUpperInvariant(p[0]) + (p.Length > 1 ? p[1..] : "")));
+    }
+}
