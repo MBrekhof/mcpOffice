@@ -119,7 +119,12 @@ internal static class MarkdownToDocxConverter
         // DevExpress Document has no InsertParagraph(DocumentPosition); follow the existing
         // project pattern (WordDocumentService.InsertParagraph) of inserting "\n".
         doc.InsertText(doc.Range.End, "\n");
-        return doc.Paragraphs[doc.Paragraphs.Count - 1];
+        var para = doc.Paragraphs[doc.Paragraphs.Count - 1];
+        // The newly-inserted paragraph inherits the previous paragraph's style; reset to Normal
+        // so each writer starts with a blank slate. WriteHeading immediately overrides this.
+        var normalStyle = doc.ParagraphStyles["Normal"] ?? doc.ParagraphStyles["Default Paragraph Style"];
+        if (normalStyle is not null) para.Style = normalStyle;
+        return para;
     }
 
     private static void WriteList(ConversionContext ctx, ListBlock list, int level)

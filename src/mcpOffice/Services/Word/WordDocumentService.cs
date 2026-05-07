@@ -478,8 +478,8 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = LoadOpenXml(path);
-            using var markdownServer = CreateDocumentFromMarkdown(markdown);
-            server.Document.AppendDocumentContent(markdownServer.Document.Range);
+            var baseDir = Path.GetDirectoryName(path);
+            MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
             server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
@@ -495,7 +495,9 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = CreateDocumentFromMarkdown(markdown);
+            using var server = new RichEditDocumentServer();
+            var baseDir = Path.GetDirectoryName(path);
+            MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
             server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }
