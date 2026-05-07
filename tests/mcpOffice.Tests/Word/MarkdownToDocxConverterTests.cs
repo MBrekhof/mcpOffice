@@ -33,4 +33,22 @@ public class MarkdownToDocxConverterTests
         Assert.True(server.Document.Paragraphs.Count >= 2,
             $"expected ≥2 paragraphs, got {server.Document.Paragraphs.Count}");
     }
+
+    [Fact]
+    public void Headings_1_through_6_get_correct_paragraph_style()
+    {
+        var md = "# h1\n\n## h2\n\n### h3\n\n#### h4\n\n##### h5\n\n###### h6";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var headingParas = server.Document.Paragraphs
+            .Where(p => p.Style?.Name?.StartsWith("Heading ") == true)
+            .ToList();
+
+        Assert.Equal(6, headingParas.Count);
+        for (int i = 0; i < 6; i++)
+        {
+            Assert.Equal($"Heading {i + 1}", headingParas[i].Style!.Name);
+        }
+    }
 }

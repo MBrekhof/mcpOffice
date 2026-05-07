@@ -24,6 +24,9 @@ internal static class MarkdownToDocxConverter
     {
         switch (block)
         {
+            case HeadingBlock h:
+                WriteHeading(ctx, h);
+                break;
             case ParagraphBlock p:
                 WriteParagraph(ctx, p);
                 break;
@@ -32,6 +35,25 @@ internal static class MarkdownToDocxConverter
                 // Unknown blocks silently skipped; Serilog warning attached in Task 21.
                 break;
         }
+    }
+
+    private static void WriteHeading(ConversionContext ctx, HeadingBlock block)
+    {
+        var styleName = $"Heading {Math.Clamp(block.Level, 1, 6)}";
+        EnsureParagraphStyle(ctx.Document, styleName);
+        var para = AppendNewParagraph(ctx);
+        para.Style = ctx.Document.ParagraphStyles[styleName];
+        if (block.Inline is null) return;
+        foreach (var inline in block.Inline)
+            WriteInline(ctx, para, inline);
+    }
+
+    private static void EnsureParagraphStyle(Document doc, string styleName)
+    {
+        if (doc.ParagraphStyles[styleName] is not null) return;
+        var s = doc.ParagraphStyles.CreateNew();
+        s.Name = styleName;
+        doc.ParagraphStyles.Add(s);
     }
 
     private static void WriteParagraph(ConversionContext ctx, ParagraphBlock block)
