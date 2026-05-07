@@ -314,7 +314,23 @@ internal static class MarkdownToDocxConverter
                 if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth--;
                 break;
             }
-            // Code spans/links etc. added in subsequent tasks.
+            case CodeInline code:
+            {
+                var insertedRange = ctx.Document.InsertText(para.Range.End, code.Content);
+                var props = ctx.Document.BeginUpdateCharacters(insertedRange);
+                try
+                {
+                    props.FontName = "Consolas";
+                    props.FontSize = 9f;
+                    props.BackColor = System.Drawing.Color.FromArgb(0xF2, 0xF2, 0xF2);
+                    // Respect the surrounding emphasis context.
+                    props.Bold   = ctx.BoldDepth   > 0;
+                    props.Italic = ctx.ItalicDepth > 0;
+                }
+                finally { ctx.Document.EndUpdateCharacters(props); }
+                break;
+            }
+            // Links etc. added in subsequent tasks.
         }
     }
 }

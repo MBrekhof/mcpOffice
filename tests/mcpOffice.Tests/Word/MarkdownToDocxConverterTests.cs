@@ -256,6 +256,27 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Inline_code_run_uses_Consolas()
+    {
+        var md = "x `code` y";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var doc = server.Document;
+        var fullText = doc.GetText(doc.Range);
+        var idx = fullText.IndexOf("code", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"expected 'code' in document text, got: {fullText}");
+
+        var range = doc.CreateRange(doc.Range.Start.ToInt() + idx, "code".Length);
+        var props = doc.BeginUpdateCharacters(range);
+        try
+        {
+            Assert.Equal("Consolas", props.FontName);
+        }
+        finally { doc.EndUpdateCharacters(props); }
+    }
+
+    [Fact]
     public void Indented_code_block_each_line_is_monospace_paragraph()
     {
         // Four-space indent = code block in Markdown
