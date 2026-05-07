@@ -120,10 +120,14 @@ internal static class MarkdownToDocxConverter
         // project pattern (WordDocumentService.InsertParagraph) of inserting "\n".
         doc.InsertText(doc.Range.End, "\n");
         var para = doc.Paragraphs[doc.Paragraphs.Count - 1];
-        // The newly-inserted paragraph inherits the previous paragraph's style; reset to Normal
-        // so each writer starts with a blank slate. WriteHeading immediately overrides this.
+        // The newly-inserted paragraph inherits the previous paragraph's style AND list state;
+        // reset both so each writer starts with a blank slate. WriteHeading and WriteList
+        // immediately re-set style / list properties; everything else (paragraphs, code blocks,
+        // blockquotes, hrs) gets a clean Normal-styled non-list paragraph.
         var normalStyle = doc.ParagraphStyles["Normal"] ?? doc.ParagraphStyles["Default Paragraph Style"];
         if (normalStyle is not null) para.Style = normalStyle;
+        para.ListIndex = -1;
+        para.ListLevel = 0;
         return para;
     }
 

@@ -437,6 +437,27 @@ public class MarkdownToDocxConverterTests
         Assert.Empty(server.Document.Images);
     }
 
+    [Fact]
+    public void Heading_after_list_does_not_inherit_bullet()
+    {
+        var md = "## Section\n\n- a\n- b\n\n### After list\n\nbody\n";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var doc = server.Document;
+        var afterListPara = doc.Paragraphs
+            .FirstOrDefault(p => doc.GetText(p.Range).Contains("After list"));
+        Assert.NotNull(afterListPara);
+        Assert.True(afterListPara!.ListIndex < 0,
+            $"expected ListIndex<0 (no list) on heading after list, got {afterListPara.ListIndex}");
+
+        var bodyPara = doc.Paragraphs
+            .FirstOrDefault(p => doc.GetText(p.Range).Trim() == "body");
+        Assert.NotNull(bodyPara);
+        Assert.True(bodyPara!.ListIndex < 0,
+            $"expected ListIndex<0 on body paragraph after list, got {bodyPara.ListIndex}");
+    }
+
     private static byte[] OnePixelPng() => Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
 
