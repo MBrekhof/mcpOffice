@@ -200,6 +200,29 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Pipe_table_column_alignment_from_gfm_spec()
+    {
+        var md = "| L | C | R |\n|:---|:---:|---:|\n| a | b | c |";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var doc = server.Document;
+        var table = doc.Tables[0];
+        var dataRow = table.Rows[1];
+
+        Assert.Equal(ParagraphAlignment.Left,   AlignmentOf(doc, dataRow.Cells[0]));
+        Assert.Equal(ParagraphAlignment.Center, AlignmentOf(doc, dataRow.Cells[1]));
+        Assert.Equal(ParagraphAlignment.Right,  AlignmentOf(doc, dataRow.Cells[2]));
+
+        static ParagraphAlignment AlignmentOf(Document doc, TableCell cell)
+        {
+            var props = doc.BeginUpdateParagraphs(cell.ContentRange);
+            try { return props.Alignment ?? ParagraphAlignment.Left; }
+            finally { doc.EndUpdateParagraphs(props); }
+        }
+    }
+
+    [Fact]
     public void Indented_code_block_each_line_is_monospace_paragraph()
     {
         // Four-space indent = code block in Markdown

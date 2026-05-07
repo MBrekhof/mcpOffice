@@ -2,6 +2,7 @@ using System.Drawing;
 using DevExpress.Office.Utils;
 using DevExpress.XtraRichEdit.API.Native;
 using Markdig;
+using Markdig.Extensions.Tables;
 using MdTable = Markdig.Extensions.Tables.Table;
 using MdTableRow = Markdig.Extensions.Tables.TableRow;
 using MdTableCell = Markdig.Extensions.Tables.TableCell;
@@ -226,6 +227,23 @@ internal static class MarkdownToDocxConverter
                         try { props.Bold = true; }
                         finally { doc.EndUpdateCharacters(props); }
                     }
+                }
+
+                // Apply GFM column alignment (`:---` left, `:---:` center, `---:` right).
+                if (table.ColumnDefinitions is { } cols && c < cols.Count && cols[c].Alignment is { } align)
+                {
+                    var pProps = doc.BeginUpdateParagraphs(dxCell.ContentRange);
+                    try
+                    {
+                        pProps.Alignment = align switch
+                        {
+                            TableColumnAlign.Left   => ParagraphAlignment.Left,
+                            TableColumnAlign.Center => ParagraphAlignment.Center,
+                            TableColumnAlign.Right  => ParagraphAlignment.Right,
+                            _                       => ParagraphAlignment.Left,
+                        };
+                    }
+                    finally { doc.EndUpdateParagraphs(pProps); }
                 }
             }
         }
