@@ -36,8 +36,9 @@ public static class ExcelTools
         [Description("0-based worksheet index used when sheetName is omitted. Defaults to 0.")] int? sheetIndex = null,
         [Description("Optional A1 range such as A1:D20. Defaults to the worksheet used range.")] string? range = null,
         [Description("Overwrite outputPath if it already exists. Defaults to false.")] bool overwrite = false,
-        [Description("Maximum rows to export. Defaults to 1,048,576 (Excel row ceiling). Trips range_too_large if exceeded.")] int maxRows = 1_048_576)
-        => Service.ExportCsv(path, outputPath, sheetName, sheetIndex, range, overwrite, maxRows);
+        [Description("Maximum rows to export. Defaults to 1,048,576 (Excel row ceiling). Trips range_too_large if exceeded.")] int maxRows = 1_048_576,
+        [Description("When true, walks the resolved range bottom-up and truncates output at the last row that has any non-empty, non-error cell. Useful for workbooks whose used range is pinned far past the data by formatting or trailing #REF! formulas. Defaults to false (preserve the full range).")] bool trimTrailingEmptyRows = false)
+        => Service.ExportCsv(path, outputPath, sheetName, sheetIndex, range, overwrite, maxRows, trimTrailingEmptyRows);
 
     [McpServerTool(Name = "excel_extract_vba")]
     [Description("Statically extracts VBA module source from an .xlsm workbook without launching Excel. Returns hasVbaProject and a list of {name, kind, lineCount, code}. For .xlsx or workbooks without macros, returns hasVbaProject=false and an empty list.")]

@@ -335,6 +335,152 @@ public class ExportCsvTests
         }
     }
 
+    [Fact]
+    public void TrimTrailingEmptyRows_truncates_to_last_non_empty_row()
+    {
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["A1"].Value = "h1";
+            sheet.Cells["B1"].Value = "h2";
+            sheet.Cells["A2"].Value = "data";
+            sheet.Cells["B2"].Value = 42;
+            // C3..C10 left empty; an anchor cell extends the workbook used range
+            sheet.Cells["Z99"].Value = "anchor";
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:B10",
+                overwrite: false, maxRows: 1_048_576, trimTrailingEmptyRows: true);
+
+            Assert.Equal(2, result.RowCount);
+            Assert.Equal(2, result.ColumnCount);
+            Assert.Equal("h1,h2\r\ndata,42", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void TrimTrailingEmptyRows_default_false_preserves_empty_rows()
+    {
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["A1"].Value = "h1";
+            sheet.Cells["A2"].Value = "data";
+            sheet.Cells["Z99"].Value = "anchor";
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            // No trimTrailingEmptyRows arg — default is false.
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:A5",
+                overwrite: false, maxRows: 1_048_576);
+
+            Assert.Equal(5, result.RowCount);
+            Assert.Equal("h1\r\ndata\r\n\r\n\r\n", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void TrimTrailingEmptyRows_treats_error_cells_as_empty()
+    {
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["A1"].Value = "h1";
+            sheet.Cells["A2"].Value = "data";
+            sheet.Cells["A3"].Formula = "=1/0";   // produces #DIV/0! after Calculate
+            workbook.Calculate();
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:A3",
+                overwrite: false, maxRows: 1_048_576, trimTrailingEmptyRows: true);
+
+            Assert.Equal(2, result.RowCount);
+            Assert.Equal("h1\r\ndata", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void TrimTrailingEmptyRows_keeps_data_when_last_row_has_data()
+    {
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["A1"].Value = "h1";
+            sheet.Cells["A2"].Value = "data1";
+            sheet.Cells["A3"].Value = "data2";
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:A3",
+                overwrite: false, maxRows: 1_048_576, trimTrailingEmptyRows: true);
+
+            Assert.Equal(3, result.RowCount);
+            Assert.Equal("h1\r\ndata1\r\ndata2", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void TrimTrailingEmptyRows_all_empty_returns_zero_rows_zero_bytes()
+    {
+        var input = TestExcelWorkbooks.Create(workbook =>
+        {
+            var sheet = workbook.Worksheets[0];
+            sheet.Cells["Z99"].Value = "anchor"; // anchor outside the export range
+        });
+        var output = TempPath(".csv");
+
+        try
+        {
+            var result = new ExcelWorkbookService().ExportCsv(
+                input, output, null, null, range: "A1:B3",
+                overwrite: false, maxRows: 1_048_576, trimTrailingEmptyRows: true);
+
+            Assert.Equal(0, result.RowCount);
+            Assert.Equal(2, result.ColumnCount);
+            Assert.Equal(0, result.BytesWritten);
+            Assert.Equal("", File.ReadAllText(output));
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
     private static string TempPath(string ext) =>
         Path.Combine(Path.GetTempPath(), $"mcpoffice-csv-{Guid.NewGuid():N}{ext}");
 }

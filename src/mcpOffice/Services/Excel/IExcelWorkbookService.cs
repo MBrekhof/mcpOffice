@@ -52,5 +52,6 @@ public interface IExcelWorkbookService
         int? sheetIndex,
         string? range,
         bool overwrite,
-        int maxRows);
+        int maxRows,
+        bool trimTrailingEmptyRows = false);
 }

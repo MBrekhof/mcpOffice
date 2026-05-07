@@ -116,7 +116,8 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         int? sheetIndex,
         string? range,
         bool overwrite,
-        int maxRows)
+        int maxRows,
+        bool trimTrailingEmptyRows = false)
     {
         PathGuard.RequireExists(path);
         PathGuard.RequireWritable(outputPath, overwrite);
@@ -135,12 +136,22 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
                 throw ToolError.RangeTooLargeRows(rangeReference, cellRange.RowCount, maxRows);
             }
 
+            // Pandas-friendly trim: walk bottom-up, find the last row with at least one non-empty,
+            // non-error cell. Real-world workbooks (e.g. ScreeningDB-V2.xlsm) often have used ranges
+            // pinned to row N by formatting or trailing #REF! formulas, even though only rows 1..k
+            // carry data. Trimming makes the CSV shape match the data instead of the grid.
+            var effectiveRowCount = cellRange.RowCount;
+            if (trimTrailingEmptyRows)
+            {
+                effectiveRowCount = ComputeLastNonEmptyRow(cellRange) + 1;
+            }
+
             long bytesWritten;
             using (var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 using (var csv = new CsvWriter(fileStream))
                 {
-                    for (var r = 0; r < cellRange.RowCount; r++)
+                    for (var r = 0; r < effectiveRowCount; r++)
                     {
                         var row = new object?[cellRange.ColumnCount];
                         for (var c = 0; c < cellRange.ColumnCount; c++)
@@ -155,7 +166,7 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
 
             return new ExcelExportCsvResult(
                 outputPath,
-                cellRange.RowCount,
+                effectiveRowCount,
                 cellRange.ColumnCount,
                 bytesWritten);
         }
@@ -163,6 +174,22 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         {
             throw ToolError.ParseError(path, ex.Message);
         }
+    }
+
+    private static int ComputeLastNonEmptyRow(CellRange cellRange)
+    {
+        var cols = cellRange.ColumnCount;
+        for (var r = cellRange.RowCount - 1; r >= 0; r--)
+        {
+            for (var c = 0; c < cols; c++)
+            {
+                var v = cellRange[r, c].Value;
+                if (v.IsEmpty) continue;
+                if (v.Type == CellValueType.Error) continue;
+                return r;
+            }
+        }
+        return -1;
     }
 
     public ExcelVbaProject ExtractVba(string path)
