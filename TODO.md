@@ -15,13 +15,18 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 - [x] **`excel_analyze_vba` (v1)** — DONE (PR #4, merged). Procedures/functions with signatures, event handlers, call graph, Excel object-model references, file/DB/network deps. Benchmarked against the 107-module `Air.xlsm`: 200 procedures, 110 event handlers, 938 call edges, 3040 object-model reference sites, 48 external dependencies, ~115ms wall time.
 - [x] **`excel_render_vba_callgraph` (v2)** — DONE (PR #12, `feat/render-vba-callgraph`, squash-merged as `f93831c`). New 25th MCP tool that renders the VBA call graph as Mermaid (default) or DOT. Layered on `excel_analyze_vba`; the analyzer is unchanged. New `VbaCallgraphFilter` (pure function): whole-workbook / `moduleName` direct-neighbour / focal-procedure BFS with `depth` and `direction`. `MermaidCallgraphRenderer` + `DotCallgraphRenderer` behind `ICallgraphRenderer`. New error codes: `procedure_not_found`, `graph_too_large`, `invalid_render_option`. Verified against Air.xlsm: whole-workbook render trips `graph_too_large`; single-module render succeeds; focal-BFS depth=1 < 500ms. Supersedes the stale PR #9 (closed without merge — predated #10/#11).
 
-## excel_analyze_vba v3 — conversion-hints layer (still pending)
+## excel_analyze_vba v3 — conversion-hints layer — DONE
 
-These remain as the natural next step toward Excel-to-C# migration tooling once the visualization layer is in:
+`excel_suggest_vba_conversion` (26th tool) shipped on `feat/excel-vba-conversion-hints-v3` (not yet merged). Per-procedure axes (trigger / purity / shape / dependencies), optional `targetParadigm` overlay (classLibrary / workerService / webApi / console), workbook-wide module coupling (Ca/Ce/instability + pairwise pairs). Synthetic fixture + Air.xlsm benchmark verified end-to-end. Plan: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-plan.md`. Design: `docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md`.
 
-- [ ] Conversion hints per procedure: classify as event handler / utility / data-transform / UI glue; suggest C# equivalent (method, service class, hosted service, etc.).
-- [ ] Cross-module coupling score: identify tightly coupled module clusters as refactoring targets.
-- [ ] v3 design doc — capture the shape of conversion-hints DTO before implementing. Use `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md` as the shape template.
+### Deferred follow-ups
+
+- [ ] Cluster detection (Louvain) on the module graph; layer on top of pairwise coupling.
+- [ ] Pagination on `procedureHints[]` for very large workbooks (same TODO as analyzer's heavy arrays).
+- [ ] `blazor` / `winforms` / `wpf` paradigms — need form-layout analysis the regex layer can't reliably do.
+- [ ] Cyclomatic complexity per procedure — needs a deeper VBA parser.
+- [ ] Module-scope-write detection regex — currently `purity` collapses to 3 values (`pure` / `readsState` / `sideEffectful`); `writesState` activates when `ExcelVbaObjectModelRef.Mode` lands.
+- [ ] `automation` → `shell` mapping in dependencies axis is currently a hardcoded transform; if other unexpected dependency kinds surface from real workbooks, tighten the closed set.
 
 ## Word md→docx fidelity — Markdig converter — DONE
 
