@@ -106,4 +106,77 @@ public class AxisClassifierTests
             dependencies: Array.Empty<ExcelVbaDependency>());
         Assert.Equal("calledOnly", axes.Trigger);
     }
+
+    [Fact]
+    public void Purity_pure_when_no_refs_no_deps()
+    {
+        var proc = Proc("Module1", "Pure");
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Equal("pure", axes.Purity);
+    }
+
+    [Fact]
+    public void Purity_readsState_when_object_model_present_no_deps()
+    {
+        var proc = Proc("Module1", "Reads");
+        var refs = new[]
+        {
+            new ExcelVbaObjectModelRef("Module1", "Reads", 5, "Worksheets", null)
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            refs,
+            Array.Empty<ExcelVbaDependency>());
+        Assert.Equal("readsState", axes.Purity);
+    }
+
+    [Fact]
+    public void Purity_sideEffectful_when_dependency_present()
+    {
+        var proc = Proc("Module1", "WritesFile");
+        var deps = new[]
+        {
+            new ExcelVbaDependency("Module1", "WritesFile", 7, "filesystem", @"C:\out.txt", "write")
+        };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            Array.Empty<ExcelVbaObjectModelRef>(),
+            deps);
+        Assert.Equal("sideEffectful", axes.Purity);
+    }
+
+    [Fact]
+    public void Purity_sideEffectful_supersedes_object_model()
+    {
+        var proc = Proc("Module1", "Both");
+        var refs = new[] { new ExcelVbaObjectModelRef("Module1", "Both", 5, "Range", null) };
+        var deps = new[] { new ExcelVbaDependency("Module1", "Both", 6, "database", "DSN=foo", "query") };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            refs,
+            deps);
+        Assert.Equal("sideEffectful", axes.Purity);
+    }
+
+    [Fact]
+    public void Purity_filters_to_only_this_procedures_refs()
+    {
+        var proc = Proc("Module1", "Pure");
+        // Refs/deps belong to a different procedure — should not affect ours.
+        var refs = new[] { new ExcelVbaObjectModelRef("Module1", "Other", 10, "Range", null) };
+        var deps = new[] { new ExcelVbaDependency("Module1", "Other", 11, "filesystem", null, null) };
+        var axes = AxisClassifier.Classify(
+            proc, "standard",
+            Array.Empty<ExcelVbaCallEdge>(),
+            refs,
+            deps);
+        Assert.Equal("pure", axes.Purity);
+    }
 }
