@@ -1,4 +1,5 @@
 using DevExpress.XtraRichEdit;
+using DevExpress.XtraRichEdit.API.Native;
 using McpOffice.Services.Word;
 
 namespace McpOffice.Tests.Word;
@@ -153,6 +154,25 @@ public class MarkdownToDocxConverterTests
                 $"expected #F2F2F2 background, got R={c.R} G={c.G} B={c.B}");
         }
         finally { doc.EndUpdateCharacters(props); }
+    }
+
+    [Fact]
+    public void Hr_emits_paragraph_with_bottom_border()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "before\n\n---\n\nafter", null);
+        var doc = server.Document;
+        var hrPara = doc.Paragraphs
+            .FirstOrDefault(p =>
+            {
+                var props = doc.BeginUpdateParagraphs(p.Range);
+                try
+                {
+                    return props.Borders.BottomBorder.LineStyle != BorderLineStyle.None;
+                }
+                finally { doc.EndUpdateParagraphs(props); }
+            });
+        Assert.NotNull(hrPara);
     }
 
     [Fact]

@@ -38,6 +38,9 @@ internal static class MarkdownToDocxConverter
             case QuoteBlock q:
                 WriteQuote(ctx, q);
                 break;
+            case ThematicBreakBlock:
+                WriteHorizontalRule(ctx);
+                break;
             case FencedCodeBlock fenced:
                 WriteCodeBlock(ctx, fenced.Lines.ToString());
                 break;
@@ -164,6 +167,18 @@ internal static class MarkdownToDocxConverter
             }
             finally { doc.EndUpdateCharacters(props); }
         }
+    }
+
+    private static void WriteHorizontalRule(ConversionContext ctx)
+    {
+        var para = AppendNewParagraph(ctx);
+        var props = ctx.Document.BeginUpdateParagraphs(para.Range);
+        try
+        {
+            props.Borders.BottomBorder.LineStyle = BorderLineStyle.Single;
+            props.Borders.BottomBorder.LineWidth = 0.5f;
+        }
+        finally { ctx.Document.EndUpdateParagraphs(props); }
     }
 
     private static void WriteInline(ConversionContext ctx, Paragraph para, Inline inline)
