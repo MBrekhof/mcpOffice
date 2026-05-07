@@ -98,4 +98,88 @@ public class MarkdownToDocxConverterTests
         Assert.True(quotedPara!.LeftIndent > 0,
             $"expected LeftIndent > 0, got {quotedPara.LeftIndent}");
     }
+
+    [Fact]
+    public void Fenced_code_block_each_line_is_monospace_paragraph()
+    {
+        var md = "```\nfoo\nbar\n```";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        var codeParas = doc.Paragraphs
+            .Where(p => doc.GetText(p.Range).Trim() is "foo" or "bar")
+            .ToList();
+        Assert.Equal(2, codeParas.Count);
+
+        foreach (var p in codeParas)
+        {
+            var content = doc.GetText(p.Range);
+            var firstNonWs = 0;
+            while (firstNonWs < content.Length && char.IsWhiteSpace(content[firstNonWs])) firstNonWs++;
+            if (firstNonWs >= content.Length) continue;
+            var pos = doc.CreatePosition(p.Range.Start.ToInt() + firstNonWs);
+            var range = doc.CreateRange(pos, 1);
+            var props = doc.BeginUpdateCharacters(range);
+            try { Assert.Equal("Consolas", props.FontName); }
+            finally { doc.EndUpdateCharacters(props); }
+        }
+    }
+
+    [Fact]
+    public void Fenced_code_block_background_is_light_grey()
+    {
+        var md = "```\nhello\n```";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        var codePara = doc.Paragraphs
+            .FirstOrDefault(p => doc.GetText(p.Range).Trim() == "hello");
+        Assert.NotNull(codePara);
+
+        var content = doc.GetText(codePara!.Range);
+        var firstNonWs = 0;
+        while (firstNonWs < content.Length && char.IsWhiteSpace(content[firstNonWs])) firstNonWs++;
+        var pos = doc.CreatePosition(codePara.Range.Start.ToInt() + firstNonWs);
+        var range = doc.CreateRange(pos, 1);
+        var props = doc.BeginUpdateCharacters(range);
+        try
+        {
+            var bg = props.BackColor;
+            Assert.True(bg.HasValue, "expected BackColor to be set");
+            var c = bg!.Value;
+            Assert.True(c.R == 0xF2 && c.G == 0xF2 && c.B == 0xF2,
+                $"expected #F2F2F2 background, got R={c.R} G={c.G} B={c.B}");
+        }
+        finally { doc.EndUpdateCharacters(props); }
+    }
+
+    [Fact]
+    public void Indented_code_block_each_line_is_monospace_paragraph()
+    {
+        // Four-space indent = code block in Markdown
+        var md = "    alpha\n    beta";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        var codeParas = doc.Paragraphs
+            .Where(p => doc.GetText(p.Range).Trim() is "alpha" or "beta")
+            .ToList();
+        Assert.Equal(2, codeParas.Count);
+
+        foreach (var p in codeParas)
+        {
+            var content = doc.GetText(p.Range);
+            var firstNonWs = 0;
+            while (firstNonWs < content.Length && char.IsWhiteSpace(content[firstNonWs])) firstNonWs++;
+            if (firstNonWs >= content.Length) continue;
+            var pos = doc.CreatePosition(p.Range.Start.ToInt() + firstNonWs);
+            var range = doc.CreateRange(pos, 1);
+            var props = doc.BeginUpdateCharacters(range);
+            try { Assert.Equal("Consolas", props.FontName); }
+            finally { doc.EndUpdateCharacters(props); }
+        }
+    }
 }

@@ -1,3 +1,4 @@
+using System.Drawing;
 using DevExpress.Office.Utils;
 using DevExpress.XtraRichEdit.API.Native;
 using Markdig;
@@ -36,6 +37,12 @@ internal static class MarkdownToDocxConverter
                 break;
             case QuoteBlock q:
                 WriteQuote(ctx, q);
+                break;
+            case FencedCodeBlock fenced:
+                WriteCodeBlock(ctx, fenced.Lines.ToString());
+                break;
+            case CodeBlock code:
+                WriteCodeBlock(ctx, code.Lines.ToString());
                 break;
             // Other block kinds added in subsequent tasks.
             default:
@@ -132,6 +139,30 @@ internal static class MarkdownToDocxConverter
                         break;
                 }
             }
+        }
+    }
+
+    private static readonly Color CodeBackground = Color.FromArgb(0xF2, 0xF2, 0xF2);
+
+    private static void WriteCodeBlock(ConversionContext ctx, string text)
+    {
+        var doc = ctx.Document;
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        foreach (var line in lines)
+        {
+            var para = AppendNewParagraph(ctx);
+            para.LeftIndent = Units.InchesToDocumentsF(0.1f);
+            if (line.Length == 0) continue;
+
+            var insertedRange = doc.InsertText(para.Range.End, line);
+            var props = doc.BeginUpdateCharacters(insertedRange);
+            try
+            {
+                props.FontName = "Consolas";
+                props.FontSize = 9f;
+                props.BackColor = CodeBackground;
+            }
+            finally { doc.EndUpdateCharacters(props); }
         }
     }
 
