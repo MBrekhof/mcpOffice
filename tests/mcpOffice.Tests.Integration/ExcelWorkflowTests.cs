@@ -210,6 +210,34 @@ public class ExcelWorkflowTests
         }
     }
 
+    [Fact]
+    public async Task Suggests_vba_conversion_via_stdio()
+    {
+        var fixture = ResolveFixturePath("synthetic-vba.xlsm");
+
+        await using var harness = await ServerHarness.StartAsync();
+        var response = await harness.Client.CallToolAsync(
+            "excel_suggest_vba_conversion",
+            new Dictionary<string, object?>
+            {
+                ["path"] = fixture,
+                ["targetParadigm"] = "classLibrary"
+            });
+
+        var text = response.Content
+            .OfType<TextContentBlock>()
+            .Single().Text;
+
+        // Loose JSON-shape assertions — the unit tests cover the matrix; this just
+        // verifies the JSON-RPC layer doesn't drop fields.
+        Assert.Contains("\"summary\"", text);
+        Assert.Contains("\"procedureHints\"", text);
+        Assert.Contains("\"moduleCoupling\"", text);
+        Assert.Contains("\"couplingPairs\"", text);
+        Assert.Contains("\"csharpSuggestion\"", text);
+        Assert.Contains("\"targetParadigm\":\"classLibrary\"", text);
+    }
+
     private static string ResolveFixturePath(string name)
     {
         var asmDir = Path.GetDirectoryName(typeof(ExcelWorkflowTests).Assembly.Location)!;
