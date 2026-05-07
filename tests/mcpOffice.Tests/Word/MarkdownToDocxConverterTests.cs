@@ -325,4 +325,51 @@ public class MarkdownToDocxConverterTests
         Assert.Contains(server.Document.Hyperlinks.Cast<Hyperlink>(),
             h => h.NavigateUri == "https://example.com/y");
     }
+
+    [Fact]
+    public void Hard_break_inserts_line_break_inside_paragraph()
+    {
+        // Two trailing spaces + newline = hard break in CommonMark.
+        // Both pieces of text must appear inside a SINGLE paragraph (not split across two paragraphs),
+        // because a hard break is a line-break-within-paragraph (\v in DevExpress internal model).
+        // Note: Document.GetText normalises \v to \r\n on output, so we verify structure rather than raw char.
+        var md = "line one  \nline two";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var doc = server.Document;
+        var text = doc.GetText(doc.Range);
+        Assert.Contains("line one", text);
+        Assert.Contains("line two", text);
+
+        // Both words must live in the SAME paragraph (hard break, not a new paragraph).
+        var paraWithBoth = doc.Paragraphs
+            .FirstOrDefault(p =>
+            {
+                var t = doc.GetText(p.Range);
+                return t.Contains("line one") && t.Contains("line two");
+            });
+        Assert.NotNull(paraWithBoth);
+    }
+
+    [Fact]
+    public void Soft_break_becomes_a_space()
+    {
+        // Single newline (no trailing spaces) = soft break in CommonMark.
+        // Both pieces should appear in the same paragraph, separated by a space.
+        var md = "line one\nline two";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+
+        var doc = server.Document;
+        var text = doc.GetText(doc.Range);
+        // Both words must be present.
+        Assert.Contains("line one", text);
+        Assert.Contains("line two", text);
+        // Should be only one real (non-empty) paragraph.
+        var nonEmpty = doc.Paragraphs
+            .Where(p => doc.GetText(p.Range).Trim().Length > 0)
+            .ToList();
+        Assert.Single(nonEmpty);
+    }
 }

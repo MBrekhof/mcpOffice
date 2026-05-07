@@ -352,6 +352,11 @@ internal static class MarkdownToDocxConverter
                 hl.NavigateUri = url;
                 break;
             }
+            case LineBreakInline br:
+                // Hard break (two trailing spaces + newline): insert \v (line-break-within-paragraph).
+                // Soft break (single newline): insert a single space.
+                ctx.Document.InsertText(para.Range.End, br.IsHard ? "\v" : " ");
+                break;
             // Image links handled in Task 16.
         }
     }
