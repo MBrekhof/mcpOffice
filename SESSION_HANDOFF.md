@@ -1,87 +1,92 @@
-# Session Handoff — 2026-05-07 (Markdig md→docx converter — table cell inline formatting resolved)
+# Session Handoff — 2026-05-07 (Markdig md→docx converter merged)
 
 ## Where Things Stand
 
-**Branch:** `feat/markdown-to-docx-markdig` — 23 commits ahead of `main`, clean, NOT yet pushed.
-**Latest commit:** `feat(markdown): table cells render inline formatting (code/bold/italic)`
-**Build:** `dotnet build` is green, 0 warnings, 0 errors.
-**Tests:** `dotnet test` is green — 207 unit (1 skipped smoke generator) + 13 integration.
-**Tool surface:** 25 tools (unchanged from main — this branch fixes quality, not surface area).
+**Branch:** `main` — clean, up to date with `origin/main`.
+**Latest commit:** `db6c6bf` feat: Markdig-based markdown → docx converter (#15)
+**Build:** `dotnet build -c Release` is green, 0 warnings, 0 errors.
+**Tests:** `dotnet test -c Release` is green — 208 unit + 13 integration.
+**Tool surface:** 25 tools (unchanged — this PR fixed quality, not surface area).
 
-## What Landed This Session
+## What Landed Recently
 
-**Branch `feat/markdown-to-docx-markdig`** — replaces the lossy `MarkdownToDocxGenerator` (v1.2.0 MdDoc-backed) with a custom Markdig AST walker (`MarkdownToDocxConverter`). The old generator was a thin wrapper around a NuGet package that couldn't preserve tables, inline code, or complex bold/italic. The new converter walks the Markdig AST directly and drives the DevExpress RichEdit API node-by-node.
+**PR #15 — Markdig-based markdown → docx converter** (squash-merged as `db6c6bf`, branch `feat/markdown-to-docx-markdig` deleted).
 
-**Affected tools:** `word_create_from_markdown`, `word_append_markdown`, `word_convert` (`.md` input branch).
+Replaced the lossy `MarkdownToDocxGenerator` v1.2.0 NuGet package with a custom Markdig-based AST walker (`MarkdownToDocxConverter`) that drives the DevExpress RichEdit API directly. Affects `word_create_from_markdown`, `word_append_markdown`, and the `.md` input branch of `word_convert`.
 
-### Converter feature coverage (22 commits)
+The motivating case: converting `C:\Projects\LimsBasic\docs\fn_send_email_callers.md` previously dropped inline code spans, flattened GFM tables, and lost bold runs. The new converter preserves all three, verified in the real-world fidelity test plus a hand-eyeball pass over 6 LimsBasic docs (`fn_send_email_callers.md`, `lims_fix_list.md`, `migration_strategy.md`, `parse_failures_report.md`, `basic_log_analysis.md`, `db_log_analysis.md`, `manual.md`).
+
+### Converter feature coverage
 
 | Feature | Details |
 |---|---|
 | Paragraphs + literal inline | plain text runs |
-| Headings 1–6 | maps to `Heading {N}` paragraph style |
-| Ordered + unordered lists | `ListLevel` tracking via `MarkdownListState` |
+| Headings 1–6 | `Heading {N}` paragraph style |
+| Ordered + unordered lists | `ListIndex`/`ListLevel` via DevExpress NumberingLists |
 | Nested lists | `ListLevel` depth correct |
-| Fenced + indented code blocks | Consolas font, no-wrap paragraph border |
-| Blockquotes | left indent |
-| Thematic breaks | hr-style paragraph border |
-| GFM pipe tables | bold+shaded header row, column alignment |
-| Bold / italic / bold-italic | `CharacterProperties.Bold/Italic` |
-| Inline code | Consolas, character-level |
+| Fenced + indented code blocks | Consolas 9pt + #F2F2F2 paragraph shading |
+| Blockquotes | 0.25" left indent |
+| Thematic breaks | paragraph bottom border |
+| GFM pipe tables | bold + #F2F2F2 header row, column alignment, inline formatting in cells |
+| Bold / italic / bold-italic | `CharacterProperties.Bold/Italic` via `BoldDepth`/`ItalicDepth` context |
+| Inline code | Consolas + #F2F2F2 character shading |
 | Hyperlinks + autolinks | `Document.Hyperlinks.Create(range)` |
-| Hard + soft line breaks | `\n` insertion workaround (no `InsertParagraph(pos)` in DevExpress 25.2) |
-| Local image embed | base64-decoded, inserted at cursor |
-| Remote / missing image | silently dropped with a `//` comment |
+| Hard + soft line breaks | `\v` for hard (within paragraph), space for soft |
+| Local image embed | `DocumentImageSource.FromFile` + `Document.Images.Append` |
+| Remote / missing image | dropped silently |
 
-### DevExpress API discoveries (documented in commits)
+### DevExpress API discoveries (commit-documented)
 
-- `Document.InsertParagraph(pos)` does not exist in DevExpress 25.2 — use `InsertText("\n")` instead.
-- `CharacterProperties.Bold/Italic` (not `FontBold/FontItalic`).
-- `BackColor` works for cell shading.
-- `LineWidth` (not `LineThickness`) for paragraph border thickness.
-- `Document.Hyperlinks.Create(range)` is the correct hyperlink API.
+- `Document.InsertParagraph(DocumentPosition)` doesn't exist in 25.2 — use `InsertText("\n")` per existing project pattern.
+- `Paragraph.Range` doesn't track position shifts from insertions into preceding cells — table cells use a re-read-on-first-use `CellCursor`.
+- `AppendNewParagraph` must clear `ListIndex` (= -1) AND reset paragraph style to Normal — both are inherited otherwise; either bleeds (style → wrong heading inheritance, list → bullet character on subsequent headings).
+- `CharacterProperties.Bold` / `Italic` (not `FontBold` / `FontItalic`).
+- `BackColor` works for cell + character shading.
+- `LineWidth` (not `LineThickness`) for paragraph borders.
+- DevExpress `NumberingLists` uses a 3-step pattern: `AbstractNumberingLists.<Template>.CreateNew()` → `AbstractNumberingLists.Add(...)` → `NumberingLists.Add(abstractList.Index)`.
 
 ### Net code change
 
-- `+` ~500 lines: `MarkdownToDocxConverter.cs` + supporting types (`MarkdownListState`, etc.)
-- `-` 144 lines: old `MarkdownToDocxGenerator.cs` + post-process helpers
-- `-` 1 NuGet package: `MdDoc` removed from `mcpOffice.csproj`
+- `+` ~600 lines: `MarkdownToDocxConverter.cs` (block dispatcher + inline walker + table cursor + helpers)
+- `-` 144 lines: old `MarkdownToDocxGenerator`-backed helpers in `WordDocumentService.cs`
+- `-` 1 NuGet package: `MarkdownToDocxGenerator`
+- `+` 23 new tests (~21 in `MarkdownToDocxConverterTests.cs`, 1 in `MarkdownRealWorldTests.cs`, 1 in `ConvertTests.cs`)
 
-### New tests
+## Outstanding — Action Required
 
-- ~21 tests in `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs` (paragraph, headings, lists, nested lists, code blocks, blockquote, hr, tables, emphasis, inline code, hyperlinks, line breaks, images, **table cell inline formatting**)
-- 1 test in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs` — real-world fidelity against `tests/fixtures/fn_send_email_callers.md` (4+ tables, inline code, bold)
-- 1 test in `tests/mcpOffice.Tests/Word/ConvertTests.cs` — `word_convert` .md→.docx end-to-end
+**Nothing blocking.** Branch merged, no open PRs.
 
-### Live smoke verification
+## Next Up
 
-Converted `C:\Projects\LimsBasic\docs\fn_send_email_callers.md` → `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx` (10.7 KB, up from 9.8 KB — extra character-property runs from cell inline formatting). File written and size-checked this session. Open in Word to visually confirm tables, inline code spans (Consolas in cells), bold text, and heading hierarchy render correctly.
+Pick one of:
 
-### Table cell inline formatting — resolved this session
+- **`excel_analyze_vba` v3 — conversion-hints layer.** Per-procedure classification (event handler / utility / data-transform / UI glue) + suggested C# equivalent (method, service class, hosted service), plus a cross-module coupling score for refactoring guidance. Highest narrative value for the Excel→C# migration story; natural arc continuation from v1 (analyzer) → v2 (renderer) → v3 (migration suggestions). Air.xlsm benchmark already gives a real test bed. Needs a design doc first — drop at `docs/plans/2026-05-XX-mcpoffice-excel-analyze-vba-v3-design.md` using the v2 render design as a shape template.
+- **`excel_export_csv`** (already on TODO). Stream a sheet (or A1 range) to CSV on disk so agents can hand it to `pandas.read_csv` / `polars.read_csv` instead of reassembling JSON pages from `excel_read_sheet`'s 50k-cell cap. Open questions documented in TODO.
+- **Smaller follow-ups:** unify `WriteCellInline`/`WriteInline` via a writer abstraction (this branch's leftover duplication); `VbaProcedureScanner` tests for `ParamArray` / `Static Sub`; pagination on `excel_analyze_vba` heavy arrays.
 
-`CollectCellText()` was removed. `WriteTable` now uses `CellCursor` + `WriteCellInline` that anchor each inline write to the live `dxCell.ContentRange`. Root cause: `doc.Paragraphs.Get(cellContentRange)` returns stale paragraph positions inside table cells because the DevExpress `Paragraph.Range` does not track position shifts caused by insertions into preceding cells. Fix: re-read `dxCell.ContentRange.Start` fresh per cell and advance a tracked cursor through each insertion. All inline types (code, bold, italic, hyperlinks, line breaks) now work in cells. New test: `Table_cells_render_inline_formatting`.
+## Carried-Forward Open Questions
 
-## How To Resume / What To Do Next
+1. **PROJECTLCID / non-Western locale code pages.** Source decoding still hardcoded to cp1252 in `VbaProjectReader`. MS-OVBA dir record `0x0002 PROJECTLCID` carries the project locale.
+2. **Form layout vs form code.** Out of scope.
+3. **Pagination on heavy arrays.** Module filter ships, render layer ships, pagination is the third lever for very large workbooks.
+
+## How To Resume
 
 ```powershell
 cd C:\Projects\mcpOffice
-git log --oneline main..HEAD   # confirm 23 commits
-dotnet build -c Release --nologo
-dotnet test -c Release --nologo
+git status
+git log --oneline -5
+dotnet build --nologo
+dotnet test --nologo
 ```
 
-To push and open a PR:
-```powershell
-git push -u origin feat/markdown-to-docx-markdig
-# then open PR on GitHub targeting main; squash-merge
-```
+Reference material:
 
-The branch is now feature-complete for the Markdig md→docx milestone. Table cell inline formatting is resolved. The next natural step after merge is one of the v3 Excel analyzer items in TODO.md (conversion hints, coupling score, or pagination).
-
-## Reference Material
-
-- Converter: `src/mcpOffice/Services/Word/MarkdownToDocxConverter.cs`
+- Markdig converter: `src/mcpOffice/Services/Word/MarkdownToDocxConverter.cs`
 - Converter tests: `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs`
-- Real-world fixture: `tests/fixtures/fn_send_email_callers.md` (copied from LimsBasic docs)
-- Live smoke output (not committed): `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx`
-- Previous handoff (v2 render layer): tag `2f4092f` on main
+- Markdig design: `docs/plans/2026-05-07-mcpoffice-markdown-to-docx-markdig-design.md`
+- Markdig plan: `docs/plans/2026-05-07-mcpoffice-markdown-to-docx-markdig-plan.md`
+- v2 render design (template for v3): `docs/plans/2026-05-03-mcpoffice-excel-render-vba-callgraph-design.md`
+- v1 analyzer design: `docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md`
+- Real-world fixture: `tests/fixtures/fn_send_email_callers.md`
+- Air.xlsm benchmark: `C:\Projects\mcpOffice-samples\Air.xlsm`
