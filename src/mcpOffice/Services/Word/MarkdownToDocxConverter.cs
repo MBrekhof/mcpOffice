@@ -223,25 +223,26 @@ internal static class MarkdownToDocxConverter
                 var mdCell = (MdTableCell)mdRow[c];
                 var dxCell = dxTable.Rows[r].Cells[c];
 
-                // Collect the plain text from all inlines in the cell.
-                // Using InsertText at ContentRange.Start matches WordDocumentService.InsertTable convention.
-                var cellText = CollectCellText(mdCell);
-                DocumentRange? insertedRange = null;
-                if (cellText.Length > 0)
-                    insertedRange = doc.InsertText(dxCell.ContentRange.Start, cellText);
-
-                if (mdRow.IsHeader)
-                {
+                var isHeader = mdRow.IsHeader;
+                if (isHeader)
                     dxCell.BackgroundColor = HeaderBackground;
-                    // Bold the inserted text range (not ContentRange, which may include
-                    // the trailing paragraph mark with undefined Bold).
-                    if (insertedRange is not null)
+
+                // Use a tracked cursor position anchored to the cell's live ContentRange.Start.
+                // We re-read from dxCell each time because earlier-cell insertions shift absolute
+                // positions — but the dxTable/dxCell object always returns the current live position.
+                // After each WriteInline call, cursor advances to the end of the last insertion
+                // so subsequent inlines append correctly (same cell, not beginning).
+                if (isHeader) ctx.BoldDepth++;
+                var cursor = new CellCursor(dxCell);
+                foreach (var child in mdCell)
+                {
+                    if (child is ParagraphBlock p && p.Inline is not null)
                     {
-                        var props = doc.BeginUpdateCharacters(insertedRange);
-                        try { props.Bold = true; }
-                        finally { doc.EndUpdateCharacters(props); }
+                        foreach (var inline in p.Inline)
+                            WriteCellInline(ctx, cursor, inline);
                     }
                 }
+                if (isHeader) ctx.BoldDepth--;
 
                 // Apply GFM column alignment (`:---` left, `:---:` center, `---:` right).
                 if (table.ColumnDefinitions is { } cols && c < cols.Count && cols[c].Alignment is { } align)
@@ -264,27 +265,102 @@ internal static class MarkdownToDocxConverter
     }
 
     /// <summary>
-    /// Extracts the plain-text content of a Markdig table cell.
-    /// Concatenates all literal inlines; other inline types will be handled
-    /// in Phase C (emphasis/links) by replacing this helper with per-inline WriteInline calls.
+    /// Tracks the insertion cursor within a table cell.
+    /// Re-reads <see cref="TableCell.ContentRange.Start"/> from the live DevExpress cell reference
+    /// for the first character; subsequent insertions advance the cursor to the end of the
+    /// previous inserted range so inlines append rather than prepend.
     /// </summary>
-    private static string CollectCellText(MdTableCell cell)
+    private sealed class CellCursor(DevExpress.XtraRichEdit.API.Native.TableCell cell)
     {
-        var sb = new System.Text.StringBuilder();
-        foreach (var child in cell)
+        private DocumentPosition? _position;
+
+        public DocumentPosition Current =>
+            _position ?? cell.ContentRange.Start;
+
+        public void Advance(DocumentRange inserted) =>
+            _position = inserted.End;
+    }
+
+    /// <summary>
+    /// Variant of <see cref="WriteInline"/> for table cells that uses a tracked
+    /// <see cref="CellCursor"/> instead of a paragraph's <c>Range.End</c>.
+    /// All inline types are handled identically; only the insertion anchor differs.
+    /// </summary>
+    private static void WriteCellInline(ConversionContext ctx, CellCursor cursor, Inline inline)
+    {
+        var doc = ctx.Document;
+        switch (inline)
         {
-            if (child is ParagraphBlock p && p.Inline is not null)
+            case LiteralInline lit:
             {
-                foreach (var inline in p.Inline)
+                var text = lit.Content.ToString();
+                if (text.Length == 0) break;
+                var inserted = doc.InsertText(cursor.Current, text);
+                cursor.Advance(inserted);
+                var props = doc.BeginUpdateCharacters(inserted);
+                try
                 {
-                    if (inline is LiteralInline lit)
-                        sb.Append(lit.Content.ToString());
-                    else if (inline is LineBreakInline)
-                        sb.Append(' ');
+                    props.Bold   = ctx.BoldDepth   > 0;
+                    props.Italic = ctx.ItalicDepth > 0;
                 }
+                finally { doc.EndUpdateCharacters(props); }
+                break;
             }
+            case EmphasisInline em:
+            {
+                if (em.DelimiterCount >= 2) ctx.BoldDepth++;
+                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth++;
+                foreach (var child in em)
+                    WriteCellInline(ctx, cursor, child);
+                if (em.DelimiterCount >= 2) ctx.BoldDepth--;
+                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth--;
+                break;
+            }
+            case CodeInline code:
+            {
+                var inserted = doc.InsertText(cursor.Current, code.Content);
+                cursor.Advance(inserted);
+                var props = doc.BeginUpdateCharacters(inserted);
+                try
+                {
+                    props.FontName = "Consolas";
+                    props.FontSize = 9f;
+                    props.BackColor = System.Drawing.Color.FromArgb(0xF2, 0xF2, 0xF2);
+                    props.Bold   = ctx.BoldDepth   > 0;
+                    props.Italic = ctx.ItalicDepth > 0;
+                }
+                finally { doc.EndUpdateCharacters(props); }
+                break;
+            }
+            case LinkInline link when !link.IsImage:
+            {
+                var displayText = string.Concat(
+                    link.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
+                if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
+                if (displayText.Length == 0) break;
+                var inserted = doc.InsertText(cursor.Current, displayText);
+                cursor.Advance(inserted);
+                var hl = doc.Hyperlinks.Create(inserted);
+                hl.NavigateUri = link.Url ?? string.Empty;
+                break;
+            }
+            case AutolinkInline autolink:
+            {
+                var url = autolink.Url ?? string.Empty;
+                if (url.Length == 0) break;
+                var inserted = doc.InsertText(cursor.Current, url);
+                cursor.Advance(inserted);
+                var hl = doc.Hyperlinks.Create(inserted);
+                hl.NavigateUri = url;
+                break;
+            }
+            case LineBreakInline br:
+                // Hard break: line-break-within-paragraph (\v); soft break: space.
+                var lb = doc.InsertText(cursor.Current, br.IsHard ? "\v" : " ");
+                cursor.Advance(lb);
+                break;
+            // Images inside table cells are silently dropped (uncommon; complex to size).
         }
-        return sb.ToString();
     }
 
     private static void WriteInline(ConversionContext ctx, Paragraph para, Inline inline)

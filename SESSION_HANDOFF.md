@@ -1,11 +1,11 @@
-# Session Handoff — 2026-05-07 (Markdig md→docx converter branch ready for PR)
+# Session Handoff — 2026-05-07 (Markdig md→docx converter — table cell inline formatting resolved)
 
 ## Where Things Stand
 
-**Branch:** `feat/markdown-to-docx-markdig` — 22 commits ahead of `main`, clean, NOT yet pushed.
-**Latest commit:** `a9b3869` test: real-world fidelity for Markdig path (LimsBasic fn_send_email_callers)
-**Build:** `dotnet build -c Release` is green, 0 warnings, 0 errors.
-**Tests:** `dotnet test -c Release` is green — 206 unit + 13 integration.
+**Branch:** `feat/markdown-to-docx-markdig` — 23 commits ahead of `main`, clean, NOT yet pushed.
+**Latest commit:** `feat(markdown): table cells render inline formatting (code/bold/italic)`
+**Build:** `dotnet build` is green, 0 warnings, 0 errors.
+**Tests:** `dotnet test` is green — 207 unit (1 skipped smoke generator) + 13 integration.
 **Tool surface:** 25 tools (unchanged from main — this branch fixes quality, not surface area).
 
 ## What Landed This Session
@@ -49,25 +49,23 @@
 
 ### New tests
 
-- ~20 tests in `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs` (paragraph, headings, lists, nested lists, code blocks, blockquote, hr, tables, emphasis, inline code, hyperlinks, line breaks, images)
+- ~21 tests in `tests/mcpOffice.Tests/Word/MarkdownToDocxConverterTests.cs` (paragraph, headings, lists, nested lists, code blocks, blockquote, hr, tables, emphasis, inline code, hyperlinks, line breaks, images, **table cell inline formatting**)
 - 1 test in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs` — real-world fidelity against `tests/fixtures/fn_send_email_callers.md` (4+ tables, inline code, bold)
 - 1 test in `tests/mcpOffice.Tests/Word/ConvertTests.cs` — `word_convert` .md→.docx end-to-end
 
 ### Live smoke verification
 
-Converted `C:\Projects\LimsBasic\docs\fn_send_email_callers.md` → `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx` (9.8 KB). File written and size-checked this session. Open in Word to visually confirm tables, inline code spans, bold text, and heading hierarchy render correctly.
+Converted `C:\Projects\LimsBasic\docs\fn_send_email_callers.md` → `C:\Projects\LimsBasic\docs\fn_send_email_callers.docx` (10.7 KB, up from 9.8 KB — extra character-property runs from cell inline formatting). File written and size-checked this session. Open in Word to visually confirm tables, inline code spans (Consolas in cells), bold text, and heading hierarchy render correctly.
 
-## Known Limitation — Table Cell Inline Formatting
+### Table cell inline formatting — resolved this session
 
-`WriteTable` uses `CollectCellText()` which flattens cell content to plain text. This means backtick spans, bold, italic inside table cells are not rendered with their respective formatting — they appear as literal `code`, `**bold**` etc. The real-world fidelity test passes because it asserts inline code in the *body* text, not in cells. However, the source document (`fn_send_email_callers.md`) does have backtick-wrapped procedure names in table cells — those will appear unformatted until this is fixed.
-
-This is the primary carry-forward item from this branch. See TODO.md.
+`CollectCellText()` was removed. `WriteTable` now uses `CellCursor` + `WriteCellInline` that anchor each inline write to the live `dxCell.ContentRange`. Root cause: `doc.Paragraphs.Get(cellContentRange)` returns stale paragraph positions inside table cells because the DevExpress `Paragraph.Range` does not track position shifts caused by insertions into preceding cells. Fix: re-read `dxCell.ContentRange.Start` fresh per cell and advance a tracked cursor through each insertion. All inline types (code, bold, italic, hyperlinks, line breaks) now work in cells. New test: `Table_cells_render_inline_formatting`.
 
 ## How To Resume / What To Do Next
 
 ```powershell
 cd C:\Projects\mcpOffice
-git log --oneline main..HEAD   # confirm 22 commits
+git log --oneline main..HEAD   # confirm 23 commits
 dotnet build -c Release --nologo
 dotnet test -c Release --nologo
 ```
@@ -78,7 +76,7 @@ git push -u origin feat/markdown-to-docx-markdig
 # then open PR on GitHub targeting main; squash-merge
 ```
 
-After merge, the natural follow-up is **table cell inline formatting** — refactor `WriteTable`/`CollectCellText` to call `WriteInline` per cell so backtick code, bold, etc. inside cells render correctly.
+The branch is now feature-complete for the Markdig md→docx milestone. Table cell inline formatting is resolved. The next natural step after merge is one of the v3 Excel analyzer items in TODO.md (conversion hints, coupling score, or pagination).
 
 ## Reference Material
 

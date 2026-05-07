@@ -27,6 +27,16 @@ public class MarkdownRealWorldTests
             "expected at least one bold run from **...** spans");
     }
 
+    [Fact(Skip = "smoke generator — unskip to regenerate fn_send_email_callers.docx")]
+    public void Regenerate_fn_send_email_callers_docx()
+    {
+        var mdPath = TestFixtures.Path("fn_send_email_callers.md");
+        var outputPath = @"C:\Projects\LimsBasic\docs\fn_send_email_callers.docx";
+        new McpOffice.Services.Word.WordDocumentService().Convert(mdPath, outputPath, null);
+        Assert.True(File.Exists(outputPath));
+        Assert.True(new FileInfo(outputPath).Length > 5000, "expected non-trivial .docx file");
+    }
+
     private static bool HasBoldRun(Document doc)
     {
         // Walk through all paragraphs and sample character properties at intervals.

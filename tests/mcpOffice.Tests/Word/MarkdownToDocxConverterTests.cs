@@ -200,6 +200,38 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Table_cells_render_inline_formatting()
+    {
+        var md = "| Name | Status |\n|---|---|\n| `Foo()` | **active** |";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+
+        Assert.Single(doc.Tables);
+        var table = doc.Tables[0];
+
+        // Data row, first cell: "Foo()" should be in Consolas (came from `Foo()` inline code)
+        var nameCell = table.Rows[1].Cells[0];
+        var nameText = doc.GetText(nameCell.ContentRange);
+        var fooIdx = nameText.IndexOf("Foo()", StringComparison.Ordinal);
+        Assert.True(fooIdx >= 0, $"expected 'Foo()' in cell text, got: '{nameText}'");
+        var fooRange = doc.CreateRange(nameCell.ContentRange.Start.ToInt() + fooIdx, "Foo()".Length);
+        var nameProps = doc.BeginUpdateCharacters(fooRange);
+        try { Assert.Equal("Consolas", nameProps.FontName); }
+        finally { doc.EndUpdateCharacters(nameProps); }
+
+        // Data row, second cell: "active" should be bold (from **active**)
+        var statusCell = table.Rows[1].Cells[1];
+        var statusText = doc.GetText(statusCell.ContentRange);
+        var activeIdx = statusText.IndexOf("active", StringComparison.Ordinal);
+        Assert.True(activeIdx >= 0, $"expected 'active' in cell text, got: '{statusText}'");
+        var activeRange = doc.CreateRange(statusCell.ContentRange.Start.ToInt() + activeIdx, "active".Length);
+        var statusProps = doc.BeginUpdateCharacters(activeRange);
+        try { Assert.True(statusProps.Bold == true, $"expected Bold=true, got {statusProps.Bold}"); }
+        finally { doc.EndUpdateCharacters(statusProps); }
+    }
+
+    [Fact]
     public void Pipe_table_column_alignment_from_gfm_spec()
     {
         var md = "| L | C | R |\n|:---|:---:|---:|\n| a | b | c |";
