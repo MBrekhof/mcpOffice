@@ -16,6 +16,7 @@ public class ToolSurfaceTests
             "excel_list_sheets",
             "excel_read_sheet",
             "excel_render_vba_callgraph",
+            "excel_suggest_vba_conversion",
             "Ping",
             "word_append_markdown",
             "word_convert",
