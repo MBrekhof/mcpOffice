@@ -85,4 +85,12 @@ public static class ExcelTools
         [Description("Layout: 'clustered' (subgraph per module, default) or 'flat'.")] string layout = "clustered",
         [Description("Hard cap on rendered node count. Throws graph_too_large past this. Default 300.")] int maxNodes = 300)
         => Service.RenderVbaCallgraph(path, format, moduleName, procedureName, depth, direction, layout, maxNodes);
+
+    [McpServerTool(Name = "excel_suggest_vba_conversion")]
+    [Description("Conversion-hints layer over excel_analyze_vba. For each VBA procedure, emits multi-axis classification (trigger / purity / shape / dependencies), a human-readable rationale, and — when targetParadigm is set — a structured C# emission target (targetType / class / method / lifetime / blockers). Also returns workbook-wide module coupling: per-module Ca/Ce/instability + pairwise edge counts. moduleName scopes hints to a single module; coupling stays whole-workbook regardless. targetParadigm must be one of classLibrary, workerService, webApi, console.")]
+    public static object ExcelSuggestVbaConversion(
+        [Description("Absolute path to the .xlsm/.xlsb workbook")] string path,
+        [Description("Optional case-insensitive VBA module name to scope per-procedure hints to. Coupling stays whole-workbook. Throws module_not_found if unknown.")] string? moduleName = null,
+        [Description("Optional target paradigm: classLibrary | workerService | webApi | console. When set, every hint includes a structured csharpSuggestion. Throws unsupported_paradigm if the value is not in the supported set.")] string? targetParadigm = null)
+        => Service.SuggestVbaConversion(path, moduleName, targetParadigm);
 }
