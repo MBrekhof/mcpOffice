@@ -31,13 +31,18 @@ Plan: `docs/plans/2026-05-01-mcpoffice-excel-poc-design.md`. All 8 steps shipped
 
 ## excel_export_csv — DONE
 
-`excel_export_csv` (27th tool) on `feat/excel-export-csv`, 15 commits since the v3 merge. Streams a worksheet (or A1 range) to a CSV file on disk for `pandas.read_csv` / `polars.read_csv` consumption. RFC 4180 dialect, UTF-8 (no BOM), CRLF line endings, invariant-culture numbers, ISO 8601 datetimes (`yyyy-MM-ddTHH:mm:ss`), lowercase booleans. Formula cells emit cached values (no formula text). Returns `{outputPath, rowCount, columnCount, bytesWritten}`. New `CsvWriter` (`Services/Excel/Csv/`) + `ExportCsv` on `ExcelWorkbookService`; reuses `LoadWorkbook` / `ResolveWorksheet` / `GetCellValue`. Sibling fix: `GetCellValue` / `GetCellValueType` now check `IsDateTime` before `IsNumeric` — DevExpress flags date-formatted cells as both, and the previous order silently returned Excel serials as `double` for date cells (latent bug in `ReadSheet` too, no test caught it). New `ToolError.RangeTooLargeRows` helper for row-flavoured error messages. 290 unit + 15 integration tests pass; live verification against `Air.xlsm` (sheet `WO`, 47×210, 10092 bytes). Plan: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-plan.md`. Design: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md`.
+`excel_export_csv` (27th tool) merged to `main` via squash (`9ae0054`), with two follow-up commits. Streams a worksheet (or A1 range) to a CSV file on disk for `pandas.read_csv` / `polars.read_csv` consumption. RFC 4180 dialect, UTF-8 (no BOM), CRLF line endings, invariant-culture numbers, ISO 8601 datetimes (`yyyy-MM-ddTHH:mm:ss`), lowercase booleans. Formula cells emit cached values (no formula text). Returns `{outputPath, rowCount, columnCount, bytesWritten}`. New `CsvWriter` (`Services/Excel/Csv/`) + `ExportCsv` on `ExcelWorkbookService`; reuses `LoadWorkbook` / `ResolveWorksheet` / `GetCellValue`. Sibling fix: `GetCellValue` / `GetCellValueType` now check `IsDateTime` before `IsNumeric` — DevExpress flags date-formatted cells as both, and the previous order silently returned Excel serials as `double` for date cells (latent bug in `ReadSheet` too, no test caught it). New `ToolError.RangeTooLargeRows` helper for row-flavoured error messages.
+
+**Follow-up 1 — `trimTrailingEmptyRows` parameter (`58b53e8`, refined in `a55ead2`).** Opt-in (default `false`). Walks the resolved range bottom-up and truncates at the last row with any non-empty, non-error cell. A row counts as empty when every cell satisfies one of: `IsEmpty=true`, `Type==Error`, or `IsText && TextValue==""` (formula cells like `=IF(cond,"x","")` that evaluate to `""`). Live verified across three real workbooks: ScreeningDB-V2 `Compounds-N` shrinks 20,000 → 3 rows; Offerte 2026 `Lijsten` shrinks 1,048,576 → 81; QQQ2 `Boven RG` 1,053 → 3. Sheets where data fills the used range are unaffected.
+
+296 unit + 15 integration tests pass. Plan: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-plan.md`. Design: `docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md`.
 
 ### Deferred follow-ups
 
 - [ ] `excel_export_ndjson` sibling — column-typed output for `pandas.read_json(lines=True)` consumers. Shares streaming infrastructure with `excel_export_csv`.
 - [ ] `.csv.gz` compression — wrap the `FileStream` in `GZipStream` when `outputPath` ends in `.gz`. Trivial follow-up; deferred for v1 to keep the test matrix small.
 - [ ] Optional `lineEnding` (`crlf` / `lf`) and `delimiter` (`,` / `\t` / `;`) parameters — only if a real consumer surfaces a need. CSV/TSV agents don't typically need this.
+- [ ] Optional bulk-export mode that loads the workbook once and writes N CSVs — surfaced by ScreeningDB sweep (each `ExportCsv` reloads, ~28s per call on the 26 MB workbook → 21 sheets = 10 minutes). Lower priority because most agent flows export 1-2 sheets per call.
 
 ## Word md→docx fidelity — Markdig converter — DONE
 
