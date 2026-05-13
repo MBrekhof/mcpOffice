@@ -24,6 +24,7 @@ Completed milestones (Word POC, Excel POC, analyzer v1/v2/v3, export_csv, Markdi
 ## Markdig converter — deferred follow-ups
 
 - [ ] **Unify `WriteCellInline` and `WriteInline`.** `WriteCellInline` mirrors all of `WriteInline`'s case logic with cursor-based anchoring instead of `para.Range.End`. New inline types currently need adding in both places. Refactor via a small writer abstraction (e.g. an `IInlineSink` with `Insert(text)` returning a `DocumentRange`) so the case logic lives in one place.
+- [ ] **Normal-style polish for `word_create_from_markdown`.** Setting Calibri 11pt / 1.15 line spacing / 8pt SpacingAfter as document defaults would tighten body text. Skipped during the 2026-05-13 heading style pass because `MarkdownToDocxConverter.Apply()` is also called by `word_append_markdown` (mustn't fight an existing doc's Normal style). Either gate via a flag passed through the service, or split into `Apply` (append-safe) vs `ApplyToFreshDocument` (mutates defaults).
 
 ## Side items
 
