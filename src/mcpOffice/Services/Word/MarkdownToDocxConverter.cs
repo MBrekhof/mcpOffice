@@ -72,13 +72,78 @@ internal static class MarkdownToDocxConverter
 
     private static void WriteHeading(ConversionContext ctx, HeadingBlock block)
     {
-        var styleName = $"Heading {Math.Clamp(block.Level, 1, 6)}";
-        EnsureParagraphStyle(ctx.Document, styleName);
+        var level = Math.Clamp(block.Level, 1, 6);
+        var styleName = $"Heading {level}";
+        EnsureHeadingStyle(ctx.Document, level, styleName);
         var para = AppendNewParagraph(ctx);
         para.Style = ctx.Document.ParagraphStyles[styleName];
         if (block.Inline is null) return;
         foreach (var inline in block.Inline)
             WriteInline(ctx, para, inline);
+    }
+
+    // Word's classic heading palette — dark blue H1, medium blue H2-H6.
+    private static readonly Color HeadingDarkBlue = Color.FromArgb(0x1F, 0x38, 0x64);
+    private static readonly Color HeadingBlue     = Color.FromArgb(0x2E, 0x74, 0xB5);
+
+    private static void EnsureHeadingStyle(Document doc, int level, string styleName)
+    {
+        // A fresh RichEditDocumentServer ships without populated built-in heading styles
+        // (per DevExpress docs). Whether or not a style exists, always (re)apply formatting
+        // so the rendered output has real heading hierarchy instead of body-text-with-a-name.
+        var style = doc.ParagraphStyles[styleName];
+        if (style is null)
+        {
+            style = doc.ParagraphStyles.CreateNew();
+            style.Name = styleName;
+            doc.ParagraphStyles.Add(style);
+        }
+        // DevExpress OutlineLevel is 1-based: 0 = no outline (body text),
+        // 1 = Heading 1, ..., 9 = Heading 9. OOXML serializes as level-1
+        // (Heading 1 = outlineLvl 0). Set the DevExpress value to match the
+        // markdown heading depth directly.
+        style.OutlineLevel = level;
+        switch (level)
+        {
+            case 1:
+                style.FontSize = 16f;
+                style.Bold = true;
+                style.ForeColor = HeadingDarkBlue;
+                style.SpacingBefore = Units.InchesToDocumentsF(0.17f); // ~12pt
+                style.SpacingAfter  = Units.InchesToDocumentsF(0.06f); // ~4pt
+                break;
+            case 2:
+                style.FontSize = 13f;
+                style.Bold = true;
+                style.ForeColor = HeadingBlue;
+                style.SpacingBefore = Units.InchesToDocumentsF(0.14f); // ~10pt
+                style.SpacingAfter  = Units.InchesToDocumentsF(0.06f);
+                break;
+            case 3:
+                style.FontSize = 12f;
+                style.Bold = true;
+                style.ForeColor = HeadingBlue;
+                style.SpacingBefore = Units.InchesToDocumentsF(0.11f); // ~8pt
+                style.SpacingAfter  = Units.InchesToDocumentsF(0.04f);
+                break;
+            case 4:
+                style.FontSize = 11f;
+                style.Bold = true;
+                style.ForeColor = HeadingBlue;
+                style.SpacingBefore = Units.InchesToDocumentsF(0.08f);
+                style.SpacingAfter  = Units.InchesToDocumentsF(0.03f);
+                break;
+            case 5:
+                style.FontSize = 11f;
+                style.Italic = true;
+                style.ForeColor = HeadingBlue;
+                break;
+            case 6:
+                style.FontSize = 11f;
+                style.Italic = true;
+                style.ForeColor = HeadingDarkBlue;
+                break;
+        }
     }
 
     private static void EnsureParagraphStyle(Document doc, string styleName)
@@ -172,6 +237,8 @@ internal static class MarkdownToDocxConverter
 
     private static readonly Color CodeBackground = Color.FromArgb(0xF2, 0xF2, 0xF2);
 
+    private static readonly Color CodeBorder = Color.FromArgb(0xC0, 0xC0, 0xC0);
+
     private static void WriteCodeBlock(ConversionContext ctx, string text)
     {
         var doc = ctx.Document;
@@ -179,7 +246,19 @@ internal static class MarkdownToDocxConverter
         foreach (var line in lines)
         {
             var para = AppendNewParagraph(ctx);
-            para.LeftIndent = Units.InchesToDocumentsF(0.1f);
+            para.LeftIndent = Units.InchesToDocumentsF(0.15f);
+
+            // Visual marker: a left border that runs alongside the indent.
+            // Without this the indent reads like a quote rather than a code block.
+            var pProps = doc.BeginUpdateParagraphs(para.Range);
+            try
+            {
+                pProps.Borders.LeftBorder.LineStyle = BorderLineStyle.Single;
+                pProps.Borders.LeftBorder.LineWidth = 1.5f;
+                pProps.Borders.LeftBorder.LineColor = CodeBorder;
+            }
+            finally { doc.EndUpdateParagraphs(pProps); }
+
             if (line.Length == 0) continue;
 
             var insertedRange = doc.InsertText(para.Range.End, line);

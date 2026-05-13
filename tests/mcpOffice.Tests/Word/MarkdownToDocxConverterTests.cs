@@ -458,6 +458,78 @@ public class MarkdownToDocxConverterTests
             $"expected ListIndex<0 on body paragraph after list, got {bodyPara.ListIndex}");
     }
 
+    [Fact]
+    public void Heading1_style_has_large_bold_dark_blue_formatting()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "# title", null);
+        var style = server.Document.ParagraphStyles["Heading 1"];
+        Assert.NotNull(style);
+        Assert.Equal(16f, style!.FontSize);
+        Assert.True(style.Bold == true, $"expected Bold=true on Heading 1, got {style.Bold}");
+        var fc = style.ForeColor;
+        Assert.True(fc.HasValue, "expected ForeColor to be set on Heading 1");
+        Assert.True(fc!.Value.R == 0x1F && fc.Value.G == 0x38 && fc.Value.B == 0x64,
+            $"expected ForeColor=#1F3864 on Heading 1, got R={fc.Value.R} G={fc.Value.G} B={fc.Value.B}");
+    }
+
+    [Fact]
+    public void Heading2_style_has_medium_bold_blue_formatting()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "## subtitle", null);
+        var style = server.Document.ParagraphStyles["Heading 2"];
+        Assert.NotNull(style);
+        Assert.Equal(13f, style!.FontSize);
+        Assert.True(style.Bold == true, $"expected Bold=true on Heading 2, got {style.Bold}");
+        var fc = style.ForeColor;
+        Assert.True(fc.HasValue, "expected ForeColor to be set on Heading 2");
+        Assert.True(fc!.Value.R == 0x2E && fc.Value.G == 0x74 && fc.Value.B == 0xB5,
+            $"expected ForeColor=#2E74B5 on Heading 2, got R={fc.Value.R} G={fc.Value.G} B={fc.Value.B}");
+    }
+
+    [Fact]
+    public void Heading3_style_has_smaller_bold_blue_formatting()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "### sub", null);
+        var style = server.Document.ParagraphStyles["Heading 3"];
+        Assert.NotNull(style);
+        Assert.Equal(12f, style!.FontSize);
+        Assert.True(style.Bold == true, $"expected Bold=true on Heading 3, got {style.Bold}");
+    }
+
+    [Fact]
+    public void Heading_styles_have_outline_levels_matching_heading_depth()
+    {
+        // DevExpress OutlineLevel is 1-based (1 = Heading 1, 0 = body text).
+        // OOXML serializes as level-1, so a DevExpress value of 1 becomes outlineLvl=0
+        // which is Heading 1 in Word's navigation pane.
+        var md = "# a\n\n## b\n\n### c";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        Assert.Equal(1, server.Document.ParagraphStyles["Heading 1"]!.OutlineLevel);
+        Assert.Equal(2, server.Document.ParagraphStyles["Heading 2"]!.OutlineLevel);
+        Assert.Equal(3, server.Document.ParagraphStyles["Heading 3"]!.OutlineLevel);
+    }
+
+    [Fact]
+    public void Fenced_code_block_paragraph_has_left_border()
+    {
+        var md = "```\nhello\n```";
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        var doc = server.Document;
+        var codePara = doc.Paragraphs.FirstOrDefault(p => doc.GetText(p.Range).Trim() == "hello");
+        Assert.NotNull(codePara);
+        var props = doc.BeginUpdateParagraphs(codePara!.Range);
+        try
+        {
+            Assert.NotEqual(BorderLineStyle.None, props.Borders.LeftBorder.LineStyle);
+        }
+        finally { doc.EndUpdateParagraphs(props); }
+    }
+
     private static byte[] OnePixelPng() => Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
 

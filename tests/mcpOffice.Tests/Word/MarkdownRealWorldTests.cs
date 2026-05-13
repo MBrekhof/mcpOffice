@@ -37,6 +37,19 @@ public class MarkdownRealWorldTests
         Assert.True(new FileInfo(outputPath).Length > 5000, "expected non-trivial .docx file");
     }
 
+    [Fact(Skip = "smoke generator — unskip to regenerate lims_fix_list_styled.docx for visual check")]
+    public void Regenerate_lims_fix_list_styled_docx()
+    {
+        // Visual-verification artifact for the heading/code-block style pass.
+        // Writes to a side filename so an open Word session on lims_fix_list.docx doesn't lock the output.
+        var mdPath = @"C:\Projects\LimsBasic\docs\lims_fix_list.md";
+        if (!File.Exists(mdPath)) return;
+        var outputPath = @"C:\Projects\LimsBasic\docs\lims_fix_list_styled.docx";
+        if (File.Exists(outputPath)) File.Delete(outputPath);
+        new McpOffice.Services.Word.WordDocumentService().Convert(mdPath, outputPath, null);
+        Assert.True(File.Exists(outputPath));
+    }
+
     private static bool HasBoldRun(Document doc)
     {
         // Walk through all paragraphs and sample character properties at intervals.
