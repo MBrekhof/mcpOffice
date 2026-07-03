@@ -310,6 +310,16 @@ internal static class MarkdownToDocxConverter
 
         var dxTable = doc.Tables.Create(doc.Range.End, rows.Count, colCount);
 
+        // Freshly created cell paragraphs inherit the style of the paragraph preceding
+        // the table (often a heading), leaking heading formatting and outline levels
+        // into every cell. Reset them to Normal, mirroring AppendNewParagraph.
+        var normalStyle = doc.ParagraphStyles["Normal"] ?? doc.ParagraphStyles["Default Paragraph Style"];
+        if (normalStyle is not null)
+        {
+            foreach (var para in doc.Paragraphs.Get(dxTable.Range))
+                para.Style = normalStyle;
+        }
+
         for (int r = 0; r < rows.Count; r++)
         {
             var mdRow = rows[r];
