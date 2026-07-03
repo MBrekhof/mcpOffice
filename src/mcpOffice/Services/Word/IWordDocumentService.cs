@@ -11,7 +11,7 @@ public interface IWordDocumentService
     IReadOnlyList<CommentEntry> ListComments(string path);
     IReadOnlyList<RevisionEntry> ListRevisions(string path);
     string CreateBlank(string path, bool overwrite);
-    string CreateFromMarkdown(string path, string markdown, bool overwrite);
+    string CreateFromMarkdown(string path, string markdown, bool overwrite, string? templatePath = null);
     string AppendMarkdown(string path, string markdown);
     ReplaceResult FindReplace(string path, string find, string replace, bool useRegex, bool matchCase);
     string InsertParagraph(string path, int atIndex, string text, string? style);

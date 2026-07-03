@@ -501,15 +501,27 @@ public sealed class WordDocumentService : IWordDocumentService
         }
     }
 
-    public string CreateFromMarkdown(string path, string markdown, bool overwrite)
+    public string CreateFromMarkdown(string path, string markdown, bool overwrite, string? templatePath = null)
     {
         PathGuard.RequireWritable(path, overwrite);
+        if (templatePath is not null)
+        {
+            PathGuard.RequireExists(templatePath);
+        }
 
         try
         {
             using var server = new RichEditDocumentServer();
+            if (templatePath is not null)
+            {
+                server.LoadDocumentTemplate(templatePath);
+            }
             var baseDir = Path.GetDirectoryName(path);
-            MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
+            MarkdownToDocxConverter.Apply(
+                server.Document,
+                markdown ?? string.Empty,
+                baseDir,
+                preserveExistingHeadingStyles: templatePath is not null);
             server.SaveDocument(path, RichEditFormat.OpenXml);
             return path;
         }

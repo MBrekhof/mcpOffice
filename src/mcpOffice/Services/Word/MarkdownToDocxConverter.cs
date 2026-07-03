@@ -16,10 +16,13 @@ internal static class MarkdownToDocxConverter
     private static readonly MarkdownPipeline Pipeline =
         new MarkdownPipelineBuilder().UsePipeTables().Build();
 
-    public static void Apply(Document document, string markdown, string? baseDirectory)
+    public static void Apply(Document document, string markdown, string? baseDirectory, bool preserveExistingHeadingStyles = false)
     {
         var ast = Markdown.Parse(markdown, Pipeline);
-        var ctx = new ConversionContext(document, baseDirectory);
+        var ctx = new ConversionContext(document, baseDirectory)
+        {
+            PreserveExistingHeadingStyles = preserveExistingHeadingStyles,
+        };
         foreach (var block in ast)
             WriteBlock(ctx, block);
     }
@@ -28,6 +31,10 @@ internal static class MarkdownToDocxConverter
     {
         public Document Document { get; } = Document;
         public string? BaseDirectory { get; } = BaseDirectory;
+
+        // When the document was seeded from a .dotx/.docx template, heading styles the
+        // template defines must win over the converter's built-in heading formatting.
+        public bool PreserveExistingHeadingStyles { get; init; }
 
         // Accumulated emphasis depth from enclosing EmphasisInline nodes.
         // Bold when boldDepth > 0; Italic when italicDepth > 0.
@@ -74,7 +81,7 @@ internal static class MarkdownToDocxConverter
     {
         var level = Math.Clamp(block.Level, 1, 6);
         var styleName = $"Heading {level}";
-        EnsureHeadingStyle(ctx.Document, level, styleName);
+        EnsureHeadingStyle(ctx.Document, level, styleName, ctx.PreserveExistingHeadingStyles);
         var para = AppendNewParagraph(ctx);
         para.Style = ctx.Document.ParagraphStyles[styleName];
         if (block.Inline is null) return;
@@ -86,12 +93,17 @@ internal static class MarkdownToDocxConverter
     private static readonly Color HeadingDarkBlue = Color.FromArgb(0x1F, 0x38, 0x64);
     private static readonly Color HeadingBlue     = Color.FromArgb(0x2E, 0x74, 0xB5);
 
-    private static void EnsureHeadingStyle(Document doc, int level, string styleName)
+    private static void EnsureHeadingStyle(Document doc, int level, string styleName, bool preserveExisting)
     {
         // A fresh RichEditDocumentServer ships without populated built-in heading styles
         // (per DevExpress docs). Whether or not a style exists, always (re)apply formatting
         // so the rendered output has real heading hierarchy instead of body-text-with-a-name.
         var style = doc.ParagraphStyles[styleName];
+        if (style is not null && preserveExisting)
+        {
+            // Style comes from a user-supplied template — its formatting is authoritative.
+            return;
+        }
         if (style is null)
         {
             style = doc.ParagraphStyles.CreateNew();
