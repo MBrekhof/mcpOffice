@@ -405,6 +405,12 @@ internal static class MarkdownToDocxConverter
                 var props = doc.BeginUpdateCharacters(inserted);
                 try
                 {
+                    // Clear direct font/background formatting inherited from the run to the
+                    // left (e.g. a preceding inline-code span), so plain text falls back to
+                    // the paragraph style instead of continuing in Consolas-on-grey.
+                    props.Reset(CharacterPropertiesMask.FontName
+                        | CharacterPropertiesMask.FontSize
+                        | CharacterPropertiesMask.BackColor);
                     props.Bold   = ctx.BoldDepth   > 0;
                     props.Italic = ctx.ItalicDepth > 0;
                 }
@@ -430,7 +436,7 @@ internal static class MarkdownToDocxConverter
                 {
                     props.FontName = "Consolas";
                     props.FontSize = 9f;
-                    props.BackColor = System.Drawing.Color.FromArgb(0xF2, 0xF2, 0xF2);
+                    props.Reset(CharacterPropertiesMask.BackColor);
                     props.Bold   = ctx.BoldDepth   > 0;
                     props.Italic = ctx.ItalicDepth > 0;
                 }
@@ -482,6 +488,12 @@ internal static class MarkdownToDocxConverter
                 var props = ctx.Document.BeginUpdateCharacters(insertedRange);
                 try
                 {
+                    // Clear direct font/background formatting inherited from the run to the
+                    // left (e.g. a preceding inline-code span), so plain text falls back to
+                    // the paragraph style instead of continuing in Consolas-on-grey.
+                    props.Reset(CharacterPropertiesMask.FontName
+                        | CharacterPropertiesMask.FontSize
+                        | CharacterPropertiesMask.BackColor);
                     props.Bold   = ctx.BoldDepth   > 0;
                     props.Italic = ctx.ItalicDepth > 0;
                 }
@@ -508,7 +520,7 @@ internal static class MarkdownToDocxConverter
                 {
                     props.FontName = "Consolas";
                     props.FontSize = 9f;
-                    props.BackColor = System.Drawing.Color.FromArgb(0xF2, 0xF2, 0xF2);
+                    props.Reset(CharacterPropertiesMask.BackColor);
                     // Respect the surrounding emphasis context.
                     props.Bold   = ctx.BoldDepth   > 0;
                     props.Italic = ctx.ItalicDepth > 0;
