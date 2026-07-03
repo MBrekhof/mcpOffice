@@ -205,7 +205,26 @@ internal static class MarkdownToDocxConverter
         if (normalStyle is not null) para.Style = normalStyle;
         para.ListIndex = -1;
         para.ListLevel = 0;
+        // Direct paragraph formatting (borders from a horizontal rule, indent from a
+        // quote/code block) is inherited by the new paragraph as well; clear it so the
+        // border of one `---` doesn't underline every paragraph after it. Writers that
+        // want a border/indent (hr, code block, quote) set it after this reset.
+        ClearDirectParagraphFormatting(doc, para.Range);
         return para;
+    }
+
+    private static void ClearDirectParagraphFormatting(Document doc, DocumentRange range)
+    {
+        var props = doc.BeginUpdateParagraphs(range);
+        try
+        {
+            props.LeftIndent = 0f;
+            props.Borders.TopBorder.LineStyle = BorderLineStyle.None;
+            props.Borders.BottomBorder.LineStyle = BorderLineStyle.None;
+            props.Borders.LeftBorder.LineStyle = BorderLineStyle.None;
+            props.Borders.RightBorder.LineStyle = BorderLineStyle.None;
+        }
+        finally { doc.EndUpdateParagraphs(props); }
     }
 
     private static void WriteList(ConversionContext ctx, ListBlock list, int level)
@@ -310,15 +329,17 @@ internal static class MarkdownToDocxConverter
 
         var dxTable = doc.Tables.Create(doc.Range.End, rows.Count, colCount);
 
-        // Freshly created cell paragraphs inherit the style of the paragraph preceding
-        // the table (often a heading), leaking heading formatting and outline levels
-        // into every cell. Reset them to Normal, mirroring AppendNewParagraph.
+        // Freshly created cell paragraphs inherit the style and direct formatting of
+        // the paragraph preceding the table (often a heading, or a border left over
+        // from a horizontal rule), leaking heading formatting, outline levels and
+        // bottom borders into every cell. Reset to Normal, mirroring AppendNewParagraph.
         var normalStyle = doc.ParagraphStyles["Normal"] ?? doc.ParagraphStyles["Default Paragraph Style"];
         if (normalStyle is not null)
         {
             foreach (var para in doc.Paragraphs.Get(dxTable.Range))
                 para.Style = normalStyle;
         }
+        ClearDirectParagraphFormatting(doc, dxTable.Range);
 
         for (int r = 0; r < rows.Count; r++)
         {
