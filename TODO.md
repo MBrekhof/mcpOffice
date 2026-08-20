@@ -26,6 +26,15 @@ Completed milestones (Word POC, Excel POC, analyzer v1/v2/v3, export_csv, Markdi
 - [ ] **Unify `WriteCellInline` and `WriteInline`.** `WriteCellInline` mirrors all of `WriteInline`'s case logic with cursor-based anchoring instead of `para.Range.End`. New inline types currently need adding in both places. Refactor via a small writer abstraction (e.g. an `IInlineSink` with `Insert(text)` returning a `DocumentRange`) so the case logic lives in one place.
 - [ ] **Normal-style polish for `word_create_from_markdown`.** Setting Calibri 11pt / 1.15 line spacing / 8pt SpacingAfter as document defaults would tighten body text. Skipped during the 2026-05-13 heading style pass because `MarkdownToDocxConverter.Apply()` is also called by `word_append_markdown` (mustn't fight an existing doc's Normal style). Either gate via a flag passed through the service, or split into `Apply` (append-safe) vs `ApplyToFreshDocument` (mutates defaults).
 
+## PDF tools — deferred follow-ups
+
+- [ ] **Table extraction (`pdf_extract_tables`).** Needs column-boundary inference on top of `LineGrouper` — clustering word x-positions across a page into column stops. Guesswork on unruled reports, which is why v1 stops at `pdf_read_layout`. Do it only when a caller has a report shape worth targeting.
+- [ ] **OCR for scanned PDFs.** `pdf_read_text` returns empty for image-only pages; today's answer is `pdf_render_page` and look. Would need an external engine (Tesseract) — a real dependency decision, not a small addition.
+- [ ] **`pdf_render_page` page ranges / contact sheet.** Currently one page per call. `CreateTiff(stream, pageNumbers, dpi)` already does multi-page in one shot if a caller wants it.
+- [ ] **Per-page word cursor.** `NextWord()` is document-wide, so `pageRange` on `pdf_read_layout` filters after walking every page. Fine for reports, wasteful on a 500-page document. No DevExpress API for it — would need `GetText(PdfDocumentArea)` plus per-word search, which is likely slower, so measure before changing.
+- [ ] **`pdf_extract_images` vector graphics.** Only raster images are extracted (`GetImagesInfo`). Charts drawn as vector paths are invisible to it; `pdf_render_page` is the fallback.
+- [ ] **Text-extraction options.** `PdfTextExtractionOptions.ClipToCropBox` is not exposed. Only matters for documents with content outside the crop box.
+
 ## Side items
 
 ### Carried from Word POC

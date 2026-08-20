@@ -1,46 +1,85 @@
-# Session Handoff — 2026-05-13 (markdown-to-docx style pass)
+# Session Handoff — 2026-08-20 (PDF tools + DevExpress 26.1 realignment)
 
 ## Where Things Stand
 
-**Branch:** `main` — clean working tree, in sync with `origin/main`.
-**Latest commit:** `9c0afff` feat: style headings and code blocks in markdown-to-docx output.
-**Build:** `dotnet build -c Release` — 0 warnings, 0 errors.
-**Tests:** `dotnet test -c Release` — 301 unit + 15 integration pass, 2 skipped (the locked-VBA fixture + the gated `Regenerate_lims_fix_list_styled_docx` artifact generator).
-**Tool surface:** 27 tools.
+**Branch:** `feat/pdf-tools` (off `main`) — not yet pushed, not yet PR'd.
+**Build:** `dotnet build` — 0 errors. (Warnings: 2 × NU1902 `OpenMcdf 3.1.3`, pre-existing.)
+**Tests:** `dotnet test` — **351 unit + 17 integration pass, 2 skipped** (up from 301 + 15).
+**Tool surface:** **34 tools** (was 27): 1 ping + 15 Word + 11 Excel + 7 PDF.
 
 ## What Landed This Session
 
-Triggered by a user-supplied side-by-side screenshot (`compare.png`) showing that markdown rendered with proper heading hierarchy on the left, but the resulting `.docx` on the right read as a wall of body text with no visible hierarchy.
+### 1. The repo did not build at all (fixed first)
 
-**Root cause:** `EnsureParagraphStyle` in `MarkdownToDocxConverter.cs` created `"Heading 1"`/`"Heading 2"`/... by name only — a fresh `RichEditDocumentServer` ships heading styles unpopulated (confirmed via DevExpress docs), so the resulting style had zero font/color/spacing properties and rendered identical to body text.
+`nuget.config` pointed `DevExpressLocal` at `C:\Program Files\DevExpress 25.2\Components\System\Components\packages`.
+That folder is **gone** — the machine has moved to DevExpress 26.1 — so every restore in the
+solution failed with `NU1301 The local source ... doesn't exist`. Nothing compiled, including tests.
 
-**Fix (commit `9c0afff`):**
-- New `EnsureHeadingStyle(doc, level, name)` always applies real formatting:
-  - H1: 16pt bold `#1F3864`, ~12pt before / ~4pt after.
-  - H2: 13pt bold `#2E74B5`, ~10pt before / ~4pt after.
-  - H3: 12pt bold `#2E74B5`, ~8pt before / ~3pt after.
-  - H4: 11pt bold `#2E74B5`.
-  - H5/H6: 11pt italic.
-- `OutlineLevel` set to the markdown depth directly (DevExpress uses 1-based: `OutlineLevel=1` serializes to OOXML `outlineLvl=0` = Heading 1). Verified by unzipping a generated `.docx` and reading `word/styles.xml`. This makes headings show up in Word's navigation pane / TOC.
-- Code-block paragraphs get a 1.5pt grey-`#C0C0C0` left border so they read as code rather than indented prose.
+Fix: repointed the feed to `DevExpress 26.1` and bumped `DevExpress.Document.Processor` +
+`DevExpress.RichEdit.Export` from `25.2.5` → `26.1.4` in **both** `src/mcpOffice` and
+`tests/mcpOffice.Tests`. Baseline after the bump was **301 unit + 15 integration, 2 skipped** —
+identical to the last handoff's numbers, so the major upgrade changed no behaviour.
 
-**Tests added (5):** heading font-size/bold/color for H1–H3, outline-level mapping for H1–H3, fenced-code-block left-border presence. All red-then-green per TDD.
+Two traps worth remembering, now written into `CLAUDE.md` and `docs/usage.md`:
 
-**Verification:** End-to-end visual check via the gated `Regenerate_lims_fix_list_styled_docx` test that runs the live `WordDocumentService.Convert` against the real `lims_fix_list.md` and writes `C:\Projects\LimsBasic\docs\lims_fix_list_styled.docx`. OOXML inspection of a separate `style_check.docx` confirmed `w:sz="32"`, `w:color="1F3864"`, `w:b w:val="1"` on Heading 1 (and analogues for H2/H3).
+- NuGet local sources take **no wildcard**, so the feed path is version-pinned and dies on every
+  DevExpress installer upgrade. Feed path and `PackageReference` versions must move together.
+- DevExpress packages resolve from the installer's **fallback folder**
+  (`C:\Program Files\DevExpress 26.1\Components\Offline Packages`), *not* `~/.nuget/packages` —
+  an empty global-cache folder is not evidence a package is missing.
+
+### 2. Seven PDF tools
+
+New domain: `Tools/PdfTools.cs` → `Services/Pdf/PdfDocumentService.cs`, following the existing
+tool/service/DTO pattern. `pdf_get_metadata`, `pdf_read_text`, `pdf_read_layout`, `pdf_find_text`,
+`pdf_render_page`, `pdf_extract_images`, `pdf_get_outline`. No new package —
+`DevExpress.Document.Processor` already carries `DevExpress.Pdf.Core` / `.Drawing`.
+
+Note for anyone going looking: **`PdfDocumentProcessor` lives in `DevExpress.Docs.vXX.dll`**, not
+in `DevExpress.Pdf.Core` (which holds only the model types). That cost a compile cycle.
+
+Three pure classes under `Services/Pdf/` carry the actual thinking and are unit-tested without any
+PDF at all:
+
+- `PageRange` — parses `"1"`, `"2-5"`, `"1,3,7-9"`, `"5-"`.
+- `LineGrouper` — clusters words into visual lines, tolerance `0.6 × word height` so it scales with
+  font size.
+- `LayoutTextRenderer` — `pdftotext -layout` equivalent; median character width per page, words
+  placed at `round((x - originX) / charWidth)`.
+
+Coordinates are **flipped to a top-left origin** in the service, so sorting by `y` ascending is
+reading order. PDF's native origin is bottom-left. Every `Models/Pdf*` DTO says so.
+
+Rationale, alternatives and what was deliberately left out: `docs/plans/2026-08-20-pdf-tools-design.md`.
+
+## Verification
+
+Beyond the suite, the tools were run against three real ILIS "Overzichtsrapport" PDFs
+(`C:\temp\tna`, machine-local, not fixtures):
+
+- `pdf_read_text` with `preserveLayout=true` reproduces the column layout exactly — parameter,
+  unit, norm and one column per sample all land under their headers.
+- `pdf_find_text "Legionella"` returns **all four** occurrences on page 2 with distinct boxes,
+  confirming `FindText` does not collapse same-page hits.
+- `pdf_render_page` at 150 dpi writes a clean PNG — no trial watermark under the DevExpress trial
+  license.
+- `pdf_get_metadata` identified the generator chain: `Author = "WLN - ILIS"`,
+  `Creator = a2ps version 4.14`, `Producer = GPL Ghostscript 9.55.0`.
 
 ## Outstanding — Action Required
 
-None. Clean tree, pushed to `origin/main` at `9c0afff`.
+- **Branch is local.** `feat/pdf-tools` needs pushing and a PR to `main` (squash merge, per CLAUDE.md).
+- **The registered MCP server must be restarted** to expose the new tools — see the operational
+  note below. Until then clients still see 27 tools.
 
 ## Next Up
 
-Same shortlist as last session, plus a small style-pass follow-up:
+PDF follow-ups are listed under "PDF tools — deferred follow-ups" in `TODO.md` (table extraction,
+OCR, multi-page render, per-page word cursor). The pre-existing shortlist is unchanged:
 
-- **`excel_export_ndjson`** — column-typed sibling for `pandas.read_json(lines=True)` consumers.
-- **`.csv.gz` compression** for `excel_export_csv` — trivial `GZipStream` wrap.
-- **v3 conversion-hints follow-ups** (cluster detection, paradigm overlays, pagination, the two live-verification findings).
-- **Markdig converter — Normal-style polish.** Setting Calibri 11pt / 1.15 line spacing / 8pt SpacingAfter as document defaults would tighten body text. Skipped this session because the `Apply()` path is shared by `word_append_markdown` (which mustn't fight an existing doc's Normal style). Would need a flag or a separate "create" entry point.
-- **Markdig converter — `WriteCellInline` / `WriteInline` unification** (left over from PR #15).
+- **`excel_export_ndjson`**, **`.csv.gz`** for `excel_export_csv`.
+- **v3 conversion-hints follow-ups**.
+- **Markdig converter** — Normal-style polish, `WriteCellInline` / `WriteInline` unification.
 
 ## How To Resume
 
@@ -48,21 +87,20 @@ Same shortlist as last session, plus a small style-pass follow-up:
 cd C:\Projects\mcpOffice
 git status
 git log --oneline -5
-dotnet build -c Release --nologo
-dotnet test -c Release --nologo
+dotnet build --nologo
+dotnet test --nologo
 ```
-
-Reference material:
-- Style-pass commit: `9c0afff` (`git show 9c0afff`).
-- TODO: `TODO.md`.
-- Architecture map: `ARCHITECTURE.md`.
-- Per-feature designs under `docs/plans/`.
 
 ## Operational note
 
-The MCP server picks up new code only when its process restarts. Twice this session the running server held a lock on `bin\Debug\net9.0\mcpOffice.dll`, blocking the rebuild. Pattern that worked:
+The MCP server picks up new code only when its process restarts, and while running it holds a lock
+on `bin\Debug\net9.0\mcpOffice.dll` that fails the build with `MSB3027`. This happened three times
+this session. Pattern that works:
 
 1. `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*mcpOffice*" }` — find PID.
-2. `taskkill //PID <pid> //F //T` — release the lock.
-3. `dotnet build src/mcpOffice -c Debug --nologo` — rebuild Debug (the registered MCP path).
+2. `Stop-Process -Id <pid> -Force` — release the lock.
+3. `dotnet build src/mcpOffice --nologo` — rebuild Debug (the registered MCP path).
 4. `/mcp` in Claude Code — reconnect, which respawns the server against the fresh DLL.
+
+Claude Code respawns the server automatically after a disconnect, so it can retake the lock between
+your kill and your build — kill and build in the *same* command.

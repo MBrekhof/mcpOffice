@@ -21,4 +21,7 @@ public static class ErrorCode
     public const string GraphTooLarge = "graph_too_large";
     public const string InvalidRenderOption = "invalid_render_option";
     public const string UnsupportedParadigm = "unsupported_paradigm";
+    public const string PasswordRequired = "password_required";
+    public const string PageNotFound = "page_not_found";
+    public const string InvalidPageRange = "invalid_page_range";
 }

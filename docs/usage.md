@@ -130,7 +130,29 @@ Excel macro tools:
 - `excel_extract_vba(path)`: returns raw VBA module source from `.xlsm` (in-process via OpenMcdf — no Excel install required). For `.xlsx` or workbooks without macros, returns `hasVbaProject=false`.
 - `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false)`: layered structural analysis on top of `excel_extract_vba` — procedures with signatures, event handlers, FQN-resolved call graph, Excel object-model references with literal-arg capture, and file/database/network/automation/shell dependency dispatch. Tiered output via toggles.
 
-All `path`, `inputPath`, `outputPath`, and `templatePath` values must be absolute Windows paths.
+PDF read tools:
+
+- `pdf_get_metadata(path)`: returns document properties, PDF version, permission flags, bookmark count, and per-page `{pageNumber, width, height, rotation}` in points (1/72 inch).
+- `pdf_read_text(path, pageRange?, preserveLayout=false, maxChars=200000)`: returns text per page. With `preserveLayout=true` the page is rebuilt as a fixed-width grid — the equivalent of `pdftotext -layout` — which is what keeps a column report readable; leave it off for prose.
+- `pdf_read_layout(path, pageRange?, granularity="line", includeFontInfo=false, maxWords=50000)`: returns positioned text. `granularity="word"` gives one entry per word, `"line"` groups words into visual lines.
+- `pdf_find_text(path, query, caseSensitive=false, wholeWords=false, maxResults=500)`: returns every match with page and bounding box.
+- `pdf_get_outline(path)`: returns the bookmark tree; empty when the PDF has none.
+
+PDF export tools:
+
+- `pdf_render_page(path, pageNumber, outputPath, dpi=150, format?, overwrite=false)`: renders one page to `png`, `jpg`/`jpeg`, `bmp`, `gif`, or `tiff`. Format is inferred from `outputPath` when omitted.
+- `pdf_extract_images(path, outputDirectory, pageRange?, minPixelSize=16, maxImages=200, overwrite=false)`: writes embedded raster images as `page{NNN}_img{NNN}.png` and reports where each sat on the page.
+
+**`pageRange`** accepts a comma-separated list of 1-based pages and inclusive spans: `"1"`, `"2-5"`,
+`"1,3,7-9"`, `"5-"` (to the last page). Omit it for every page.
+
+**PDF coordinates** are reported in points with the origin at the **top-left** of the page, so
+sorting by `y` ascending gives reading order. PDF's own coordinate system has the origin at the
+bottom-left; the flip is done for you.
+
+There is no PDF *writer* here — `word_convert` already produces PDFs from `.docx`.
+
+All `path`, `inputPath`, `outputPath`, `outputDirectory`, and `templatePath` values must be absolute Windows paths.
 
 ## Example Calls
 
@@ -251,10 +273,14 @@ Tool errors are returned as `McpException` messages prefixed with stable codes:
 - `[vba_project_missing]` — reserved for future strict mode of `excel_extract_vba`
 - `[vba_project_locked]` — VBA project is password-protected for viewing
 - `[vba_parse_error]` — OLE walk / MS-OVBA decompression / dir-record-walk failure
+- `[password_required]` — PDF: the document is encrypted
+- `[page_not_found]` — PDF: the requested page is outside the document
+- `[invalid_page_range]` — PDF: `pageRange` could not be parsed
+- `[invalid_render_option]` — PDF: `dpi` outside 12-1200 (also used by the callgraph renderer)
 
 ## Troubleshooting
 
-- If restore cannot find DevExpress packages, confirm DevExpress 25.2 is installed or update `nuget.config` to point at your installed offline package path.
+- If restore fails with `NU1301 The local source '...' doesn't exist`, the DevExpress feed path in `nuget.config` no longer matches the installed version. Point it at `C:\Program Files\DevExpress <major>\Components\System\Components\packages` and bump the `DevExpress.*` package versions in `src/mcpOffice` **and** `tests/mcpOffice.Tests` to match. Nothing in the repo compiles until both are aligned.
 - If VS Code cannot start the MCP server, run `dotnet build` and confirm `src\mcpOffice\bin\Debug\net9.0\mcpOffice.dll` exists.
 - If tool calls fail with `[invalid_path]`, pass an absolute path such as `C:\Docs\file.docx`.
 - If tool calls fail with `[file_not_found]`, confirm the MCP server process can access the file.

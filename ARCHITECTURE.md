@@ -38,8 +38,9 @@ Cross-cutting:
 | Health  | `Tools/PingTools`     | —                           | (none)      |
 | Word    | `Tools/WordTools`     | `Services/Word/WordDocumentService` | `word_`     |
 | Excel   | `Tools/ExcelTools`    | `Services/Excel/ExcelWorkbookService` | `excel_`    |
+| PDF     | `Tools/PdfTools`      | `Services/Pdf/PdfDocumentService`   | `pdf_`      |
 
-The Excel VBA pipeline lives under `Services/Excel/Vba/` and has more moving parts than the rest of the codebase — see "VBA pipeline" below.
+The Excel VBA pipeline lives under `Services/Excel/Vba/` and has more moving parts than the rest of the codebase — see "VBA pipeline" below. The PDF domain has its own wrinkle — see "PDF text positioning" below.
 
 ## Adding a new tool
 
@@ -109,9 +110,41 @@ A gated "real-world" benchmark exists for VBA analysis: `Excel/Vba/AirSampleAnal
 
 Strategy is regex-on-cleaned-source rather than a full VBA tokenizer. The Air.xlsm benchmark (107 modules, 938 call edges, 3040 object-model sites, ~115ms) is the evidence that this is sufficient. Revisit only if real-world ambiguity defeats the regex layer.
 
+## PDF text positioning
+
+A PDF is a list of glyph-drawing operations. It has no lines, no columns, and no reading
+order — those are things a renderer infers. Three small pure classes under `Services/Pdf/`
+own that inference, which is why they are unit-tested independently of any PDF:
+
+```
+PdfDocumentProcessor.NextWord()   -- forward-only cursor over the whole document
+        |                            (no per-page overload; unwanted pages are walked
+        v                             and dropped, still one pass)
+   PdfWordBox[]                   -- text + box, Y FLIPPED to a top-left origin so
+        |                            "sort by Y ascending" is reading order
+        v
+   LineGrouper                    -- clusters words whose vertical centres fall within
+        |                            0.6 x word height; tolerance scales with font size
+        v
+   PdfTextLine[]                  -- pdf_read_layout granularity="line" returns these
+        |
+        v
+   LayoutTextRenderer             -- places each word at round(x / medianCharWidth),
+                                     i.e. pdftotext -layout, for pdf_read_text
+                                     preserveLayout=true
+```
+
+The flip matters: DevExpress reports `Top` in PDF user space, where Y grows *upward* from the
+bottom of the page. Every DTO in `Models/Pdf*` documents the top-left convention.
+
+`preserveLayout` exists because `GetPageText` returns words in content-stream order with no
+horizontal padding, which collapses column-based reports — lab result sheets, invoices,
+anything originally printed as monospaced text — into ambiguous runs.
+
 ## DevExpress
 
-- Package: `DevExpress.Document.Processor` (server-side, no UI). `RichEditDocumentServer` for Word, `SpreadsheetControl`/Open XML walks for Excel.
+- Package: `DevExpress.Document.Processor` (server-side, no UI). `RichEditDocumentServer` for Word, `SpreadsheetControl`/Open XML walks for Excel, `PdfDocumentProcessor` for PDF.
+- `PdfDocumentProcessor` lives in `DevExpress.Docs.vXX.dll` (the Document.Processor package), **not** in `DevExpress.Pdf.Core` — that package holds the model types (`PdfDocument`, `PdfPage`, `PdfWord`, `PdfOrientedRectangle`).
 - Runtime license: `DevExpress_License.txt` at the repo root, gitignored.
 - NuGet: nuget.org + a local filesystem source at `C:\Program Files\DevExpress 25.2\...\packages` (key `DevExpressLocal` in `nuget.config`). No URL feed with a token — that prompts for credentials in VS.
 

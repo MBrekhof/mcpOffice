@@ -65,6 +65,18 @@ public static class ToolError
         Throw(ErrorCode.UnsupportedParadigm,
             $"Unsupported targetParadigm: {paradigm}. Supported values: {string.Join(", ", supported)}");
 
+    public static Exception PasswordRequired(string path) =>
+        Throw(ErrorCode.PasswordRequired, $"PDF is encrypted and needs a password: {path}");
+
+    public static Exception PageNotFound(int pageNumber, int pageCount) =>
+        Throw(ErrorCode.PageNotFound, $"Page {pageNumber} does not exist (document has {pageCount} page(s), numbered from 1).");
+
+    public static Exception InvalidPageRange(string range, string detail) =>
+        Throw(ErrorCode.InvalidPageRange, $"Could not parse pageRange '{range}': {detail}");
+
+    public static Exception UnsupportedImageFormat(string format) =>
+        Throw(ErrorCode.UnsupportedFormat, $"Unsupported image format: {format}. Use one of png, jpeg, jpg, bmp, gif, tiff.");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }

@@ -21,7 +21,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 
 ## Current Tools
 
-24 tools shipped: 1 ping + 15 Word + 8 Excel.
+34 tools shipped: 1 ping + 15 Word + 11 Excel + 7 PDF.
 
 ### Word
 
@@ -51,6 +51,21 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `excel_get_structure(path, includeSheets=true, includeFormulas=true, includeDefinedNames=true)` — workbook rollup sized for huge workbooks.
 - `excel_extract_vba(path)` — static VBA module source via in-process MS-OVBA decompression (no Excel install required).
 - `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false, moduleName?)` — structural analysis on top of the extracted source: procedures with signatures, event handlers, call graph (with intra-workbook resolution), Excel object-model references, and external dependencies (file/DB/network/automation/shell). Pass `moduleName` to scope the heavy arrays to a single module on large workbooks; the summary stays whole-workbook.
+- `excel_export_csv(path, outputPath, sheetName?, sheetIndex?, range?, overwrite=false, maxRows=1048576, trimTrailingEmptyRows=false)` — streams a sheet to RFC 4180 CSV for pandas/polars.
+- `excel_render_vba_callgraph(path, format="mermaid", moduleName?, procedureName?, depth=2, direction="both", layout="clustered", maxNodes=300)` — call graph as Mermaid or DOT.
+- `excel_suggest_vba_conversion(path, moduleName?, targetParadigm?)` — per-procedure conversion hints plus module coupling.
+
+### PDF
+
+- `pdf_get_metadata(path)` — title/author/subject/keywords/creator/producer, dates, PDF version, permission flags, bookmark count, and per-page width/height/rotation in points.
+- `pdf_read_text(path, pageRange?, preserveLayout=false, maxChars=200000)` — text per page. `preserveLayout=true` rebuilds the fixed-width grid (like `pdftotext -layout`) so column reports stay aligned and sliceable by character position.
+- `pdf_read_layout(path, pageRange?, granularity="line", includeFontInfo=false, maxWords=50000)` — positioned text: every word or visual line with x/y/width/height, **origin top-left** so sorting by y ascending is reading order.
+- `pdf_find_text(path, query, caseSensitive=false, wholeWords=false, maxResults=500)` — every match with its page and bounding box.
+- `pdf_render_page(path, pageNumber, outputPath, dpi=150, format?, overwrite=false)` — render a page to png/jpg/bmp/gif/tiff, for scanned PDFs or when extracted text is ambiguous.
+- `pdf_extract_images(path, outputDirectory, pageRange?, minPixelSize=16, maxImages=200, overwrite=false)` — embedded raster images to PNG, with their placement on the page.
+- `pdf_get_outline(path)` — bookmark tree as nested `{title, level, pageNumber, children}`.
+
+`pageRange` accepts `"1"`, `"2-5"`, `"1,3,7-9"` and `"5-"` (to the end); omit it for every page.
 
 ### Other
 
@@ -85,14 +100,24 @@ Extract VBA modules from a macro-enabled workbook:
 }
 ```
 
+Read a column-based report out of a PDF with its layout intact:
+
+```json
+{
+  "path": "C:\\Reports\\overzichtsrapport.pdf",
+  "pageRange": "1-3",
+  "preserveLayout": true
+}
+```
+
 ## Roadmap
 
 1. **Word POC** — read / write / convert .docx ✓
 2. **Excel POC** — read sheets, list formulas/structure/defined names, extract VBA ✓
 3. **`excel_analyze_vba` v1** — call graph, event handlers, Excel object-model refs, external dependencies ✓
 4. **`excel_analyze_vba` v2** — conversion hints (procedure role classification, suggested C# equivalents, DOT/Mermaid call-graph rendering, cross-module coupling score).
-5. PowerPoint (.pptx).
-6. PDF.
+5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
+6. PowerPoint (.pptx).
 
 ## Built With
 
