@@ -22,7 +22,9 @@ Sources of truth (loaded on demand via @import):
 
 ## DevExpress feed and license
 
-- `nuget.config` references **nuget.org** plus a **local filesystem source** at `C:\Program Files\DevExpress 25.2\Components\System\Components\packages` (key `DevExpressLocal`). Local path = no URL token, no VS credential prompt. Public packages still come from nuget.org; the local source is a fallback for licensed-only packages if added later.
+- `nuget.config` references **nuget.org** plus a **local filesystem source** at `C:\Program Files\DevExpress 26.1\Components\System\Components\packages` (key `DevExpressLocal`). Local path = no URL token, no VS credential prompt. Public packages still come from nuget.org; the local source is a fallback for licensed-only packages if added later.
+- **The feed path is version-pinned and NuGet local sources take no wildcard.** Upgrading the DevExpress installer deletes the old folder, and then *every* restore in the repo dies with `NU1301 the local source '...' doesn't exist` — nothing compiles, including tests. When that happens, repoint `nuget.config` **and** the `DevExpress.*` `PackageReference` versions (in `src/mcpOffice` *and* `tests/mcpOffice.Tests`) to the installed major in the same commit. This bit the repo once already: it sat on 25.2.5 after the machine moved to 26.1 (fixed 2026-08-20).
+- Packages resolve out of the installer's **fallback folder** (`C:\Program Files\DevExpress 26.1\Components\Offline Packages`), not `~/.nuget/packages` — so don't conclude a DevExpress package is missing just because the global cache has no folder for it.
 - Don't add `https://nuget.devexpress.com/<token>/...` URL feeds with a `%DXNUGET_KEY%` placeholder — VS prompts for credentials when the env var isn't persisted at User scope. If a remote licensed feed is truly needed, embed the token directly in the URL.
 - `DevExpress_License.txt` (gitignored, repo root) — **runtime license**, the long base64 blob. Separate from any feed token. Tests currently call `RichEditDocumentServer` without an explicit license and pass (trial mode). Bake in via `licenses.licx` once non-trial features are exercised.
 
