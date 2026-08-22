@@ -10,7 +10,7 @@ Sources of truth (loaded on demand via @import):
 
 - @ARCHITECTURE.md — layer map, domains, tool-adding pattern, error model, VBA pipeline.
 - @SESSION_HANDOFF.md — current branch state, completed tasks, next step.
-- @TODO.md — pending work.
+- **Open work lives on ContextBoard** (project `mcpOffice`, id 27) — `list_cards` / `get_card`. This repo is **board-only** since 2026-08-22: never create `TODO.md` or `DOCS/DONE.md` (the server refuses file-sync pushes for this project).
 - @docs/plans/2026-04-30-mcpoffice-word-poc-plan.md — TDD task list (26 tasks, exact code for each).
 - @docs/plans/2026-04-30-mcpoffice-word-poc-design.md — tool surface, error codes, design decisions.
 

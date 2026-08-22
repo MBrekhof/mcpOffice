@@ -1,10 +1,10 @@
 ---
 name: handoff
-description: Refresh SESSION_HANDOFF.md and TODO.md with current branch state, completed plan tasks, and next step. Use at end of session.
+description: Refresh SESSION_HANDOFF.md with current branch state and next step, and reconcile open work on the ContextBoard (board-only since 2026-08-22 — never create TODO.md). Use at end of session.
 disable-model-invocation: true
 ---
 
-Update two files at the repo root: `SESSION_HANDOFF.md` and `TODO.md`. Create `TODO.md` if it doesn't exist.
+Update one file at the repo root: `SESSION_HANDOFF.md`. Task state lives on **ContextBoard** (project `mcpOffice`, id 27) — this repo is **board-only** since 2026-08-22. **Never create `TODO.md` or `DOCS/DONE.md`**: the server refuses file-sync pushes for this project (`FileSyncClosed`), so a recreated file would sync nothing and desync the clone.
 
 ## Step 1 — gather state
 
@@ -14,9 +14,7 @@ Run in parallel:
 - `git log --oneline -10`
 - `git branch --show-current`
 
-Read `docs/plans/2026-04-30-mcpoffice-word-poc-plan.md` to identify which tasks are ✅ (already done in commits/code) and which is the next ⬜.
-
-Read existing `SESSION_HANDOFF.md` and `TODO.md` (if present) so you don't drop context the user added by hand.
+Read existing `SESSION_HANDOFF.md` so you don't drop context the user added by hand. Call `list_cards` (projectId 27) for the open work; `get_card` for any body you need.
 
 ## Step 2 — rewrite SESSION_HANDOFF.md
 
@@ -30,11 +28,6 @@ Use this section structure:
 **Branch:** `<branch>` (and pushed status)
 **Latest commit:** `<sha>` <subject>
 
-Plan tasks:
-✅ Task N — <one-liner>
-⬜ Task M — <one-liner>
-…
-
 ## Decisions made autonomously
 
 <only if non-trivial — design choices, deviations from the plan, things future-you needs to know that aren't obvious from the diff>
@@ -45,7 +38,7 @@ Plan tasks:
 
 ## What's next
 
-<the next ⬜ task with a 1–2 sentence summary, plus any prerequisite>
+<the next card(s) by AREA-NNN id with a 1–2 sentence summary, plus any prerequisite>
 
 ## How to resume
 
@@ -57,32 +50,12 @@ dotnet test
 ​```
 ```
 
-## Step 3 — maintain TODO.md
+## Step 3 — reconcile the board
 
-If TODO.md doesn't exist, create it:
-
-```
-# TODO
-
-Pending work for mcpOffice. Pulled from docs/plans/2026-04-30-mcpoffice-word-poc-plan.md plus session-level items.
-
-## Plan tasks
-
-- [x] Task 1 — …
-- [ ] Task N — …
-
-## Side items
-
-- [ ] <e.g., wire DevExpress runtime license via licenses.licx>
-- [ ] <e.g., drop DevExpress feed from nuget.config>
-```
-
-If TODO.md already exists:
-
-- Update checkbox state to match reality (`[ ]` → `[x]` for tasks now done).
-- Add new pending items raised in this session under **Side items** if they aren't already in the plan.
-- Don't delete completed items in the same session unless asked — they show momentum.
+- Work finished this session: `complete_card` with a `conclusion` that cites the closing commit SHA(s).
+- New follow-ups raised this session: `add_card` (project 27) with an `AREA-NNN:` title, a type tag, and a body that carries the context (file refs, evidence, plan). Refer to cards by that id in the handoff.
+- Bodies that changed: `update_card`. Don't retitle or move cards here unless asked.
 
 ## Bounds
 
-Don't change anything else in the repo. No code edits, no plan-doc edits, no commits. Just rewrite these two files and report what changed in 2–3 lines.
+Don't change anything else in the repo. No code edits, no plan-doc edits, no commits. Rewrite the handoff, reconcile the board, and report what changed in 2–3 lines.

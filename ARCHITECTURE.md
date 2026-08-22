@@ -1,6 +1,6 @@
 # Architecture
 
-A landing-page map of mcpOffice. Stable content only — counts, status, and task lists live in `SESSION_HANDOFF.md` and `TODO.md`. Per-feature design lives in `docs/plans/`.
+A landing-page map of mcpOffice. Stable content only — counts and status live in `SESSION_HANDOFF.md`; open work lives on ContextBoard (project `mcpOffice`). Per-feature design lives in `docs/plans/`.
 
 ## What it is
 
@@ -161,7 +161,7 @@ anything originally printed as monospaced text — into ambiguous runs.
 | You want to know...                           | Look at                                              |
 |-----------------------------------------------|------------------------------------------------------|
 | Current branch state, last session            | `SESSION_HANDOFF.md`                                 |
-| What's pending                                | `TODO.md`                                            |
+| What's pending                                | ContextBoard, project `mcpOffice` (`list_cards`)     |
 | Why a feature is shaped the way it is         | `docs/plans/<date>-<feature>-design.md`              |
 | How a feature was built                       | `docs/plans/<date>-<feature>-plan.md`                |
 | How to wire the server into Claude Code       | `docs/usage.md`                                      |

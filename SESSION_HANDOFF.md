@@ -19,16 +19,21 @@ The PDF tools branch from 2026-08-20 is merged — it landed on `main` as `6d835
 ## Outstanding — Action Required
 
 - **`.mcp.json` now points at `bin\Debug\net10.0\mcpOffice.dll`.** Claude Code reads `.mcp.json` at session start, so the `office` server needs a **session restart** (not just `/mcp`) on each machine to pick up the new path. Until then clients see whatever DLL the old path still holds.
-- **Other machine:** `git pull` before working — it is behind by the docs commit and this one.
+- **Other machine:** `git pull` before working. Its clone still has `TODO.md`; until it pulls, the sync hook prints the BOARD-ONLY refusal — that's the guard working, not an error to fix by re-adding the file.
 
 ## Next Up
 
-Unchanged shortlist; PDF follow-ups are under "PDF tools — deferred follow-ups" in `TODO.md`.
+**Task state is board-only as of this session.** ContextBoard project `mcpOffice` (id 27): `TODO.md`
+deleted, `FileSyncClosed` set on the VPS (refusal proven: `fileSyncClosed: true, updated: 0`), 25
+backlog cards minted from the file's items — VBA-001…010, CSV-001…004, MD-001/002, PDF-001…006,
+WORD-001/002, EXCEL-001/002, CHORE-001. `list_cards` is the source of truth; the `/handoff` skill
+was rewritten to reconcile the board instead of the file. Shortlist by card:
 
-- **`excel_export_ndjson`**, **`.csv.gz`** for `excel_export_csv`.
-- **v3 conversion-hints follow-ups** (cluster detection, paradigm overlays, pagination).
-- **Markdig converter** — Normal-style polish, `WriteCellInline` / `WriteInline` unification.
-- **PowerPoint (.pptx)** — next domain per the README roadmap; no design doc yet.
+- **WORD-001** — `overwrite` parameter on `word_mail_merge` (Todo, 0.5h; the only card not in Backlog).
+- **CSV-001** `excel_export_ndjson`, **CSV-002** `.csv.gz`.
+- **VBA-006** `file → filesystem` schema drift and **VBA-007** `mdl` module prefix — the two real bugs in the backlog.
+- **MD-001** `WriteCellInline` / `WriteInline` unification, **MD-002** Normal-style polish.
+- **PowerPoint (.pptx)** — next domain per the README roadmap; no design doc and no card yet.
 
 ## How To Resume
 
