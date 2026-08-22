@@ -26,6 +26,11 @@ Completed milestones (Word POC, Excel POC, analyzer v1/v2/v3, export_csv, Markdi
 - [ ] **Unify `WriteCellInline` and `WriteInline`.** `WriteCellInline` mirrors all of `WriteInline`'s case logic with cursor-based anchoring instead of `para.Range.End`. New inline types currently need adding in both places. Refactor via a small writer abstraction (e.g. an `IInlineSink` with `Insert(text)` returning a `DocumentRange`) so the case logic lives in one place.
 - [ ] **Normal-style polish for `word_create_from_markdown`.** Setting Calibri 11pt / 1.15 line spacing / 8pt SpacingAfter as document defaults would tighten body text. Skipped during the 2026-05-13 heading style pass because `MarkdownToDocxConverter.Apply()` is also called by `word_append_markdown` (mustn't fight an existing doc's Normal style). Either gate via a flag passed through the service, or split into `Apply` (append-safe) vs `ApplyToFreshDocument` (mutates defaults).
 
+## Word tools — deferred follow-ups
+
+- [ ] **`word_mail_merge` — add `overwrite` parameter.** (ID: 1367)
+  It calls `PathGuard.RequireWritable(outputPath, overwrite: false)` with no override, so regenerating into the same path fails with `file_exists`; `word_create_blank` / `word_create_from_markdown` / `word_convert` already expose `overwrite=false`. Surfaced 2026-08-22 by the "menus as mail-merge renders" use case (CSV price list → `word_mail_merge` → `word_convert`, regenerated every run). Plan: `bool overwrite = false` through `IWordDocumentService.MailMerge`, the impl, and the tool parameter; one unit test merging twice to the same path. Tool name unchanged, so `ToolSurfaceTests` is untouched.
+
 ## PDF tools — deferred follow-ups
 
 - [ ] **Table extraction (`pdf_extract_tables`).** Needs column-boundary inference on top of `LineGrouper` — clustering word x-positions across a page into column stops. Guesswork on unruled reports, which is why v1 stops at `pdf_read_layout`. Do it only when a caller has a report shape worth targeting.
