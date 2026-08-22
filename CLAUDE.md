@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-mcpOffice — MCP server (stdio) exposing Office document tools, written in C# / .NET 9. Currently in POC phase: Word tools first, Excel/PowerPoint later.
+mcpOffice — MCP server (stdio) exposing Office document tools, written in C# / .NET 10. Word, Excel and PDF domains are shipped; PowerPoint is next.
 
 Sources of truth (loaded on demand via @import):
 

@@ -1,6 +1,6 @@
 # mcpOffice
 
-An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 9) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
+An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
 **Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 34 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
 

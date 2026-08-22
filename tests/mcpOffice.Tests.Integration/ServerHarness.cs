@@ -16,7 +16,7 @@ public sealed class ServerHarness : IAsyncDisposable
             "mcpOffice",
             "bin",
             "Debug",
-            "net9.0",
+            "net10.0",
             "mcpOffice.dll");
 
         if (!File.Exists(serverDll))

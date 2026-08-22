@@ -2,14 +2,14 @@
 
 ## Requirements
 
-- .NET 9 SDK
-- DevExpress 25.2 installed locally
+- .NET 10 SDK
+- DevExpress 26.1 installed locally
 - DevExpress license file kept outside source control
 
 This repo currently restores DevExpress packages from the local offline package source installed at:
 
 ```text
-C:\Program Files\DevExpress 25.2\Components\System\Components\packages
+C:\Program Files\DevExpress 26.1\Components\System\Components\packages
 ```
 
 ## Build And Test
@@ -39,7 +39,7 @@ VS Code workspace config is already committed at `.vscode/mcp.json`. It starts t
       "type": "stdio",
       "command": "dotnet",
       "args": [
-        "${workspaceFolder}/src/mcpOffice/bin/Debug/net9.0/mcpOffice.dll"
+        "${workspaceFolder}/src/mcpOffice/bin/Debug/net10.0/mcpOffice.dll"
       ]
     }
   }
@@ -54,7 +54,7 @@ Claude Code config is committed at `.mcp.json` at the repo root. It uses the sam
     "office": {
       "command": "dotnet",
       "args": [
-        "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Debug\\net9.0\\mcpOffice.dll"
+        "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Debug\\net10.0\\mcpOffice.dll"
       ]
     }
   }
@@ -74,7 +74,7 @@ dotnet publish C:\Projects\mcpOffice\src\mcpOffice -c Release -r win-x64 --self-
 The published executable is created under:
 
 ```text
-C:\Projects\mcpOffice\src\mcpOffice\bin\Release\net9.0\win-x64\publish\mcpOffice.exe
+C:\Projects\mcpOffice\src\mcpOffice\bin\Release\net10.0\win-x64\publish\mcpOffice.exe
 ```
 
 Generic MCP client entry for the published executable:
@@ -83,7 +83,7 @@ Generic MCP client entry for the published executable:
 {
   "mcpServers": {
     "office": {
-      "command": "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Release\\net9.0\\win-x64\\publish\\mcpOffice.exe"
+      "command": "C:\\Projects\\mcpOffice\\src\\mcpOffice\\bin\\Release\\net10.0\\win-x64\\publish\\mcpOffice.exe"
     }
   }
 }
@@ -281,7 +281,7 @@ Tool errors are returned as `McpException` messages prefixed with stable codes:
 ## Troubleshooting
 
 - If restore fails with `NU1301 The local source '...' doesn't exist`, the DevExpress feed path in `nuget.config` no longer matches the installed version. Point it at `C:\Program Files\DevExpress <major>\Components\System\Components\packages` and bump the `DevExpress.*` package versions in `src/mcpOffice` **and** `tests/mcpOffice.Tests` to match. Nothing in the repo compiles until both are aligned.
-- If VS Code cannot start the MCP server, run `dotnet build` and confirm `src\mcpOffice\bin\Debug\net9.0\mcpOffice.dll` exists.
+- If VS Code cannot start the MCP server, run `dotnet build` and confirm `src\mcpOffice\bin\Debug\net10.0\mcpOffice.dll` exists.
 - If tool calls fail with `[invalid_path]`, pass an absolute path such as `C:\Docs\file.docx`.
 - If tool calls fail with `[file_not_found]`, confirm the MCP server process can access the file.
 - If output calls fail with `[file_exists]`, use a different output path or pass `overwrite=true` where the tool supports it.

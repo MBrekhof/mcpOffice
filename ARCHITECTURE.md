@@ -4,7 +4,7 @@ A landing-page map of mcpOffice. Stable content only — counts, status, and tas
 
 ## What it is
 
-A stdio MCP server (.NET 9, C#) that exposes Office-document operations as tools. Stateless: every tool call takes an absolute file path, performs one operation, returns. No session handles, no open-document lifecycle for the agent to manage.
+A stdio MCP server (.NET 10, C#) that exposes Office-document operations as tools. Stateless: every tool call takes an absolute file path, performs one operation, returns. No session handles, no open-document lifecycle for the agent to manage.
 
 ## Layers
 
