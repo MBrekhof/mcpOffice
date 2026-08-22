@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 9) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx) and Excel (.xlsx / .xlsm) POCs are complete, including `excel_analyze_vba` v1 (procedures, event handlers, call graph, object-model references, file/DB/network/automation/shell dependencies). Next: `excel_analyze_vba` v2 — conversion hints toward Excel-to-C# migration tooling.
+**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 34 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
 
 ## Architecture
 
@@ -12,12 +12,16 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 
 ## Documents
 
-- [Architecture](ARCHITECTURE.md) — layer map, domains, tool-adding pattern, error model, VBA pipeline diagram.
+- [Architecture](ARCHITECTURE.md) — layer map, domains, tool-adding pattern, error model, VBA pipeline and PDF text-positioning diagrams.
 - [Usage](docs/usage.md) — build, run, MCP client config, sample calls, troubleshooting.
 - [Word design](docs/plans/2026-04-30-mcpoffice-word-poc-design.md) — Word tool surface, error model.
 - [Word implementation plan](docs/plans/2026-04-30-mcpoffice-word-poc-plan.md) — task-by-task TDD plan.
+- [Markdown-to-docx design](docs/plans/2026-05-07-mcpoffice-markdown-to-docx-markdig-design.md) — Markdig-based converter behind `word_create_from_markdown` / `word_append_markdown`.
 - [Excel design](docs/plans/2026-05-01-mcpoffice-excel-poc-design.md) — Excel tool surface and rationale.
 - [VBA extraction plan](docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md) — MS-OVBA decompression, OpenMcdf walking.
+- [VBA analysis design](docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md) and [v3 conversion hints](docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md).
+- [CSV export design](docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md) — streaming `excel_export_csv`.
+- [PDF tools design](docs/plans/2026-08-20-pdf-tools-design.md) — `pdf_` surface, top-left coordinate convention, layout reconstruction.
 
 ## Current Tools
 
@@ -122,6 +126,6 @@ Read a column-based report out of a PDF with its layout intact:
 ## Built With
 
 - [`ModelContextProtocol`](https://github.com/modelcontextprotocol/csharp-sdk) — C# MCP SDK.
-- DevExpress RichEdit / Spreadsheet / Office File API packages — server-side document APIs.
-- [`MarkdownToDocxGenerator`](https://www.nuget.org/packages/MarkdownToDocxGenerator) — richer Markdown-to-DOCX import.
+- DevExpress `Document.Processor` 26.1 — server-side RichEdit / Spreadsheet / PDF APIs.
+- [`Markdig`](https://github.com/xoofx/markdig) — Markdown parser behind the Markdown-to-DOCX converter.
 - [`OpenMcdf`](https://www.nuget.org/packages/OpenMcdf) — OLE compound file reader for VBA project extraction.

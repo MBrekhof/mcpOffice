@@ -6,7 +6,7 @@
     {
       "id": "title",
       "type": "text",
-      "x": 380,
+      "x": 480,
       "y": 10,
       "width": 460,
       "height": 36,
@@ -20,7 +20,7 @@
     {
       "id": "agent",
       "type": "rectangle",
-      "x": 400,
+      "x": 500,
       "y": 70,
       "width": 420,
       "height": 70,
@@ -37,7 +37,7 @@
     {
       "id": "host",
       "type": "rectangle",
-      "x": 360,
+      "x": 460,
       "y": 220,
       "width": 500,
       "height": 70,
@@ -54,58 +54,75 @@
     {
       "id": "ping-tools",
       "type": "rectangle",
-      "x": 60,
+      "x": 40,
       "y": 380,
-      "width": 240,
+      "width": 200,
       "height": 70,
       "backgroundColor": "#c8e6c9",
-      "strokeColor": "#1b5e20",
+      "strokeColor": "#2e7d32",
       "label": {
         "text": "Tools/PingTools"
       },
       "fontSize": 16,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "word-tools",
       "type": "rectangle",
-      "x": 360,
+      "x": 280,
       "y": 380,
       "width": 260,
       "height": 70,
       "backgroundColor": "#c8e6c9",
-      "strokeColor": "#1b5e20",
+      "strokeColor": "#2e7d32",
       "label": {
         "text": "Tools/WordTools  (15)"
       },
       "fontSize": 16,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "excel-tools",
       "type": "rectangle",
-      "x": 680,
+      "x": 580,
       "y": 380,
       "width": 280,
       "height": 70,
       "backgroundColor": "#c8e6c9",
-      "strokeColor": "#1b5e20",
+      "strokeColor": "#2e7d32",
       "label": {
-        "text": "Tools/ExcelTools  (9)"
+        "text": "Tools/ExcelTools  (11)"
       },
       "fontSize": 16,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "pdf-tools",
+      "type": "rectangle",
+      "x": 900,
+      "y": 380,
+      "width": 260,
+      "height": 70,
+      "backgroundColor": "#c8e6c9",
+      "strokeColor": "#2e7d32",
+      "label": {
+        "text": "Tools/PdfTools  (7)"
+      },
+      "fontSize": 16,
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "word-svc",
       "type": "rectangle",
-      "x": 360,
+      "x": 280,
       "y": 540,
       "width": 260,
       "height": 80,
@@ -115,25 +132,42 @@
         "text": "Services/Word\nWordDocumentService"
       },
       "fontSize": 15,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "excel-svc",
       "type": "rectangle",
-      "x": 680,
+      "x": 580,
       "y": 540,
       "width": 280,
       "height": 80,
       "backgroundColor": "#ffe0b2",
       "strokeColor": "#e65100",
       "label": {
-        "text": "Services/Excel\nExcelWorkbookService + VBA pipeline"
+        "text": "Services/Excel\nExcelWorkbookService +\nVBA pipeline"
       },
       "fontSize": 14,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "pdf-svc",
+      "type": "rectangle",
+      "x": 900,
+      "y": 540,
+      "width": 260,
+      "height": 80,
+      "backgroundColor": "#ffe0b2",
+      "strokeColor": "#e65100",
+      "label": {
+        "text": "Services/Pdf\nPdfDocumentService +\nlayout pipeline"
+      },
+      "fontSize": 14,
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
@@ -141,58 +175,76 @@
       "type": "rectangle",
       "x": 200,
       "y": 720,
-      "width": 760,
+      "width": 960,
       "height": 80,
       "backgroundColor": "#e1bee7",
-      "strokeColor": "#4a148c",
+      "strokeColor": "#6a1b9a",
       "label": {
-        "text": "DevExpress.Document.Processor\n(RichEditDocumentServer • SpreadsheetControl • Open XML)"
+        "text": "DevExpress.Document.Processor\n(RichEditDocumentServer • SpreadsheetControl • Open XML • PdfDocumentProcessor)"
       },
       "fontSize": 16,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "docx-file",
       "type": "rectangle",
-      "x": 280,
+      "x": 200,
       "y": 870,
-      "width": 280,
+      "width": 240,
       "height": 70,
       "backgroundColor": "#eceff1",
-      "strokeColor": "#37474f",
-      "strokeStyle": "dashed",
+      "strokeColor": "#546e7a",
       "label": {
         "text": ".docx"
       },
       "fontSize": 18,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
-      "version": 1
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1,
+      "strokeStyle": "dashed"
     },
     {
       "id": "xlsx-file",
       "type": "rectangle",
-      "x": 600,
+      "x": 500,
       "y": 870,
-      "width": 360,
+      "width": 340,
       "height": 70,
       "backgroundColor": "#eceff1",
-      "strokeColor": "#37474f",
-      "strokeStyle": "dashed",
+      "strokeColor": "#546e7a",
       "label": {
         "text": ".xlsx  /  .xlsm  (incl. VBA)"
       },
       "fontSize": 18,
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
-      "version": 1
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1,
+      "strokeStyle": "dashed"
     },
     {
-      "id": "moue8zobuv8jq3fjnar",
+      "id": "pdf-file",
+      "type": "rectangle",
+      "x": 900,
+      "y": 870,
+      "width": 260,
+      "height": 70,
+      "backgroundColor": "#eceff1",
+      "strokeColor": "#546e7a",
+      "label": {
+        "text": ".pdf"
+      },
+      "fontSize": 18,
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1,
+      "strokeStyle": "dashed"
+    },
+    {
+      "id": "a-agent-host",
       "type": "arrow",
-      "x": 610,
+      "x": 710,
       "y": 148,
       "points": [
         [
@@ -212,14 +264,14 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
       "id": "moue8zobvnk5cn3oik",
       "type": "text",
-      "x": 620,
+      "x": 720,
       "y": 165,
       "width": 180,
       "height": 24,
@@ -231,18 +283,18 @@
       "version": 1
     },
     {
-      "id": "moue8zobvgzgamlhw9f",
+      "id": "a-host-ping",
       "type": "arrow",
-      "x": 508.4397251915395,
-      "y": 292.78986969617137,
+      "x": 560,
+      "y": 292,
       "points": [
         [
           0,
           0
         ],
         [
-          -226.87945038307896,
-          84.42026060765727
+          -400,
+          86
         ]
       ],
       "start": {
@@ -253,23 +305,23 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobm2kwl5u5u0s",
+      "id": "a-host-word",
       "type": "arrow",
-      "x": 578.95,
-      "y": 296.4,
+      "x": 660,
+      "y": 296,
       "points": [
         [
           0,
           0
         ],
         [
-          -57.90000000000009,
-          77.20000000000005
+          -230,
+          82
         ]
       ],
       "start": {
@@ -280,23 +332,23 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobbio4cl5141a",
+      "id": "a-host-excel",
       "type": "arrow",
-      "x": 662.30095376026,
-      "y": 294.84834572210286,
+      "x": 720,
+      "y": 294,
       "points": [
         [
           0,
           0
         ],
         [
-          105.39809247948006,
-          80.30330855579427
+          10,
+          84
         ]
       ],
       "start": {
@@ -307,14 +359,41 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobtmbwidphp1m",
+      "id": "a-host-pdf",
       "type": "arrow",
-      "x": 490,
+      "x": 800,
+      "y": 294,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          230,
+          84
+        ]
+      ],
+      "start": {
+        "id": "host"
+      },
+      "end": {
+        "id": "pdf-tools"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "a-word",
+      "type": "arrow",
+      "x": 410,
       "y": 458,
       "points": [
         [
@@ -323,7 +402,7 @@
         ],
         [
           0,
-          74
+          80
         ]
       ],
       "start": {
@@ -334,14 +413,14 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobx4ox2nuqm9o",
+      "id": "a-excel",
       "type": "arrow",
-      "x": 820,
+      "x": 720,
       "y": 458,
       "points": [
         [
@@ -350,7 +429,7 @@
         ],
         [
           0,
-          74
+          80
         ]
       ],
       "start": {
@@ -361,23 +440,50 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobj1s56b88vq",
+      "id": "a-pdf",
       "type": "arrow",
-      "x": 513.5777087639997,
-      "y": 627.1554175279994,
+      "x": 1030,
+      "y": 458,
       "points": [
         [
           0,
           0
         ],
         [
-          42.84458247200064,
-          85.68916494400128
+          0,
+          80
+        ]
+      ],
+      "start": {
+        "id": "pdf-tools"
+      },
+      "end": {
+        "id": "pdf-svc"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "a-word-dx",
+      "type": "arrow",
+      "x": 430,
+      "y": 627,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          100,
+          90
         ]
       ],
       "start": {
@@ -388,23 +494,23 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobllaizcut14g",
+      "id": "a-excel-dx",
       "type": "arrow",
-      "x": 760.2666666666667,
-      "y": 624.8,
+      "x": 720,
+      "y": 624,
       "points": [
         [
           0,
           0
         ],
         [
-          -120.5333333333333,
-          90.40000000000009
+          0,
+          94
         ]
       ],
       "start": {
@@ -415,23 +521,50 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zob3w4tfwij0ja",
+      "id": "a-pdf-dx",
       "type": "arrow",
-      "x": 529.9341733540293,
-      "y": 805.3721553979109,
+      "x": 1010,
+      "y": 624,
       "points": [
         [
           0,
           0
         ],
         [
-          -65.385588087369,
-          59.255689204178225
+          -100,
+          94
+        ]
+      ],
+      "start": {
+        "id": "pdf-svc"
+      },
+      "end": {
+        "id": "devex"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "a-dx-docx",
+      "type": "arrow",
+      "x": 460,
+      "y": 805,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -100,
+          62
         ]
       ],
       "start": {
@@ -442,23 +575,23 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     },
     {
-      "id": "moue8zobvtdi3onnvc7",
+      "id": "a-dx-xlsx",
       "type": "arrow",
-      "x": 641.6492973402586,
-      "y": 804.6957405716875,
+      "x": 680,
+      "y": 804,
       "points": [
         [
           0,
           0
         ],
         [
-          83.5979570436208,
-          60.608518856625096
+          -10,
+          64
         ]
       ],
       "start": {
@@ -469,8 +602,35 @@
       },
       "startArrowhead": "arrow",
       "endArrowhead": "arrow",
-      "createdAt": "2026-05-06T18:31:45.572Z",
-      "updatedAt": "2026-05-06T18:31:45.572Z",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "a-dx-pdf",
+      "type": "arrow",
+      "x": 960,
+      "y": 804,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          70,
+          64
+        ]
+      ],
+      "start": {
+        "id": "devex"
+      },
+      "end": {
+        "id": "pdf-file"
+      },
+      "startArrowhead": "arrow",
+      "endArrowhead": "arrow",
+      "createdAt": "2026-08-22T00:00:00.000Z",
+      "updatedAt": "2026-08-22T00:00:00.000Z",
       "version": 1
     }
   ],

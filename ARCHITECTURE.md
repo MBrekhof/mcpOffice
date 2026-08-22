@@ -146,7 +146,7 @@ anything originally printed as monospaced text — into ambiguous runs.
 - Package: `DevExpress.Document.Processor` (server-side, no UI). `RichEditDocumentServer` for Word, `SpreadsheetControl`/Open XML walks for Excel, `PdfDocumentProcessor` for PDF.
 - `PdfDocumentProcessor` lives in `DevExpress.Docs.vXX.dll` (the Document.Processor package), **not** in `DevExpress.Pdf.Core` — that package holds the model types (`PdfDocument`, `PdfPage`, `PdfWord`, `PdfOrientedRectangle`).
 - Runtime license: `DevExpress_License.txt` at the repo root, gitignored.
-- NuGet: nuget.org + a local filesystem source at `C:\Program Files\DevExpress 25.2\...\packages` (key `DevExpressLocal` in `nuget.config`). No URL feed with a token — that prompts for credentials in VS.
+- NuGet: nuget.org + a local filesystem source at `C:\Program Files\DevExpress 26.1\...\packages` (key `DevExpressLocal` in `nuget.config`). No URL feed with a token — that prompts for credentials in VS.
 
 ## What this architecture deliberately does not do
 
