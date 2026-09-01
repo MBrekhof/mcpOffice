@@ -407,6 +407,49 @@ internal static class MarkdownToDocxConverter
             _position = inserted.End;
     }
 
+    // RichEdit keeps a font name per script slot (ASCII, high-ANSI, complex script, East Asian).
+    // Setting FontName writes all of them; resetting only CharacterPropertiesMask.FontName leaves
+    // the slots set, which is why the e6db964 fix never took (MD-003). Reset every slot.
+    private const CharacterPropertiesMask InheritedRunMask =
+        CharacterPropertiesMask.FontName
+        | CharacterPropertiesMask.FontNameAscii
+        | CharacterPropertiesMask.FontNameHighAnsi
+        | CharacterPropertiesMask.FontNameComplexScript
+        | CharacterPropertiesMask.FontNameEastAsia
+        | CharacterPropertiesMask.FontSize
+        | CharacterPropertiesMask.BackColor;
+
+    /// <summary>
+    /// The single append point for inline text. RichEdit extends the run to the left on insert,
+    /// so every new run inherits that run's direct formatting (Consolas after a code span, etc.).
+    /// Clear it here and apply only what this run should have: the emphasis context, plus the
+    /// monospace face for <paramref name="code"/> runs. Every inline that inserts text must go
+    /// through this method — see CLAUDE.md "RichEdit inherits everything".
+    /// </summary>
+    private static DocumentRange InsertRun(ConversionContext ctx, DocumentPosition at, string text, bool code = false)
+    {
+        var doc = ctx.Document;
+        var inserted = doc.InsertText(at, text);
+        var props = doc.BeginUpdateCharacters(inserted);
+        try
+        {
+            if (code)
+            {
+                props.Reset(CharacterPropertiesMask.BackColor);
+                props.FontName = "Consolas";
+                props.FontSize = 9f;
+            }
+            else
+            {
+                props.Reset(InheritedRunMask);
+            }
+            props.Bold   = ctx.BoldDepth   > 0;
+            props.Italic = ctx.ItalicDepth > 0;
+        }
+        finally { doc.EndUpdateCharacters(props); }
+        return inserted;
+    }
+
     /// <summary>
     /// Variant of <see cref="WriteInline"/> for table cells that uses a tracked
     /// <see cref="CellCursor"/> instead of a paragraph's <c>Range.End</c>.
@@ -421,21 +464,7 @@ internal static class MarkdownToDocxConverter
             {
                 var text = lit.Content.ToString();
                 if (text.Length == 0) break;
-                var inserted = doc.InsertText(cursor.Current, text);
-                cursor.Advance(inserted);
-                var props = doc.BeginUpdateCharacters(inserted);
-                try
-                {
-                    // Clear direct font/background formatting inherited from the run to the
-                    // left (e.g. a preceding inline-code span), so plain text falls back to
-                    // the paragraph style instead of continuing in Consolas-on-grey.
-                    props.Reset(CharacterPropertiesMask.FontName
-                        | CharacterPropertiesMask.FontSize
-                        | CharacterPropertiesMask.BackColor);
-                    props.Bold   = ctx.BoldDepth   > 0;
-                    props.Italic = ctx.ItalicDepth > 0;
-                }
-                finally { doc.EndUpdateCharacters(props); }
+                cursor.Advance(InsertRun(ctx, cursor.Current, text));
                 break;
             }
             case EmphasisInline em:
@@ -450,18 +479,7 @@ internal static class MarkdownToDocxConverter
             }
             case CodeInline code:
             {
-                var inserted = doc.InsertText(cursor.Current, code.Content);
-                cursor.Advance(inserted);
-                var props = doc.BeginUpdateCharacters(inserted);
-                try
-                {
-                    props.FontName = "Consolas";
-                    props.FontSize = 9f;
-                    props.Reset(CharacterPropertiesMask.BackColor);
-                    props.Bold   = ctx.BoldDepth   > 0;
-                    props.Italic = ctx.ItalicDepth > 0;
-                }
-                finally { doc.EndUpdateCharacters(props); }
+                cursor.Advance(InsertRun(ctx, cursor.Current, code.Content, code: true));
                 break;
             }
             case LinkInline link when !link.IsImage:
@@ -470,7 +488,7 @@ internal static class MarkdownToDocxConverter
                     link.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
                 if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
                 if (displayText.Length == 0) break;
-                var inserted = doc.InsertText(cursor.Current, displayText);
+                var inserted = InsertRun(ctx, cursor.Current, displayText);
                 cursor.Advance(inserted);
                 var hl = doc.Hyperlinks.Create(inserted);
                 hl.NavigateUri = link.Url ?? string.Empty;
@@ -480,7 +498,7 @@ internal static class MarkdownToDocxConverter
             {
                 var url = autolink.Url ?? string.Empty;
                 if (url.Length == 0) break;
-                var inserted = doc.InsertText(cursor.Current, url);
+                var inserted = InsertRun(ctx, cursor.Current, url);
                 cursor.Advance(inserted);
                 var hl = doc.Hyperlinks.Create(inserted);
                 hl.NavigateUri = url;
@@ -488,8 +506,7 @@ internal static class MarkdownToDocxConverter
             }
             case LineBreakInline br:
                 // Hard break: line-break-within-paragraph (\v); soft break: space.
-                var lb = doc.InsertText(cursor.Current, br.IsHard ? "\v" : " ");
-                cursor.Advance(lb);
+                cursor.Advance(InsertRun(ctx, cursor.Current, br.IsHard ? "\v" : " "));
                 break;
             // Images inside table cells are silently dropped (uncommon; complex to size).
         }
@@ -503,22 +520,7 @@ internal static class MarkdownToDocxConverter
             {
                 var text = lit.Content.ToString();
                 if (text.Length == 0) break;
-                var insertedRange = ctx.Document.InsertText(para.Range.End, text);
-                // Always apply explicit character properties to prevent DevExpress
-                // run-inheritance from bleeding bold/italic from adjacent runs.
-                var props = ctx.Document.BeginUpdateCharacters(insertedRange);
-                try
-                {
-                    // Clear direct font/background formatting inherited from the run to the
-                    // left (e.g. a preceding inline-code span), so plain text falls back to
-                    // the paragraph style instead of continuing in Consolas-on-grey.
-                    props.Reset(CharacterPropertiesMask.FontName
-                        | CharacterPropertiesMask.FontSize
-                        | CharacterPropertiesMask.BackColor);
-                    props.Bold   = ctx.BoldDepth   > 0;
-                    props.Italic = ctx.ItalicDepth > 0;
-                }
-                finally { ctx.Document.EndUpdateCharacters(props); }
+                InsertRun(ctx, para.Range.End, text);
                 break;
             }
             case EmphasisInline em:
@@ -535,18 +537,7 @@ internal static class MarkdownToDocxConverter
             }
             case CodeInline code:
             {
-                var insertedRange = ctx.Document.InsertText(para.Range.End, code.Content);
-                var props = ctx.Document.BeginUpdateCharacters(insertedRange);
-                try
-                {
-                    props.FontName = "Consolas";
-                    props.FontSize = 9f;
-                    props.Reset(CharacterPropertiesMask.BackColor);
-                    // Respect the surrounding emphasis context.
-                    props.Bold   = ctx.BoldDepth   > 0;
-                    props.Italic = ctx.ItalicDepth > 0;
-                }
-                finally { ctx.Document.EndUpdateCharacters(props); }
+                InsertRun(ctx, para.Range.End, code.Content, code: true);
                 break;
             }
             case LinkInline imgLink when imgLink.IsImage:
@@ -568,7 +559,7 @@ internal static class MarkdownToDocxConverter
                 if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
                 if (displayText.Length == 0) break;
 
-                var insertedRange = ctx.Document.InsertText(para.Range.End, displayText);
+                var insertedRange = InsertRun(ctx, para.Range.End, displayText);
                 var hl = ctx.Document.Hyperlinks.Create(insertedRange);
                 hl.NavigateUri = link.Url ?? string.Empty;
                 break;
@@ -577,7 +568,7 @@ internal static class MarkdownToDocxConverter
             {
                 var url = autolink.Url ?? string.Empty;
                 if (url.Length == 0) break;
-                var insertedRange = ctx.Document.InsertText(para.Range.End, url);
+                var insertedRange = InsertRun(ctx, para.Range.End, url);
                 var hl = ctx.Document.Hyperlinks.Create(insertedRange);
                 hl.NavigateUri = url;
                 break;
@@ -585,7 +576,7 @@ internal static class MarkdownToDocxConverter
             case LineBreakInline br:
                 // Hard break (two trailing spaces + newline): insert \v (line-break-within-paragraph).
                 // Soft break (single newline): insert a single space.
-                ctx.Document.InsertText(para.Range.End, br.IsHard ? "\v" : " ");
+                InsertRun(ctx, para.Range.End, br.IsHard ? "\v" : " ");
                 break;
         }
     }

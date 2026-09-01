@@ -290,22 +290,81 @@ public class MarkdownToDocxConverterTests
     [Fact]
     public void Inline_code_run_uses_Consolas()
     {
-        var md = "x `code` y";
         using var server = new RichEditDocumentServer();
-        MarkdownToDocxConverter.Apply(server.Document, md, null);
+        MarkdownToDocxConverter.Apply(server.Document, "x `code` y", null);
 
+        // Whole-document text indexing is off by one here (the leading empty paragraph's
+        // mark is two chars in GetText but one position); use the per-paragraph lookup.
+        Assert.Equal("Consolas", FontNameOf(server.Document, "code"));
+    }
+
+    // MD-003: RichEdit runs inherit the previous run's character properties, so every
+    // run written after an inline-code span must be reset or it stays monospace.
+
+    [Fact]
+    public void Text_after_inline_code_returns_to_the_paragraph_font()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "alpha `beta` gamma", null);
         var doc = server.Document;
-        var fullText = doc.GetText(doc.Range);
-        var idx = fullText.IndexOf("code", StringComparison.Ordinal);
-        Assert.True(idx >= 0, $"expected 'code' in document text, got: {fullText}");
 
-        var range = doc.CreateRange(doc.Range.Start.ToInt() + idx, "code".Length);
-        var props = doc.BeginUpdateCharacters(range);
-        try
+        Assert.Equal("Consolas", FontNameOf(doc, "beta"));
+        Assert.NotEqual("Consolas", FontNameOf(doc, "gamma"));
+        Assert.Equal(FontNameOf(doc, "alpha"), FontNameOf(doc, "gamma"));
+    }
+
+    [Fact]
+    public void List_item_text_after_inline_code_is_not_monospace()
+    {
+        // Verbatim repro from MD-003 (XAFLogicExplainer PharmacyDemo).
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document,
+            "- **Patients** -> `Patient` (One to many)\n- RuleRequiredField `Patient_Name` on FullName: “A patient must have a name.”",
+            null);
+        var doc = server.Document;
+
+        Assert.NotEqual("Consolas", FontNameOf(doc, "(One to many)"));
+        Assert.NotEqual("Consolas", FontNameOf(doc, "on FullName"));
+    }
+
+    [Fact]
+    public void Table_cell_text_after_inline_code_is_not_monospace()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, "| col |\n|---|\n| alpha `beta` gamma |", null);
+        var doc = server.Document;
+
+        Assert.Equal("Consolas", FontNameOf(doc, "beta"));
+        Assert.NotEqual("Consolas", FontNameOf(doc, "gamma"));
+    }
+
+    [Fact]
+    public void Link_text_after_inline_code_is_not_monospace()
+    {
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document,
+            "see `Foo` then [the docs](https://example.com/x) and <https://example.com/y> end", null);
+        var doc = server.Document;
+
+        Assert.NotEqual("Consolas", FontNameOf(doc, "the docs"));
+        Assert.NotEqual("Consolas", FontNameOf(doc, "https://example.com/y"));
+        Assert.NotEqual("Consolas", FontNameOf(doc, "end"));
+    }
+
+    /// <summary>Font name of the first character of <paramref name="needle"/>, searched per paragraph so
+    /// positions line up with text offsets (paragraph marks and cell ends break whole-document indexing).</summary>
+    private static string? FontNameOf(Document doc, string needle)
+    {
+        foreach (var para in doc.Paragraphs)
         {
-            Assert.Equal("Consolas", props.FontName);
+            var idx = doc.GetText(para.Range).IndexOf(needle, StringComparison.Ordinal);
+            if (idx < 0) continue;
+            var props = doc.BeginUpdateCharacters(doc.CreateRange(para.Range.Start.ToInt() + idx, 1));
+            try { return props.FontName; }
+            finally { doc.EndUpdateCharacters(props); }
         }
-        finally { doc.EndUpdateCharacters(props); }
+        Assert.Fail($"'{needle}' not found in any paragraph");
+        return null;
     }
 
     [Fact]
