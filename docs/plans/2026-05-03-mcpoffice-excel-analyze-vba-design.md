@@ -121,7 +121,7 @@ Documented here so an agent reading one sample response can infer the schema.
 - **Procedure `kind`:** `"Sub"`, `"Function"`, `"PropertyGet"`, `"PropertyLet"`, `"PropertySet"`.
 - **Procedure `scope`:** `"Public"`, `"Private"`, `"Friend"`, or `null` (defaults to `Public`).
 - **Object-model `api`:** `"Worksheets"`, `"Sheets"`, `"Range"`, `"Cells"`, `"ActiveSheet"`, `"ActiveWorkbook"`, `"ThisWorkbook"`, `"Application"`, `"Selection"`, `"Names"`. Closed set for v1.
-- **Dependency `kind`:** `"file"`, `"database"`, `"network"`, `"automation"`, `"shell"`. `automation` catches `CreateObject` / `GetObject` calls that aren't file/DB/network (e.g., `Outlook.Application`, `WScript.Shell`); `shell` catches the `Shell()` builtin.
+- **Dependency `kind`:** `"filesystem"`, `"database"`, `"network"`, `"automation"`, `"shell"` (was `"file"` until VBA-006, 2026-09-01 — aligned with the v3 closed set). `automation` catches `CreateObject` / `GetObject` calls that aren't file/DB/network (e.g., `Outlook.Application`, `WScript.Shell`); `shell` catches the `Shell()` builtin.
 - **Module `reason` (when `parsed = false`):** `"module_too_large"`, `"empty_source"`. Extensible later.
 
 ### Agent-ergonomic choices
@@ -164,7 +164,7 @@ Walks raw source line by line and produces `CleanedLine { lineNumber, text, orig
 - **Object-model refs:** match cleaned lines against the closed token set (`Worksheets`, `Sheets`, `Range`, `Cells`, `ActiveSheet`, `ActiveWorkbook`, `ThisWorkbook`, `Application`, `Selection`, `Names`). Capture the `originalText`'s first string-literal argument when the API takes one.
 
 - **Dependencies:** matched against a small dispatch table.
-  - `file`: `Open`, `Kill`, `Name … As`, `MkDir`, `RmDir`, `ChDir`, `Dir`, `FileSystemObject`, `Workbooks.Open`, `Workbooks.OpenText`, `Scripting.FileSystemObject`.
+  - `filesystem`: `Open`, `Kill`, `Name … As`, `MkDir`, `RmDir`, `ChDir`, `Dir`, `FileSystemObject`, `Workbooks.Open`, `Workbooks.OpenText`, `Scripting.FileSystemObject`.
   - `database`: `ADODB.Connection`, `ADODB.Recordset`, `DAO.`, `OpenDatabase`, `Workspaces(0).OpenDatabase`.
   - `network`: `MSXML2.XMLHTTP`, `WinHttp.WinHttpRequest`, `URLDownloadToFile`, `InternetExplorer.Application`.
   - `automation`: any other `CreateObject("...")` / `GetObject("...")` not matched above. Captures the ProgID literal in `target`.

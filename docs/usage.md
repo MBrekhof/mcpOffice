@@ -128,7 +128,7 @@ Excel read tools:
 Excel macro tools:
 
 - `excel_extract_vba(path)`: returns raw VBA module source from `.xlsm` (in-process via OpenMcdf — no Excel install required). For `.xlsx` or workbooks without macros, returns `hasVbaProject=false`.
-- `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false)`: layered structural analysis on top of `excel_extract_vba` — procedures with signatures, event handlers, FQN-resolved call graph, Excel object-model references with literal-arg capture, and file/database/network/automation/shell dependency dispatch. Tiered output via toggles.
+- `excel_analyze_vba(path, includeProcedures=true, includeCallGraph=false, includeReferences=false)`: layered structural analysis on top of `excel_extract_vba` — procedures with signatures, event handlers, FQN-resolved call graph, Excel object-model references with literal-arg capture, and filesystem/database/network/automation/shell dependency dispatch. Tiered output via toggles.
 
 PDF read tools:
 

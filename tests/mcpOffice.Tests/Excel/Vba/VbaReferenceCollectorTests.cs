@@ -35,13 +35,28 @@ public class VbaReferenceCollectorTests
         Assert.Equal("A1:B10", om.Single().Literal);
     }
 
+    // VBA-006: the dependency kind vocabulary is the v3 design's closed set —
+    // filesystem / database / network / automation / shell. "file" was schema drift.
     [Fact]
-    public void File_open_classified_as_file()
+    public void File_open_classified_as_filesystem()
     {
         var (_, deps) = Collect("M", "standardModule",
             "Sub A()\nOpen \"C:\\f.txt\" For Input As #1\nEnd Sub");
         var d = Assert.Single(deps);
-        Assert.Equal("file", d.Kind);
+        Assert.Equal("filesystem", d.Kind);
+        Assert.Equal("Open", d.Operation);
+    }
+
+    [Theory]
+    [InlineData("Kill \"C:\\old.txt\"", "Kill")]
+    [InlineData("Set fso = CreateObject(\"Scripting.FileSystemObject\")", "CreateObject")]   // ProgID branch; target carries the ProgID
+    [InlineData("Workbooks.Open \"C:\\in.xlsx\"", "Workbooks.Open")]
+    public void File_apis_classified_as_filesystem(string statement, string expectedOperation)
+    {
+        var (_, deps) = Collect("M", "standardModule", $"Sub A()\n{statement}\nEnd Sub");
+        var d = Assert.Single(deps);
+        Assert.Equal("filesystem", d.Kind);
+        Assert.Equal(expectedOperation, d.Operation);
     }
 
     [Fact]

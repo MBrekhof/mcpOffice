@@ -86,14 +86,14 @@ internal static partial class VbaReferenceCollector
         // File: Open ... For ...
         if (FileOpenRegex().IsMatch(line.Text))
         {
-            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, "file", null, "Open"));
+            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, "filesystem", null, "Open"));
             return;
         }
 
         var fileM = FileApiRegex().Match(line.Text);
         if (fileM.Success)
         {
-            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, "file", null, fileM.Groups[1].Value));
+            sink.Add(new ExcelVbaDependency(module, proc, line.LineNumber, "filesystem", null, fileM.Groups[1].Value));
             return;
         }
 
@@ -130,7 +130,7 @@ internal static partial class VbaReferenceCollector
         if (progId.StartsWith("MSXML2.", StringComparison.OrdinalIgnoreCase) ||
             progId.StartsWith("WinHttp.", StringComparison.OrdinalIgnoreCase) ||
             progId.Equals("InternetExplorer.Application", StringComparison.OrdinalIgnoreCase)) return "network";
-        if (progId.Contains("FileSystemObject", StringComparison.OrdinalIgnoreCase)) return "file";
+        if (progId.Contains("FileSystemObject", StringComparison.OrdinalIgnoreCase)) return "filesystem";
         return "automation";
     }
 }
