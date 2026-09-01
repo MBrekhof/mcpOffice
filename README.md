@@ -36,7 +36,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `word_list_comments(path)`
 - `word_list_revisions(path)`
 - `word_create_blank(path, overwrite=false)`
-- `word_create_from_markdown(path, markdown, overwrite=false)`
+- `word_create_from_markdown(path, markdown, overwrite=false, templatePath?)` — optional `.dotx`/`.docx` template supplies styles, headers/footers and page setup; the Markdown supplies the body.
 - `word_append_markdown(path, markdown)`
 - `word_find_replace(path, find, replace, useRegex=false, matchCase=false)`
 - `word_insert_paragraph(path, atIndex, text, style?)`

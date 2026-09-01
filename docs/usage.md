@@ -104,7 +104,7 @@ Read tools:
 Write/create tools:
 
 - `word_create_blank(path, overwrite=false)`: creates an empty `.docx`.
-- `word_create_from_markdown(path, markdown, overwrite=false)`: creates `.docx` from Markdown.
+- `word_create_from_markdown(path, markdown, overwrite=false, templatePath?)`: creates `.docx` from Markdown. With `templatePath` (absolute path to a `.dotx` or `.docx`) the document is built on that template: its Normal and Heading 1-6 styles, headers/footers and page setup carry over, and the Markdown body is appended after any content the template already contains. Where the template defines a heading style, the template's formatting wins over the converter's built-in heading look; heading levels the template does not define fall back to the converter defaults.
 - `word_append_markdown(path, markdown)`: appends Markdown to an existing `.docx`.
 - `word_find_replace(path, find, replace, useRegex=false, matchCase=false)`: replaces text and returns replacement count.
 - `word_insert_paragraph(path, atIndex, text, style?)`: inserts a paragraph.
@@ -247,7 +247,7 @@ Expected `word_get_metadata` shape:
 
 ## Markdown Notes
 
-`word_create_from_markdown` and `word_append_markdown` use `MarkdownToDocxGenerator` for richer Markdown import. Current coverage includes headings, paragraphs, bold, common italic spans, simple lists, fenced code blocks, links/images at the package level, and tables.
+`word_create_from_markdown` and `word_append_markdown` use a Markdig-based converter (`MarkdownToDocxConverter`). Current coverage: headings, paragraphs, bold/italic, nested lists, block quotes, horizontal rules, fenced and indented code blocks, inline code, links, local images, and pipe tables. `word_create_from_markdown` can build on a `.dotx`/`.docx` template via `templatePath` (see above).
 
 Known caveats:
 
