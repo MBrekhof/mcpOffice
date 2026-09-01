@@ -119,7 +119,7 @@ Read a column-based report out of a PDF with its layout intact:
 1. **Word POC** — read / write / convert .docx ✓
 2. **Excel POC** — read sheets, list formulas/structure/defined names, extract VBA ✓
 3. **`excel_analyze_vba` v1** — call graph, event handlers, Excel object-model refs, external dependencies ✓
-4. **`excel_analyze_vba` v2** — conversion hints (procedure role classification, suggested C# equivalents, DOT/Mermaid call-graph rendering, cross-module coupling score).
+4. **`excel_analyze_vba` v2 + v3** — `excel_render_vba_callgraph` (DOT/Mermaid call-graph rendering) and `excel_suggest_vba_conversion` (procedure role classification, suggested C# equivalents, cross-module coupling score) ✓
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
 6. PowerPoint (.pptx).
 
