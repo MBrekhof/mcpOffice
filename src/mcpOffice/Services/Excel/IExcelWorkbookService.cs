@@ -45,6 +45,10 @@ public interface IExcelWorkbookService
         string path,
         string? moduleName,
         string? targetParadigm);
+    ExcelVbaEntryPointsResult ListVbaEntryPoints(
+        string path,
+        bool includeUnreachable,
+        string? moduleName);
     ExcelExportCsvResult ExportCsv(
         string path,
         string outputPath,

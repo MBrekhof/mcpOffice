@@ -139,6 +139,26 @@ public class ExcelWorkflowTests
     }
 
     [Fact]
+    public async Task List_vba_entry_points_via_stdio()
+    {
+        var fixture = ResolveFixturePath("synthetic-vba.xlsm");
+        if (!File.Exists(fixture)) return;
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_list_vba_entry_points",
+            new Dictionary<string, object?> { ["path"] = fixture });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+        Assert.Contains("\"hasVbaProject\":true", text);
+        Assert.Contains("\"kind\":\"eventHandler\"", text);
+        Assert.Contains("ThisWorkbook.Workbook_Open", text);
+        Assert.Contains("\"unreachable\":[", text);
+        Assert.Contains("Class1.Greet", text);   // nothing calls the class method: dead code
+    }
+
+    [Fact]
     public async Task Analyze_vba_via_stdio_returns_summary()
     {
         var fixture = ResolveFixturePath("sample-with-macros.xlsm");

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using DevExpress.Spreadsheet;
 using McpOffice.Models;
 using McpOffice.Services.Excel.Csv;
@@ -295,6 +296,37 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
                 moduleName: null);
 
             return VbaConversionHintBuilder.Build(analysis, moduleName, targetParadigm);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public ExcelVbaEntryPointsResult ListVbaEntryPoints(string path, bool includeUnreachable, string? moduleName)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            var project = new VbaProjectReader().Read(path);
+            var sheets = new List<VbaEntryPointAnalyzer.SheetInput>();
+            if (project.HasVbaProject)
+            {
+                // Drawing parts, VML and formulas come straight from the package: no DevExpress
+                // workbook load (30 s on ScreeningDB-V2), and DevExpress has no macro-link API anyway.
+                using var zip = ZipFile.OpenRead(path);
+                foreach (var s in OpenXmlParts.ListSheets(zip))
+                {
+                    sheets.Add(new VbaEntryPointAnalyzer.SheetInput(
+                        s.Name,
+                        s.CodeName,
+                        s.DrawingPartPath is null ? null : OpenXmlParts.ReadEntryText(zip, s.DrawingPartPath),
+                        s.LegacyDrawingPartPath is null ? null : OpenXmlParts.ReadEntryText(zip, s.LegacyDrawingPartPath),
+                        OpenXmlParts.ReadFormulas(zip, s.PartPath)));
+                }
+            }
+            return VbaEntryPointAnalyzer.Analyze(path, project, sheets, includeUnreachable, moduleName);
         }
         catch (Exception ex) when (ex is not McpException)
         {

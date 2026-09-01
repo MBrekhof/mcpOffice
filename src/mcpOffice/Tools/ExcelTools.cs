@@ -106,4 +106,12 @@ public static class ExcelTools
         [Description("Optional case-insensitive VBA module name to scope per-procedure hints to. Coupling stays whole-workbook. Throws module_not_found if unknown.")] string? moduleName = null,
         [Description("Optional target paradigm: classLibrary | workerService | webApi | console. When set, every hint includes a structured csharpSuggestion. Throws unsupported_paradigm if the value is not in the supported set.")] string? targetParadigm = null)
         => Service.SuggestVbaConversion(path, moduleName, targetParadigm);
+
+    [McpServerTool(Name = "excel_list_vba_entry_points")]
+    [Description("What actually runs in a macro workbook, and what never can. Entry points: event handlers, Auto_* macros, macros wired to shapes (drawingN.xml) and form controls (vmlDrawingN.vml), Public Functions used as worksheet functions in cell formulas, and dynamic dispatch (Application.OnTime/OnKey/Run, .OnAction, CallByName with literal targets). Then walks the call graph from those entry points; unreachable[] lists procedures nothing can reach (confidence high|medium) — the migration scope cut. Kind vocabulary: eventHandler | autoMacro | shapeMacro | formControlMacro | worksheetFunction | dynamicDispatch. moduleName scopes both arrays; the summary stays whole-workbook. Returns hasVbaProject=false for workbooks without a VBA project.")]
+    public static object ExcelListVbaEntryPoints(
+        [Description("Absolute path to the .xlsm workbook")] string path,
+        [Description("Include the unreachable[] array (reachability BFS). Default true.")] bool includeUnreachable = true,
+        [Description("Optional case-insensitive VBA module name to scope entryPoints/unreachable to. Throws module_not_found if unknown.")] string? moduleName = null)
+        => Service.ListVbaEntryPoints(path, includeUnreachable, moduleName);
 }

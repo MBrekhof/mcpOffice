@@ -15,6 +15,7 @@ public class ToolSurfaceTests
             "excel_list_defined_names",
             "excel_list_formulas",
             "excel_list_sheets",
+            "excel_list_vba_entry_points",
             "excel_read_sheet",
             "excel_render_vba_callgraph",
             "excel_suggest_vba_conversion",
