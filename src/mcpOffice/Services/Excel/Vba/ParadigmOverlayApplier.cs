@@ -105,7 +105,9 @@ internal static class ParadigmOverlayApplier
 
     private static string StripModulePrefix(string moduleName)
     {
-        foreach (var prefix in new[] { "mod", "cls", "frm" })
+        // Hungarian module prefixes seen in the wild: mod/mdl/bas for standard modules
+        // (Air.xlsm uses mdl), cls for class modules, frm for UserForms.
+        foreach (var prefix in new[] { "mod", "mdl", "bas", "cls", "frm" })
         {
             if (moduleName.Length > prefix.Length &&
                 moduleName.StartsWith(prefix, StringComparison.Ordinal) &&

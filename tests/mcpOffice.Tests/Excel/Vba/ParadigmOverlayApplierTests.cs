@@ -39,6 +39,20 @@ public class ParadigmOverlayApplierTests
         Assert.Equal("Login", s.SuggestedClassName);
     }
 
+    // VBA-007: real-world workbooks use mdl/bas as well (Air.xlsm: mdlAIR, mdlBalans).
+    [Theory]
+    [InlineData("mdlAIR", "AIR")]
+    [InlineData("mdlBalans", "Balans")]
+    [InlineData("basUtils", "Utils")]
+    [InlineData("modules", "Modules")]   // lower-case continuation: not a prefix, PascalCased as a whole
+    public void Naming_strips_mdl_and_bas_prefixes(string module, string expectedClass)
+    {
+        var s = ParadigmOverlayApplier.Apply(
+            module: module, procedureName: "Run",
+            scope: "Public", axes: Axes(), paradigm: "classLibrary");
+        Assert.Equal(expectedClass, s.SuggestedClassName);
+    }
+
     [Fact]
     public void Naming_passes_through_when_no_prefix()
     {
