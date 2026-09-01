@@ -55,6 +55,8 @@ The pattern, end-to-end (TDD):
 7. **Update `tests/mcpOffice.Tests.Integration/ToolSurfaceTests.cs`** with the new tool name. This is the canary that catches accidental tool removal/rename.
 8. **Conventional Commit**, feature branch off `main`, PR, squash-merge.
 
+**Design for an LLM caller.** The consumer is an agent with a context window, not a UI. Scope before paginate (a `moduleName`-style filter beats a page cursor). Tiered detail — heavy payloads opt-in. Every record self-contained (`fullyQualifiedName`, never an index into a sibling array). Closed enum vocabularies written down in the design doc. Renderers return a bare string.
+
 ## Error model
 
 Tools throw `McpException` only. The SDK doesn't expose a structured `Code` property in 1.2.0, so codes are encoded as a `[code]` prefix in the message:

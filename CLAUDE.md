@@ -19,6 +19,7 @@ Sources of truth (loaded on demand via @import):
 - `dotnet build` — should be 0 warnings, 0 errors.
 - `dotnet test` — unit + integration. Integration tests rebuild the server and spawn it via stdio (see `tests/mcpOffice.Tests.Integration/ServerHarness.cs`).
 - `dotnet run --project src/mcpOffice` — runs the MCP server on stdio.
+- **Acceptance = the live `office` MCP server in this session on a real file** (corpus: `C:\Projects\mcpOffice-samples`), not a harness one-shot or a Python script. Rebuild + `/mcp` per the SESSION_HANDOFF operational note first. Reaching for Python or a scratch harness means a tool is missing or awkward — card that gap, don't work around it.
 
 ## DevExpress feed and license
 
@@ -27,6 +28,7 @@ Sources of truth (loaded on demand via @import):
 - Packages resolve out of the installer's **fallback folder** (`C:\Program Files\DevExpress 26.1\Components\Offline Packages`), not `~/.nuget/packages` — so don't conclude a DevExpress package is missing just because the global cache has no folder for it.
 - Don't add `https://nuget.devexpress.com/<token>/...` URL feeds with a `%DXNUGET_KEY%` placeholder — VS prompts for credentials when the env var isn't persisted at User scope. If a remote licensed feed is truly needed, embed the token directly in the URL.
 - `DevExpress_License.txt` (gitignored, repo root) — **runtime license**, the long base64 blob. Separate from any feed token. Tests currently call `RichEditDocumentServer` without an explicit license and pass (trial mode). Bake in via `licenses.licx` once non-trial features are exercised.
+- **RichEdit has no Markdown format** (dxdocs 26.1 `DocumentFormat`: Doc/Docx/Dot*/ePub/FlatOpc*/Html/Mht/Odt/OpenXml/PlainText/Rtf/WordML). The Word POC plan doc's Tasks 10/15/22 (`DocumentFormat.Markdown`, `Options.Export.Markdown`) are wrong — md→docx is Markdig + `MarkdownToDocxConverter`, docx→md is the hand-rolled `RenderMarkdown`.
 
 ## MCP SDK 1.2.0 quirks
 
@@ -48,6 +50,8 @@ stdout carries JSON-RPC. Anything written to stdout that isn't a valid JSON-RPC 
 - Tool classes: `[McpServerToolType]` on the class, static methods with `[McpServerTool(Name=...)]` and `[Description(...)]`. See `src/mcpOffice/Tools/PingTools.cs` for the canonical shape.
 - TDD: write the failing test first. Tasks 6+ in the plan have exact code for both test and implementation.
 - **Test fixtures are generated programmatically** via `tests/mcpOffice.Tests/Word/TestWordDocuments.cs` (deviates from the plan's binary-fixture approach — cleaner, no committed `.docx` blobs). New Word tests should reuse this helper rather than committing `.docx` files under `tests/fixtures/`.
+- Tests use xUnit `Assert.*` only. FluentAssertions was removed (8.x is commercial); the plan docs under `docs/plans/` still show FluentAssertions code — translate it, never re-add the package.
+- **RichEdit inherits everything.** Every paragraph, table cell and run appended through `RichEditDocumentServer` inherits the previous paragraph style, list index, direct paragraph formatting and the previous run's character properties. Five bleed bugs so far, MD-003 is the sixth. Reset at the single append point in `MarkdownToDocxConverter`; add a bleed test for every new Markdig node type.
 
 ## Git / PRs
 

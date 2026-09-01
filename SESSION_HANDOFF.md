@@ -4,7 +4,7 @@
 
 **Branch:** `main` — clean working tree, in sync with `origin/main`.
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` — **351 unit + 17 integration pass, 2 skipped** (the locked-VBA fixture + the gated `Regenerate_lims_fix_list_styled_docx` artifact generator).
+**Tests:** `dotnet test` — **351 unit + 17 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`; the locked-VBA skip was deleted in d026685).
 **Tool surface:** **34 tools**: 1 ping + 15 Word + 11 Excel + 7 PDF.
 
 The PDF tools branch from 2026-08-20 is merged — it landed on `main` as `6d83594`. There is no open feature branch.
