@@ -51,7 +51,7 @@ stdout carries JSON-RPC. Anything written to stdout that isn't a valid JSON-RPC 
 - TDD: write the failing test first. Tasks 6+ in the plan have exact code for both test and implementation.
 - **Test fixtures are generated programmatically** via `tests/mcpOffice.Tests/Word/TestWordDocuments.cs` (deviates from the plan's binary-fixture approach — cleaner, no committed `.docx` blobs). New Word tests should reuse this helper rather than committing `.docx` files under `tests/fixtures/`.
 - Tests use xUnit `Assert.*` only. FluentAssertions was removed (8.x is commercial); the plan docs under `docs/plans/` still show FluentAssertions code — translate it, never re-add the package.
-- **RichEdit inherits everything.** Every paragraph, table cell and run appended through `RichEditDocumentServer` inherits the previous paragraph style, list index, direct paragraph formatting and the previous run's character properties. Five bleed bugs so far, MD-003 is the sixth. Reset at the single append point in `MarkdownToDocxConverter`; add a bleed test for every new Markdig node type.
+- **RichEdit inherits everything.** Every paragraph, table cell and run appended through `RichEditDocumentServer` inherits the previous paragraph style, list index, direct paragraph formatting and the previous run's character properties. Five bleed bugs so far, MD-003 is the sixth. Reset at the single append point in `MarkdownToDocxConverter` (`InsertRun`); add a bleed test for every new Markdig node type. Font names live in per-script slots — `Reset(CharacterPropertiesMask.FontName)` alone does nothing visible, reset every `FontName*` mask (that is why the July fix was a no-op).
 
 ## Git / PRs
 

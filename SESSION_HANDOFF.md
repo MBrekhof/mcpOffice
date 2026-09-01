@@ -1,38 +1,35 @@
-# Session Handoff — 2026-08-22 (sync, docs refresh, .NET 10, OpenMcdf fix)
+# Session Handoff — 2026-09-01 (memory consolidation, MD-003 root cause, WORD-001, DOCS-001)
 
 ## Where Things Stand
 
 **Branch:** `main` — clean working tree, in sync with `origin/main`.
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` — **351 unit + 17 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`; the locked-VBA skip was deleted in d026685).
-**Tool surface:** **34 tools**: 1 ping + 15 Word + 11 Excel + 7 PDF.
+**Tests:** `dotnet test` — **359 unit + 17 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`).
+**Tool surface:** **34 tools**: 1 ping + 15 Word + 11 Excel + 7 PDF. No names changed this session; `word_mail_merge` and `word_convert` gained an `overwrite=false` parameter.
 
-The PDF tools branch from 2026-08-20 is merged — it landed on `main` as `6d83594`. There is no open feature branch.
+No open feature branch. `fix/open-cards` was fast-forwarded into `main` and deleted.
 
 ## What Landed This Session
 
-1. **Synced this machine** — pulled six commits from the other machine (Word converter fixes, `templatePath`, DevExpress 26.1 realignment, the seven `pdf_` tools).
-2. **Docs refresh** (`4609ac8`) — architecture diagram gained the PDF column (`docs/img/architecture.{excalidraw,png,svg}`, re-exported via the Excalidraw canvas); README status / documents / Built With brought current; stray `DevExpress 25.2` references in `ARCHITECTURE.md` and `docs/usage.md` fixed.
-3. **OpenMcdf 3.1.3 → 3.1.4** in both `src/mcpOffice` and `tests/mcpOffice.Tests`. The NU1902 the previous handoff called "pre-existing" was GHSA-5qwm-7pvp-w988: an *uncatchable infinite loop* on a crafted CFB directory cycle — a malicious `.xlsm` could hang the server with nothing for the `try/catch` wrapper to catch. Patched in 3.1.4.
-4. **net9.0 → net10.0** across all three projects, `ServerHarness.cs`, `.mcp.json`, `docs/usage.md`. `System.Text.Encoding.CodePages` dropped from both csprojs — it is part of the shared framework on .NET 10 (NU1510). cp1252 VBA decoding still passes.
+1. **Memory consolidation** (`31f10d7`) — first run for this project. Three memory files retired (one held a NuGet feed token), two added (sample-corpus map, PDF-is-read-only-by-decision). Four conventions promoted into `CLAUDE.md`: RichEdit inherits everything, there is no `DocumentFormat.Markdown` (the @imported POC plan doc is wrong about Tasks 10/15/22), tests are xUnit-only, the live `office` MCP on a real file is the acceptance test. `ARCHITECTURE.md` gained "Design for an LLM caller".
+2. **MD-003** (`0ef30a2`) — text after an inline code span stayed monospace. Real bug on main, not a stale-DLL sighting: RichEdit stores the font name per script slot and e6db964 reset only the aggregate `FontName` mask. All inline text now goes through one append point, `MarkdownToDocxConverter.InsertRun`, which resets every `FontName*` slot + size + background. Links after code spans (never reset before) fixed by the same change. Five regression tests; one pre-existing test was off by one and only passed because of the bug. Verified through the live server on XAFLogicExplainer's real `PharmacyDemo_Full.md` (page 3: `Patient` Consolas 9, `(One to many)` Calibri 11).
+3. **DOCS-001** (`799420e`) — `templatePath` on `word_create_from_markdown` documented in README and usage; stale `MarkdownToDocxGenerator` reference replaced.
+4. **WORD-001** (`4c4e9cd`, `87d8d5e`) — `overwrite` on `word_mail_merge` **and** on `word_convert` (the card wrongly said convert already had it; the merge → pdf pipeline would still have failed at step two).
+5. **Cards minted:** **VBA-011** (CARD-1453) — the LF-only callgraph-renderer pass is stranded on local branch `feat/render-vba-callgraph`, main emits mixed CRLF/LF. **DOCS-002** (CARD-1454) — `word_convert` accepts `.md`/`.markdown` input but is documented as `.docx`-only; it is the right one-hop route for a Markdown *file* → PDF.
 
 ## Outstanding — Action Required
 
-- **`.mcp.json` now points at `bin\Debug\net10.0\mcpOffice.dll`.** Claude Code reads `.mcp.json` at session start, so the `office` server needs a **session restart** (not just `/mcp`) on each machine to pick up the new path. Until then clients see whatever DLL the old path still holds.
-- **Other machine:** `git pull` before working. Its clone still has `TODO.md`; until it pulls, the sync hook prints the BOARD-ONLY refusal — that's the guard working, not an error to fix by re-adding the file.
+- **Board:** MD-003, DOCS-001, WORD-001 are in **Review** with conclusions citing the SHAs above — Confirm Done in the UI.
+- **Office server:** this session killed it repeatedly to rebuild; `/mcp` reconnects it against the fresh Debug DLL. Other machine: `git pull`, then restart its session so the server picks up the new DLL.
 
 ## Next Up
 
-**Task state is board-only as of this session.** ContextBoard project `mcpOffice` (id 27): `TODO.md`
-deleted, `FileSyncClosed` set on the VPS (refusal proven: `fileSyncClosed: true, updated: 0`), 25
-backlog cards minted from the file's items — VBA-001…010, CSV-001…004, MD-001/002, PDF-001…006,
-WORD-001/002, EXCEL-001/002, CHORE-001. `list_cards` is the source of truth; the `/handoff` skill
-was rewritten to reconcile the board instead of the file. Shortlist by card:
+Board is the source of truth (`list_cards`, project id 27). Shortlist:
 
-- **WORD-001** — `overwrite` parameter on `word_mail_merge` (Todo, 0.5h; the only card not in Backlog).
-- **CSV-001** `excel_export_ndjson`, **CSV-002** `.csv.gz`.
-- **VBA-006** `file → filesystem` schema drift and **VBA-007** `mdl` module prefix — the two real bugs in the backlog.
-- **MD-001** `WriteCellInline` / `WriteInline` unification, **MD-002** Normal-style polish.
+- **DOCS-002** — document `.md` input on `word_convert` (0.25h, docs + two `[Description]` strings).
+- **VBA-011** — apply the stranded LF-only renderer diff (0.25h; `git diff feat/render-vba-callgraph main -- src/mcpOffice/Services/Excel/Vba/Rendering/`).
+- **MD-001** — now smaller: `InsertRun` already owns formatting, only the insertion anchor (`para.Range.End` vs `CellCursor`) is left to unify. Card body has the plan.
+- **CSV-001** `excel_export_ndjson`, **CSV-002** `.csv.gz`; **VBA-006** / **VBA-007** (the two real VBA bugs).
 - **PowerPoint (.pptx)** — next domain per the README roadmap; no design doc and no card yet.
 
 ## How To Resume
@@ -48,14 +45,13 @@ dotnet test --nologo
 ## Operational note
 
 The MCP server picks up new code only when its process restarts, and while running it holds a lock
-on `bin\Debug\net10.0\mcpOffice.dll` that fails the build with `MSB3027`. Pattern that works:
+on `bin\Debug\net10.0\mcpOffice.dll` that fails the build with `MSB3027`. Pattern that works (used
+all session):
 
 1. `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*mcpOffice.dll*" }` — find PID.
 2. `taskkill //PID <pid> //F //T` — release the lock.
 3. `dotnet build src/mcpOffice --nologo` — rebuild Debug (the registered MCP path).
 4. `/mcp` in Claude Code — reconnect, which respawns the server against the fresh DLL.
 
-Claude Code respawns the server automatically after a disconnect, so it can retake the lock between
-your kill and your build — kill and build in the *same* command. This session's live server was a
-Debug DLL from **2026-05-13** (27 tools, no PDF) until step 2 — check the DLL timestamp when tools
-seem to be missing.
+Kill and build in the *same* command so a respawn can't retake the lock in between. Check the DLL
+timestamp when tools seem to be missing.
