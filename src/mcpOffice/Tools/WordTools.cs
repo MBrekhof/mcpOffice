@@ -104,12 +104,13 @@ public static class WordTools
         => Service.SetMetadata(path, properties);
 
     [McpServerTool(Name = "word_mail_merge")]
-    [Description("Replaces {{token}} placeholders in templatePath with values from dataJson and writes to outputPath. Throws merge_field_missing if any token has no value, file_exists if outputPath already exists.")]
+    [Description("Replaces {{token}} placeholders in templatePath with values from dataJson and writes to outputPath. Throws merge_field_missing if any token has no value, file_exists if outputPath already exists unless overwrite=true.")]
     public static string WordMailMerge(
         [Description("Absolute path to the .docx template containing {{token}} placeholders")] string templatePath,
         [Description("Absolute path where the merged .docx will be written")] string outputPath,
-        [Description("JSON object mapping token name to value")] string dataJson)
-        => Service.MailMerge(templatePath, outputPath, dataJson);
+        [Description("JSON object mapping token name to value")] string dataJson,
+        [Description("If true, replace an existing file at outputPath")] bool overwrite = false)
+        => Service.MailMerge(templatePath, outputPath, dataJson, overwrite);
 
     [McpServerTool(Name = "word_convert")]
     [Description("Converts a .docx file to pdf, html, rtf, txt, markdown, or docx. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists.")]

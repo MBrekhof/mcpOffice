@@ -110,7 +110,7 @@ Write/create tools:
 - `word_insert_paragraph(path, atIndex, text, style?)`: inserts a paragraph.
 - `word_insert_table(path, atIndex, headers[], rows[][])`: inserts a table.
 - `word_set_metadata(path, properties)`: sets `author`, `title`, `subject`, and/or `keywords`.
-- `word_mail_merge(templatePath, outputPath, dataJson)`: replaces `{{token}}` placeholders.
+- `word_mail_merge(templatePath, outputPath, dataJson, overwrite=false)`: replaces `{{token}}` placeholders; pass `overwrite=true` to regenerate into an existing output path.
 
 Convert tools:
 

@@ -42,7 +42,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `word_insert_paragraph(path, atIndex, text, style?)`
 - `word_insert_table(path, atIndex, headers[], rows[][])`
 - `word_set_metadata(path, properties)`
-- `word_mail_merge(templatePath, outputPath, dataJson)`
+- `word_mail_merge(templatePath, outputPath, dataJson, overwrite=false)`
 - `word_convert(inputPath, outputPath, format?)`
 
 ### Excel

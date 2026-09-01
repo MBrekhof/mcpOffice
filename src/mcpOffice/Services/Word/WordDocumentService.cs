@@ -253,10 +253,10 @@ public sealed class WordDocumentService : IWordDocumentService
 
     private static readonly Regex MailMergeTokenPattern = new(@"\{\{(\w+)\}\}", RegexOptions.Compiled);
 
-    public string MailMerge(string templatePath, string outputPath, string dataJson)
+    public string MailMerge(string templatePath, string outputPath, string dataJson, bool overwrite = false)
     {
         PathGuard.RequireExists(templatePath);
-        PathGuard.RequireWritable(outputPath, overwrite: false);
+        PathGuard.RequireWritable(outputPath, overwrite);
 
         Dictionary<string, JsonElement> data;
         try
