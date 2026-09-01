@@ -114,7 +114,7 @@ Write/create tools:
 
 Convert tools:
 
-- `word_convert(inputPath, outputPath, format?)`: converts to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`.
+- `word_convert(inputPath, outputPath, format?, overwrite=false)`: converts to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`. Pass `overwrite=true` to regenerate into an existing output path.
 
 Excel read tools:
 

@@ -318,10 +318,10 @@ public sealed class WordDocumentService : IWordDocumentService
         return LoadOpenXml(inputPath);
     }
 
-    public string Convert(string inputPath, string outputPath, string? format)
+    public string Convert(string inputPath, string outputPath, string? format, bool overwrite = false)
     {
         PathGuard.RequireExists(inputPath);
-        PathGuard.RequireWritable(outputPath, overwrite: false);
+        PathGuard.RequireWritable(outputPath, overwrite);
 
         var outputFormat = ResolveOutputFormat(format, outputPath);
 

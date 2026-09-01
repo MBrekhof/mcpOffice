@@ -56,6 +56,48 @@ public class ConvertTests
     }
 
     [Fact]
+    public void Convert_throws_file_exists_when_output_exists_and_overwrite_not_requested()
+    {
+        var input = CreateInputDocument();
+        var output = Path.Combine(Path.GetTempPath(), $"mcpoffice-convert-{Guid.NewGuid():N}.txt");
+        try
+        {
+            var service = new WordDocumentService();
+            service.Convert(input, output, format: null);
+
+            var ex = Assert.Throws<McpException>(() => service.Convert(input, output, format: null));
+            Assert.Contains("file_exists", ex.Message);
+        }
+        finally
+        {
+            DeleteIfExists(input);
+            DeleteIfExists(output);
+        }
+    }
+
+    [Fact]
+    public void Convert_with_overwrite_replaces_an_existing_output()
+    {
+        // WORD-001, second half: merge -> convert to pdf, regenerated every run.
+        var input = CreateInputDocument();
+        var output = Path.Combine(Path.GetTempPath(), $"mcpoffice-convert-{Guid.NewGuid():N}.txt");
+        try
+        {
+            var service = new WordDocumentService();
+            File.WriteAllText(output, "stale");
+
+            service.Convert(input, output, format: null, overwrite: true);
+
+            Assert.Contains("Convert Me", File.ReadAllText(output, Encoding.UTF8));
+        }
+        finally
+        {
+            DeleteIfExists(input);
+            DeleteIfExists(output);
+        }
+    }
+
+    [Fact]
     public void Convert_md_input_to_docx_preserves_inline_code_and_tables()
     {
         var mdPath = Path.Combine(Path.GetTempPath(), $"mcpoffice-mdinput-{Guid.NewGuid():N}.md");

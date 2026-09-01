@@ -113,10 +113,11 @@ public static class WordTools
         => Service.MailMerge(templatePath, outputPath, dataJson, overwrite);
 
     [McpServerTool(Name = "word_convert")]
-    [Description("Converts a .docx file to pdf, html, rtf, txt, markdown, or docx. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists.")]
+    [Description("Converts a .docx file to pdf, html, rtf, txt, markdown, or docx. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists unless overwrite=true.")]
     public static string WordConvert(
         [Description("Absolute path to the input .docx file")] string inputPath,
         [Description("Absolute path where the converted file will be written")] string outputPath,
-        [Description("Optional output format: pdf, html, rtf, txt, markdown, md, or docx. Inferred from outputPath extension when null.")] string? format = null)
-        => Service.Convert(inputPath, outputPath, format);
+        [Description("Optional output format: pdf, html, rtf, txt, markdown, md, or docx. Inferred from outputPath extension when null.")] string? format = null,
+        [Description("If true, replace an existing file at outputPath")] bool overwrite = false)
+        => Service.Convert(inputPath, outputPath, format, overwrite);
 }
