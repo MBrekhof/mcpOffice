@@ -86,7 +86,7 @@ internal static class MarkdownToDocxConverter
         para.Style = ctx.Document.ParagraphStyles[styleName];
         if (block.Inline is null) return;
         foreach (var inline in block.Inline)
-            WriteInline(ctx, para, inline);
+            WriteInline(ctx, InsertionPoint.AtEndOf(para), inline);
     }
 
     // Word's classic heading palette — dark blue H1, medium blue H2-H6.
@@ -171,7 +171,7 @@ internal static class MarkdownToDocxConverter
         var para = AppendNewParagraph(ctx);
         if (block.Inline is null) return;
         foreach (var inline in block.Inline)
-            WriteInline(ctx, para, inline);
+            WriteInline(ctx, InsertionPoint.AtEndOf(para), inline);
     }
 
     private static void WriteQuote(ConversionContext ctx, QuoteBlock block)
@@ -185,7 +185,7 @@ internal static class MarkdownToDocxConverter
                 para.LeftIndent = Units.InchesToDocumentsF(0.25f);
                 if (p.Inline is null) continue;
                 foreach (var inline in p.Inline)
-                    WriteInline(ctx, para, inline);
+                    WriteInline(ctx, InsertionPoint.AtEndOf(para), inline);
             }
         }
     }
@@ -255,7 +255,7 @@ internal static class MarkdownToDocxConverter
                         para.ListLevel = level;
                         if (p.Inline is null) break;
                         foreach (var inline in p.Inline)
-                            WriteInline(ctx, para, inline);
+                            WriteInline(ctx, InsertionPoint.AtEndOf(para), inline);
                         break;
                     }
                     case ListBlock nested:
@@ -353,19 +353,14 @@ internal static class MarkdownToDocxConverter
                 if (isHeader)
                     dxCell.BackgroundColor = HeaderBackground;
 
-                // Use a tracked cursor position anchored to the cell's live ContentRange.Start.
-                // We re-read from dxCell each time because earlier-cell insertions shift absolute
-                // positions — but the dxTable/dxCell object always returns the current live position.
-                // After each WriteInline call, cursor advances to the end of the last insertion
-                // so subsequent inlines append correctly (same cell, not beginning).
                 if (isHeader) ctx.BoldDepth++;
-                var cursor = new CellCursor(dxCell);
+                var at = InsertionPoint.InCell(dxCell);
                 foreach (var child in mdCell)
                 {
                     if (child is ParagraphBlock p && p.Inline is not null)
                     {
                         foreach (var inline in p.Inline)
-                            WriteCellInline(ctx, cursor, inline);
+                            WriteInline(ctx, at, inline);
                     }
                 }
                 if (isHeader) ctx.BoldDepth--;
@@ -391,20 +386,29 @@ internal static class MarkdownToDocxConverter
     }
 
     /// <summary>
-    /// Tracks the insertion cursor within a table cell.
-    /// Re-reads <see cref="TableCell.ContentRange.Start"/> from the live DevExpress cell reference
-    /// for the first character; subsequent insertions advance the cursor to the end of the
-    /// previous inserted range so inlines append rather than prepend.
+    /// Where the next inline goes — the only thing that differed between the paragraph and
+    /// table-cell writers (MD-001). A paragraph anchors at its live <c>Range.End</c>, which moves
+    /// as text is appended, so nothing is tracked. A table cell anchors at the live
+    /// <c>ContentRange.Start</c> for the first insert (earlier-cell insertions shift absolute
+    /// positions; the cell reference always answers with the current one) and then tracks the
+    /// end of the last insert so inlines append rather than prepend.
     /// </summary>
-    private sealed class CellCursor(DevExpress.XtraRichEdit.API.Native.TableCell cell)
+    private sealed class InsertionPoint(Func<DocumentPosition> anchor, bool track)
     {
         private DocumentPosition? _position;
 
-        public DocumentPosition Current =>
-            _position ?? cell.ContentRange.Start;
+        public static InsertionPoint AtEndOf(Paragraph para) =>
+            new(() => para.Range.End, track: false);
 
-        public void Advance(DocumentRange inserted) =>
-            _position = inserted.End;
+        public static InsertionPoint InCell(DevExpress.XtraRichEdit.API.Native.TableCell cell) =>
+            new(() => cell.ContentRange.Start, track: true);
+
+        public DocumentPosition Current => _position ?? anchor();
+
+        public void Advance(DocumentRange inserted)
+        {
+            if (track) _position = inserted.End;
+        }
     }
 
     // RichEdit keeps a font name per script slot (ASCII, high-ANSI, complex script, East Asian).
@@ -451,11 +455,11 @@ internal static class MarkdownToDocxConverter
     }
 
     /// <summary>
-    /// Variant of <see cref="WriteInline"/> for table cells that uses a tracked
-    /// <see cref="CellCursor"/> instead of a paragraph's <c>Range.End</c>.
-    /// All inline types are handled identically; only the insertion anchor differs.
+    /// Writes one Markdig inline at <paramref name="at"/>. Paragraphs and table cells share this;
+    /// they differ only in the anchor (see <see cref="InsertionPoint"/>). Every case that inserts
+    /// text goes through <see cref="InsertRun"/> and advances the anchor past what it inserted.
     /// </summary>
-    private static void WriteCellInline(ConversionContext ctx, CellCursor cursor, Inline inline)
+    private static void WriteInline(ConversionContext ctx, InsertionPoint at, Inline inline)
     {
         var doc = ctx.Document;
         switch (inline)
@@ -464,63 +468,7 @@ internal static class MarkdownToDocxConverter
             {
                 var text = lit.Content.ToString();
                 if (text.Length == 0) break;
-                cursor.Advance(InsertRun(ctx, cursor.Current, text));
-                break;
-            }
-            case EmphasisInline em:
-            {
-                if (em.DelimiterCount >= 2) ctx.BoldDepth++;
-                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth++;
-                foreach (var child in em)
-                    WriteCellInline(ctx, cursor, child);
-                if (em.DelimiterCount >= 2) ctx.BoldDepth--;
-                if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth--;
-                break;
-            }
-            case CodeInline code:
-            {
-                cursor.Advance(InsertRun(ctx, cursor.Current, code.Content, code: true));
-                break;
-            }
-            case LinkInline link when !link.IsImage:
-            {
-                var displayText = string.Concat(
-                    link.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
-                if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
-                if (displayText.Length == 0) break;
-                var inserted = InsertRun(ctx, cursor.Current, displayText);
-                cursor.Advance(inserted);
-                var hl = doc.Hyperlinks.Create(inserted);
-                hl.NavigateUri = link.Url ?? string.Empty;
-                break;
-            }
-            case AutolinkInline autolink:
-            {
-                var url = autolink.Url ?? string.Empty;
-                if (url.Length == 0) break;
-                var inserted = InsertRun(ctx, cursor.Current, url);
-                cursor.Advance(inserted);
-                var hl = doc.Hyperlinks.Create(inserted);
-                hl.NavigateUri = url;
-                break;
-            }
-            case LineBreakInline br:
-                // Hard break: line-break-within-paragraph (\v); soft break: space.
-                cursor.Advance(InsertRun(ctx, cursor.Current, br.IsHard ? "\v" : " "));
-                break;
-            // Images inside table cells are silently dropped (uncommon; complex to size).
-        }
-    }
-
-    private static void WriteInline(ConversionContext ctx, Paragraph para, Inline inline)
-    {
-        switch (inline)
-        {
-            case LiteralInline lit:
-            {
-                var text = lit.Content.ToString();
-                if (text.Length == 0) break;
-                InsertRun(ctx, para.Range.End, text);
+                at.Advance(InsertRun(ctx, at.Current, text));
                 break;
             }
             case EmphasisInline em:
@@ -530,25 +478,22 @@ internal static class MarkdownToDocxConverter
                 if (em.DelimiterCount >= 2) ctx.BoldDepth++;
                 if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth++;
                 foreach (var child in em)
-                    WriteInline(ctx, para, child);
+                    WriteInline(ctx, at, child);
                 if (em.DelimiterCount >= 2) ctx.BoldDepth--;
                 if (em.DelimiterCount == 1 || em.DelimiterCount == 3) ctx.ItalicDepth--;
                 break;
             }
             case CodeInline code:
-            {
-                InsertRun(ctx, para.Range.End, code.Content, code: true);
+                at.Advance(InsertRun(ctx, at.Current, code.Content, code: true));
                 break;
-            }
             case LinkInline imgLink when imgLink.IsImage:
             {
                 if (TryResolveLocalImage(imgLink.Url, ctx.BaseDirectory, out var resolved))
                 {
-                    var imgSource = DocumentImageSource.FromFile(resolved!);
-                    ctx.Document.Images.Append(imgSource);
+                    var image = doc.Images.Insert(at.Current, DocumentImageSource.FromFile(resolved!));
+                    at.Advance(image.Range);
                 }
                 // Remote URLs and missing local files: silently dropped.
-                // Serilog warning hook is added in Task 21.
                 break;
             }
             case LinkInline link when !link.IsImage:
@@ -558,25 +503,24 @@ internal static class MarkdownToDocxConverter
                     link.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
                 if (string.IsNullOrEmpty(displayText)) displayText = link.Url ?? string.Empty;
                 if (displayText.Length == 0) break;
-
-                var insertedRange = InsertRun(ctx, para.Range.End, displayText);
-                var hl = ctx.Document.Hyperlinks.Create(insertedRange);
-                hl.NavigateUri = link.Url ?? string.Empty;
+                var inserted = InsertRun(ctx, at.Current, displayText);
+                at.Advance(inserted);
+                doc.Hyperlinks.Create(inserted).NavigateUri = link.Url ?? string.Empty;
                 break;
             }
             case AutolinkInline autolink:
             {
                 var url = autolink.Url ?? string.Empty;
                 if (url.Length == 0) break;
-                var insertedRange = InsertRun(ctx, para.Range.End, url);
-                var hl = ctx.Document.Hyperlinks.Create(insertedRange);
-                hl.NavigateUri = url;
+                var inserted = InsertRun(ctx, at.Current, url);
+                at.Advance(inserted);
+                doc.Hyperlinks.Create(inserted).NavigateUri = url;
                 break;
             }
             case LineBreakInline br:
-                // Hard break (two trailing spaces + newline): insert \v (line-break-within-paragraph).
-                // Soft break (single newline): insert a single space.
-                InsertRun(ctx, para.Range.End, br.IsHard ? "\v" : " ");
+                // Hard break (two trailing spaces + newline): \v, a line break within the paragraph.
+                // Soft break (single newline): a single space.
+                at.Advance(InsertRun(ctx, at.Current, br.IsHard ? "\v" : " "));
                 break;
         }
     }
