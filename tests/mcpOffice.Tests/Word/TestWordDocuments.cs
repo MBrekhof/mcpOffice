@@ -20,6 +20,24 @@ internal static class TestWordDocuments
         return path;
     }
 
+    /// <summary>
+    /// Writes a fixture in a non-OpenXML format. Used for the ODT paths: DevExpress
+    /// authors the .odt, so no binary fixture is committed.
+    /// </summary>
+    public static string CreateAs(string extension, RichEditFormat format, Action<Document> configure)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"mcpoffice-{Guid.NewGuid():N}{extension}");
+
+        using var server = new RichEditDocumentServer();
+        configure(server.Document);
+        server.SaveDocument(path, format);
+
+        return path;
+    }
+
+    public static string CreateOdt(Action<Document> configure) =>
+        CreateAs(".odt", RichEditFormat.Odt, configure);
+
     public static void AppendParagraph(Document document, string text, string? styleName = null)
     {
         if (styleName is not null)

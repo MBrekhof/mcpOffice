@@ -12,37 +12,37 @@ public static class WordTools
     [McpServerTool(Name = "word_get_outline")]
     [Description("Returns the heading tree of a .docx file as [{level,text}]. Cheap; use to skim structure.")]
     public static object WordGetOutline(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.GetOutline(path);
 
     [McpServerTool(Name = "word_get_metadata")]
     [Description("Returns core .docx metadata, page count, and word count.")]
     public static object WordGetMetadata(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.GetMetadata(path);
 
     [McpServerTool(Name = "word_read_markdown")]
-    [Description("Returns a Markdown projection of a .docx file. Preserves headings and paragraph text.")]
+    [Description("Returns a Markdown projection of a .docx or .odt file. Preserves headings and paragraph text. Word-exported .odt is read for content, not styling: headings, paragraphs and table text come through, automatic heading numbers do not.")]
     public static string WordReadMarkdown(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.ReadAsMarkdown(path);
 
     [McpServerTool(Name = "word_read_structured")]
     [Description("Returns a structured tree of blocks (headings, paragraphs with runs), tables, images, and document properties. Use for surgical edits or when run-level formatting matters.")]
     public static object WordReadStructured(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.ReadStructured(path);
 
     [McpServerTool(Name = "word_list_comments")]
     [Description("Returns all comments in a .docx file: id, author, date, comment body text, and the anchored text it relates to.")]
     public static object WordListComments(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.ListComments(path);
 
     [McpServerTool(Name = "word_list_revisions")]
     [Description("Returns all tracked-change revisions: type (insert/delete/format/...), author, date, and affected text.")]
     public static object WordListRevisions(
-        [Description("Absolute path to the .docx file")] string path)
+        [Description("Absolute path to the .docx or .odt file")] string path)
         => Service.ListRevisions(path);
 
     [McpServerTool(Name = "word_create_blank")]
@@ -64,14 +64,14 @@ public static class WordTools
     [McpServerTool(Name = "word_append_markdown")]
     [Description("Appends Markdown content to an existing .docx file. Same Markdown subset as word_create_from_markdown.")]
     public static string WordAppendMarkdown(
-        [Description("Absolute path to the .docx file")] string path,
+        [Description("Absolute path to the .docx or .odt file")] string path,
         [Description("Markdown source to append")] string markdown)
         => Service.AppendMarkdown(path, markdown);
 
     [McpServerTool(Name = "word_find_replace")]
     [Description("Finds and replaces text in a .docx file. Returns { Replacements: int }.")]
     public static object WordFindReplace(
-        [Description("Absolute path to the .docx file")] string path,
+        [Description("Absolute path to the .docx or .odt file")] string path,
         [Description("Text or regex pattern to find")] string find,
         [Description("Replacement text")] string replace,
         [Description("If true, treat 'find' as a .NET regular expression")] bool useRegex = false,
@@ -81,7 +81,7 @@ public static class WordTools
     [McpServerTool(Name = "word_insert_paragraph")]
     [Description("Inserts a paragraph at the given paragraph index (0-based, must be in [0, paragraphCount]). Optional style by name (e.g. 'Heading 1').")]
     public static string WordInsertParagraph(
-        [Description("Absolute path to the .docx file")] string path,
+        [Description("Absolute path to the .docx or .odt file")] string path,
         [Description("0-based paragraph index. Use paragraphCount to append at the end.")] int atIndex,
         [Description("Paragraph text")] string text,
         [Description("Optional paragraph style name (e.g. 'Heading 1', 'Normal'). Null = default style.")] string? style = null)
@@ -90,7 +90,7 @@ public static class WordTools
     [McpServerTool(Name = "word_insert_table")]
     [Description("Inserts a table at the given paragraph index. headers becomes the first row; each entry in rows becomes a body row. Cell counts beyond headers.Length are truncated.")]
     public static string WordInsertTable(
-        [Description("Absolute path to the .docx file")] string path,
+        [Description("Absolute path to the .docx or .odt file")] string path,
         [Description("0-based paragraph index where the table is inserted")] int atIndex,
         [Description("Header row cell texts")] string[] headers,
         [Description("Body rows (array of arrays of cell texts)")] string[][] rows)
@@ -99,25 +99,25 @@ public static class WordTools
     [McpServerTool(Name = "word_set_metadata")]
     [Description("Sets core document properties. Supported keys: author, title, subject, keywords. Unknown keys throw unsupported_format.")]
     public static string WordSetMetadata(
-        [Description("Absolute path to the .docx file")] string path,
+        [Description("Absolute path to the .docx or .odt file")] string path,
         [Description("Map of property name to value. Allowed keys: author, title, subject, keywords.")] Dictionary<string, string> properties)
         => Service.SetMetadata(path, properties);
 
     [McpServerTool(Name = "word_mail_merge")]
     [Description("Replaces {{token}} placeholders in templatePath with values from dataJson and writes to outputPath. Throws merge_field_missing if any token has no value, file_exists if outputPath already exists unless overwrite=true.")]
     public static string WordMailMerge(
-        [Description("Absolute path to the .docx template containing {{token}} placeholders")] string templatePath,
+        [Description("Absolute path to the .docx or .odt template containing {{token}} placeholders")] string templatePath,
         [Description("Absolute path where the merged .docx will be written")] string outputPath,
         [Description("JSON object mapping token name to value")] string dataJson,
         [Description("If true, replace an existing file at outputPath")] bool overwrite = false)
         => Service.MailMerge(templatePath, outputPath, dataJson, overwrite);
 
     [McpServerTool(Name = "word_convert")]
-    [Description("Converts a .docx or a Markdown (.md/.markdown) file to pdf, html, rtf, txt, markdown, or docx. A Markdown input is rendered by the same engine as word_create_from_markdown, so an existing .md becomes a PDF or .docx in one call without its content passing through the context; relative image paths resolve against the .md file's directory. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists unless overwrite=true.")]
+    [Description("Converts a .docx, .odt or Markdown (.md/.markdown) file to pdf, html, rtf, txt, markdown, docx, or odt. A Markdown input is rendered by the same engine as word_create_from_markdown, so an existing .md becomes a PDF or .docx in one call without its content passing through the context; relative image paths resolve against the .md file's directory. Format is inferred from outputPath when omitted. Throws file_exists if outputPath already exists unless overwrite=true.")]
     public static string WordConvert(
-        [Description("Absolute path to the input .docx, .md or .markdown file")] string inputPath,
+        [Description("Absolute path to the input .docx, .odt, .md or .markdown file")] string inputPath,
         [Description("Absolute path where the converted file will be written")] string outputPath,
-        [Description("Optional output format: pdf, html, rtf, txt, markdown, md, or docx. Inferred from outputPath extension when null.")] string? format = null,
+        [Description("Optional output format: pdf, html, rtf, txt, markdown, md, docx, or odt. Inferred from outputPath extension when null.")] string? format = null,
         [Description("If true, replace an existing file at outputPath")] bool overwrite = false)
         => Service.Convert(inputPath, outputPath, format, overwrite);
 }

@@ -94,7 +94,7 @@ Generic MCP client entry for the published executable:
 Read tools:
 
 - `Ping`: returns `pong`.
-- `word_get_outline(path)`: returns heading nodes from a `.docx`.
+- `word_get_outline(path)`: returns heading nodes from a `.docx` or `.odt`.
 - `word_get_metadata(path)`: returns core properties, page count, and word count.
 - `word_read_markdown(path)`: returns a conservative Markdown projection.
 - `word_read_structured(path)`: returns headings, paragraphs with runs, tables, images, and properties.
@@ -114,7 +114,7 @@ Write/create tools:
 
 Convert tools:
 
-- `word_convert(inputPath, outputPath, format?, overwrite=false)`: converts a `.docx` or a `.md`/`.markdown` file to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`. Pass `overwrite=true` to regenerate into an existing output path. A Markdown input is rendered by the same engine as `word_create_from_markdown`, so for a Markdown file that already exists on disk this is the route — `report.md` → `report.pdf` in one call, nothing passes through the agent's context; relative image paths resolve against the `.md`'s directory.
+- `word_convert(inputPath, outputPath, format?, overwrite=false)`: converts a `.docx`, `.odt` or `.md`/`.markdown` file to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, `docx`, or `odt`. If `format` is omitted, it is inferred from `outputPath`. Pass `overwrite=true` to regenerate into an existing output path. A Markdown input is rendered by the same engine as `word_create_from_markdown`, so for a Markdown file that already exists on disk this is the route — `report.md` → `report.pdf` in one call, nothing passes through the agent's context; relative image paths resolve against the `.md`'s directory.
 
 Excel read tools:
 
@@ -254,6 +254,16 @@ Expected `word_get_metadata` shape:
 ## Markdown Notes
 
 `word_create_from_markdown` and `word_append_markdown` use a Markdig-based converter (`MarkdownToDocxConverter`). Current coverage: headings, paragraphs, bold/italic, nested lists, block quotes, horizontal rules, fenced and indented code blocks, inline code, links, local images (inside table cells too, since MD-001), and pipe tables. `word_create_from_markdown` can build on a `.dotx`/`.docx` template via `templatePath` (see above).
+
+**OpenDocument (`.odt`)** is read and written by every Word tool: the format comes from the file
+extension, and an in-place edit saves the file back in the format it was read as. `.odt` support is
+aimed at *content*, not styling — a Word-exported `.odt` gives up its headings, paragraph text and
+table text, which is what an agent needs to answer questions about it. Two things do not survive:
+Word's automatic heading numbers (the import renders them unresolved, as "1." at every level, so
+they are dropped rather than reported wrongly) and images, which `word_read_structured` does not
+list for any format yet. Heading detection accepts `Heading 1` and `Heading1` and falls back to the
+paragraph's outline level, so documents with renamed or localised heading styles still produce an
+outline.
 
 Known caveats:
 
