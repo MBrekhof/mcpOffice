@@ -44,7 +44,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `word_insert_table(path, atIndex, headers[], rows[][])`
 - `word_set_metadata(path, properties)`
 - `word_mail_merge(templatePath, outputPath, dataJson, overwrite=false)`
-- `word_convert(inputPath, outputPath, format?, overwrite=false)`
+- `word_convert(inputPath, outputPath, format?, overwrite=false)` — input is `.docx` or `.md`/`.markdown`; an existing Markdown file becomes a PDF or `.docx` in one call, relative image paths resolving against the `.md`'s directory.
 
 ### Excel
 
