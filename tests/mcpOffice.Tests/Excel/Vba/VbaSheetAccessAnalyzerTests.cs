@@ -20,10 +20,11 @@ public class VbaSheetAccessAnalyzerTests
     private static readonly IReadOnlyList<VbaSheetAccessResolver.SheetName> Sheets = [new("Data", "Blad1"), new("Config", "Blad2")];
     private static readonly IReadOnlyList<VbaSheetAccessResolver.DefinedName> Names = [new("Total", null, "=Config!$C$2")];
 
-    private static ExcelVbaSheetAccessResult Run(string? moduleName = null, string? sheetName = null, bool includeUnresolved = true) =>
+    private static ExcelVbaSheetAccessResult Run(string? moduleName = null, string? sheetName = null, bool includeUnresolved = true,
+                                                 bool includeRecords = true, int maxRecords = 300) =>
         VbaSheetAccessAnalyzer.Analyze(@"C:\t.xlsm",
             new ExcelVbaProject(true, [new ExcelVbaModule("Module1", "standardModule", 9, Module1)]),
-            Sheets, Names, moduleName, sheetName, includeUnresolved);
+            Sheets, Names, moduleName, sheetName, includeUnresolved, includeRecords, maxRecords);
 
     [Fact]
     public void Sites_on_the_same_target_aggregate_into_one_record_with_mode_both()
@@ -86,6 +87,25 @@ public class VbaSheetAccessAnalyzerTests
     {
         Assert.Contains("module_not_found", Assert.Throws<McpException>(() => Run(moduleName: "Nope")).Message);
         Assert.Contains("sheet_not_found", Assert.Throws<McpException>(() => Run(sheetName: "Nope")).Message);
+    }
+
+    [Fact]
+    public void Include_records_false_returns_summary_and_rollup_only()
+    {
+        var r = Run(includeRecords: false);
+        Assert.Empty(r.SheetAccess);
+        Assert.False(r.Truncated);
+        Assert.Equal(["Config", "Data"], r.Sheets.Select(s => s.Name));
+        Assert.Equal(Run().Summary, r.Summary);
+    }
+
+    [Fact]
+    public void Max_records_caps_the_records_and_flags_truncation_but_not_the_rollup()
+    {
+        var r = Run(maxRecords: 1);
+        Assert.Single(r.SheetAccess);
+        Assert.True(r.Truncated);
+        Assert.Equal(2, r.Sheets.Count);
     }
 
     [Fact]

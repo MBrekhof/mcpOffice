@@ -334,7 +334,8 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
-    public ExcelVbaSheetAccessResult MapVbaSheetAccess(string path, string? moduleName, string? sheetName, bool includeUnresolved)
+    public ExcelVbaSheetAccessResult MapVbaSheetAccess(string path, string? moduleName, string? sheetName, bool includeUnresolved,
+                                                       bool includeRecords = true, int maxRecords = 300)
     {
         PathGuard.RequireExists(path);
 
@@ -353,7 +354,7 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
                     n.LocalSheetIndex is int i && i >= 0 && i < parts.Count ? parts[i].Name : null,
                     n.RefersTo)));
             }
-            return VbaSheetAccessAnalyzer.Analyze(path, project, sheets, names, moduleName, sheetName, includeUnresolved);
+            return VbaSheetAccessAnalyzer.Analyze(path, project, sheets, names, moduleName, sheetName, includeUnresolved, includeRecords, maxRecords);
         }
         catch (Exception ex) when (ex is not McpException)
         {

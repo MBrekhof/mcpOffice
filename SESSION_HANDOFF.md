@@ -2,9 +2,9 @@
 
 ## Where Things Stand
 
-**Branch:** `fix/vba-v4-acceptance` (`c489aa1`), pushed, PR open against `main`. `main` is untouched since `0d2b2dd`.
+**Branch:** `fix/vba-v4-acceptance` — three commits (`c489aa1` acceptance fixes, `5bfa765` handoff, VBA-016 on top), pushed, **PR #16** open against `main`. `main` is untouched since `0d2b2dd`.
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` — **510 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
+**Tests:** `dotnet test` — **512 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
 **Tool surface:** **38 tools**: 1 ping + 15 Word + 15 Excel + 7 PDF. New: `excel_list_vba_entry_points`, `excel_map_vba_sheet_access`, `excel_compare_vba_corpus`, `excel_list_vba_form_controls`.
 
 ## What Landed This Session (2026-09-01 → 02)
@@ -26,12 +26,12 @@ Run through the live `office` server on the samples corpus:
 - `excel_list_vba_entry_points(Air.xlsm)` — 233 entry points (110 event handlers, 104 form-control macros, 10 shape macros, 9 worksheet functions), 39 unreachable, one unresolved form-control macro (`StartDiscreteAnalyzer` on sheet `no3+no2` — no such procedure exists; a real finding). Bug: `MPNindex` listed `campy!K13` three times (three calls in one formula) — fixed in `c489aa1`.
 - `excel_list_vba_form_controls(OlieGC - LABWARE PRD.xlsm)` — 3 forms, 6 controls. Bug: `Label2_Click` typed as CommandButton via the Click hint — VBE default names now in the prefix table, fixed in `c489aa1`.
 - `excel_compare_vba_corpus(directory)` — 20 workbooks, 550 procedures, 79 shared (31 identical groups, 2 near-duplicate, 9 shared modules), one call, no timeout. Looks right: the three `kalibratieberekening` books share `frmSerialInput`/`Module6`, the two Mediaformulier books are copies.
-- `excel_map_vba_sheet_access(Air.xlsm)` unscoped — **114 KB in one line, over the client's tool-result limit**; the caller sees only "output saved to file". Carded as **VBA-016** with options; needs a decision (recommendation: `includeRecords` toggle + exposed `maxRecords` default 300).
+- `excel_map_vba_sheet_access(Air.xlsm)` unscoped — **114 KB in one line, over the client's tool-result limit**; the caller sees only "output saved to file". Fixed as **VBA-016** on the same branch: `includeRecords` (false = summary + rollup only, 9 KB on Air) and `maxRecords` (default 300, was a hidden 1000, `truncated: true` when cut). The gated Air test asserts both; the live call with the new parameters was not yet run (server needs `/mcp` after the build).
 
 ## Outstanding — Action Required
 
-- **Merge the PR** for `fix/vba-v4-acceptance` (squash), then `git pull` on the other machine.
-- **VBA-016 decision** (see the card), then implement (0.5 h).
+- **Merge PR #16** (squash), then `git pull` on the other machine.
+- **VBA-016 live check** after `/mcp`: `excel_map_vba_sheet_access(Air.xlsm, includeRecords=false)` should be a few KB; the default call 300 records with `truncated: true`.
 - **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI. The v4 cards' conclusions carry the acceptance note.
 - **`/mcp`** — the office server was killed for the build and is not running in this session.
 
@@ -39,7 +39,6 @@ Run through the live `office` server on the samples corpus:
 
 Board is the source of truth (`list_cards`, project id 27). Shortlist:
 
-- **VBA-016** — sheet-access payload, after the decision above (0.5h).
 - **DOCS-002** — `word_convert` accepts `.md` input but is documented as `.docx`-only (0.25h).
 - **VBA-011** — stranded LF-only callgraph-renderer diff on `feat/render-vba-callgraph` (0.25h).
 - **MD-001** — unify the two inline writers; only the insertion anchor is left.

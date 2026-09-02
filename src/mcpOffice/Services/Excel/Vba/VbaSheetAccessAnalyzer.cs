@@ -18,7 +18,8 @@ internal static class VbaSheetAccessAnalyzer
         string? moduleName,
         string? sheetName,
         bool includeUnresolved,
-        int maxItems = 1000)
+        bool includeRecords = true,
+        int maxRecords = 300)
     {
         if (!project.HasVbaProject)
             return new ExcelVbaSheetAccessResult(path, false, new ExcelVbaSheetAccessSummary(0, 0, 0, 0, 0), [], [], false);
@@ -104,8 +105,10 @@ internal static class VbaSheetAccessAnalyzer
             .ThenBy(a => a.Target.Address ?? a.Target.DefinedName ?? "", Ci)
             .ToList();
 
+        // ponytail: includeRecords=false is the cheap first call on a big workbook (Air: 672 records = 114 KB, rollup 9 KB).
         return new ExcelVbaSheetAccessResult(path, true, summary,
-            accessList.Take(maxItems).ToList(), usage.ToList(), accessList.Count > maxItems);
+            includeRecords ? accessList.Take(maxRecords).ToList() : [], usage.ToList(),
+            includeRecords && accessList.Count > maxRecords);
     }
 
     private static string Fqn(VbaSheetAccessResolver.AccessSite s) => $"{s.Module}.{s.Procedure}";
