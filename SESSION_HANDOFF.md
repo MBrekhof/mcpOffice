@@ -32,7 +32,6 @@ Run through the live `office` server on the samples corpus:
 
 - **Merge PR #16** (squash), then `git pull` on the other machine.
 - **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI. The v4 cards' conclusions carry the acceptance note.
-- **`/mcp`** — the office server was killed for the build and is not running in this session.
 
 ## Next Up
 
