@@ -187,7 +187,9 @@ Inference from the `frm*` code-behind only (the binary `.frx` designer half is o
 - `<ctrl>_<Event>(…)` handler → control + event; event → type hint: `Click` → `button?`,
   `Change`/`KeyPress` → `textBox?`/`comboBox?`, `AfterUpdate` → `textBox?`, `DblClick` on a
   `lst*` name → `listBox?`. Name prefix (`txt`, `cmd`, `btn`, `lst`, `cbo`, `chk`, `opt`, `lbl`,
-  `frm`) wins over the event hint when present.
+  `frm`) wins over the event hint when present. The VBE default names (`Label2`, `TextBox1`,
+  `CommandButton3` — MSForms type name + number) count as prefixes too; OlieGC's `Label2_Click`
+  came back as a CommandButton before that (acceptance 2026-09-02).
 - `Dim … As MSForms.<Type>` / `As <Type>` with `MSForms` types → exact type.
 
 Output per form: `controls[] = { name, inferredType, typeConfidence: "declared|prefix|event|member|none",

@@ -188,7 +188,8 @@ internal static class VbaEntryPointAnalyzer
                     var name = m.Value.TrimEnd('(', ' ', '\t');
                     var fqn = functions[name].Proc.FullyQualifiedName;
                     if (!cells.TryGetValue(fqn, out var list)) cells[fqn] = list = [];
-                    list.Add($"{sheet.Name}!{cell}");
+                    var cellRef = $"{sheet.Name}!{cell}";
+                    if (list.Count == 0 || list[^1] != cellRef) list.Add(cellRef);   // several calls in one formula = one cell
                 }
 
         foreach (var (fqn, list) in cells)

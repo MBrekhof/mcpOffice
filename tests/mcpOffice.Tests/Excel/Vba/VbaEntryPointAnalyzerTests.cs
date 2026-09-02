@@ -106,6 +106,17 @@ public class VbaEntryPointAnalyzerTests
     }
 
     [Fact]
+    public void Formula_calling_a_function_twice_lists_the_cell_once()
+    {
+        // Air.xlsm campy!K13 calls MPNindex three times in one formula and showed up three times.
+        IReadOnlyList<VbaEntryPointAnalyzer.SheetInput> sheets =
+            [new("Data", "Blad1", DrawingXml, Vml, [("K13", "IF(A1>0,Score(A1),Score(A2))+Score(A3)"), ("L13", "Score(B1)")])];
+        var r = VbaEntryPointAnalyzer.Analyze(@"C:\t.xlsm", Project(), sheets, true, null);
+        var e = Assert.Single(r.EntryPoints, e => e.Kind == "worksheetFunction");
+        Assert.Equal(["Data!K13", "Data!L13"], e.FormulaCells);
+    }
+
+    [Fact]
     public void Auto_Open_and_event_handlers_are_entry_points()
     {
         var r = Run();

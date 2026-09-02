@@ -125,7 +125,7 @@ public static class ExcelTools
         => Service.MapVbaSheetAccess(path, moduleName, sheetName, includeUnresolved);
 
     [McpServerTool(Name = "excel_list_vba_form_controls")]
-    [Description("The UI spec of each UserForm, inferred from its code-behind (the binary .frx designer part is not read): controls named by event handlers (cmdOK_Click), Me.<control> references, Hungarian-prefixed bare references (txt/cmd/lst/cbo/chk/opt/lbl/…) and 'As MSForms.<Type>' declarations. Each control has inferredType (MSForms type or Control) with typeConfidence declared | prefix | event | member | none, its events and referenced properties; formEvents lists the form's own handlers. formName scopes to one form; throws module_not_found if unknown.")]
+    [Description("The UI spec of each UserForm, inferred from its code-behind (the binary .frx designer part is not read): controls named by event handlers (cmdOK_Click), Me.<control> references, Hungarian-prefixed or VBE-default-named bare references (txt/cmd/lst/cbo/chk/opt/lbl/…, Label2/TextBox1/…) and 'As MSForms.<Type>' declarations. Each control has inferredType (MSForms type or Control) with typeConfidence declared | prefix | event | member | none, its events and referenced properties; formEvents lists the form's own handlers. formName scopes to one form; throws module_not_found if unknown.")]
     public static object ExcelListVbaFormControls(
         [Description("Absolute path to the .xlsm workbook")] string path,
         [Description("Optional case-insensitive UserForm module name (e.g. frmLogin).")] string? formName = null)
