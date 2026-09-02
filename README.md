@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 34 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
+**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 37 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
 
 ## Architecture
 
@@ -21,11 +21,12 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - [VBA extraction plan](docs/plans/2026-05-01-mcpoffice-excel-vba-extraction-plan.md) — MS-OVBA decompression, OpenMcdf walking.
 - [VBA analysis design](docs/plans/2026-05-03-mcpoffice-excel-analyze-vba-design.md) and [v3 conversion hints](docs/plans/2026-05-07-mcpoffice-excel-analyze-vba-v3-design.md).
 - [CSV export design](docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md) — streaming `excel_export_csv`.
+- [VBA v4 migration-planning design](docs/plans/2026-09-01-mcpoffice-excel-vba-v4-migration-planning-design.md) — entry points / dead code, sheet-access map, corpus dedup, form controls; why the drawing parts are read raw.
 - [PDF tools design](docs/plans/2026-08-20-pdf-tools-design.md) — `pdf_` surface, top-left coordinate convention, layout reconstruction.
 
 ## Current Tools
 
-34 tools shipped: 1 ping + 15 Word + 11 Excel + 7 PDF.
+37 tools shipped: 1 ping + 15 Word + 14 Excel + 7 PDF.
 
 ### Word
 
@@ -58,6 +59,9 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `excel_export_csv(path, outputPath, sheetName?, sheetIndex?, range?, overwrite=false, maxRows=1048576, trimTrailingEmptyRows=false)` — streams a sheet to RFC 4180 CSV for pandas/polars.
 - `excel_render_vba_callgraph(path, format="mermaid", moduleName?, procedureName?, depth=2, direction="both", layout="clustered", maxNodes=300)` — call graph as Mermaid or DOT.
 - `excel_suggest_vba_conversion(path, moduleName?, targetParadigm?)` — per-procedure conversion hints plus module coupling.
+- `excel_list_vba_entry_points(path, includeUnreachable=true, moduleName?)` — what actually runs: event handlers, Auto_* macros, macros wired to shapes and form controls (read from the drawing parts), worksheet functions used in formulas, dynamic dispatch — and `unreachable[]`, the procedures nothing can reach.
+- `excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true)` — per procedure, which sheet and range / defined name it reads and writes; `ActiveSheet` and unqualified access are reported as unresolved, never guessed.
+- `excel_compare_vba_corpus(paths[]? | directory, minOccurrences=2, maxProcedures=200, includeNearDuplicates=true)` — procedures shared across workbooks (identical bodies, renamed copies, ≥ 90 % near-duplicates) so they are migrated once.
 
 ### PDF
 
@@ -121,7 +125,8 @@ Read a column-based report out of a PDF with its layout intact:
 3. **`excel_analyze_vba` v1** — call graph, event handlers, Excel object-model refs, external dependencies ✓
 4. **`excel_analyze_vba` v2 + v3** — `excel_render_vba_callgraph` (DOT/Mermaid call-graph rendering) and `excel_suggest_vba_conversion` (procedure role classification, suggested C# equivalents, cross-module coupling score) ✓
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
-6. PowerPoint (.pptx).
+6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks) ✓; UserForm control inventory pending.
+7. PowerPoint (.pptx).
 
 ## Built With
 

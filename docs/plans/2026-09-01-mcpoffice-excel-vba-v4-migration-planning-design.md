@@ -29,10 +29,12 @@ count goes 34 → 38 (37 without VBA-015).
 - `Worksheet.FormControls` / `Worksheet.Shapes` expose form controls and shapes with `Name`,
   `FormControlType`, position — but **no macro link**. `ButtonFormControl` has `PlainText`,
   `PrintObject`, `Hyperlink`, nothing like `OnAction`.
-- Formulas (`excel_list_formulas`) and defined names (`excel_list_defined_names`) are already
-  DevExpress-backed and are reused as-is.
-- So macro wiring comes from the Open XML drawing parts (below). Shape names come along for free
-  from the same parts, so v4 does not use the DevExpress shape API at all.
+- Formulas and defined names could come from the DevExpress-backed `excel_list_formulas` /
+  `excel_list_defined_names`, but that loads the whole workbook (30 s on ScreeningDB-V2). v4 reads
+  both straight from `xl/worksheets/sheetN.xml` and `xl/workbook.xml` instead (`OpenXmlParts`),
+  so none of the three tools touches DevExpress at all. *(Implementation note, 2026-09-02.)*
+- Macro wiring comes from the Open XML drawing parts (below). Shape names come along for free
+  from the same parts, so v4 does not use the DevExpress shape API either.
 
 ## Tool 1 — `excel_list_vba_entry_points` (VBA-012)
 
@@ -46,7 +48,7 @@ count goes 34 → 38 (37 without VBA-015).
 | `autoMacro` | `Auto_Open`, `Auto_Close`, `Auto_Activate`, `Auto_Deactivate` in standard modules |
 | `shapeMacro` | `xl/drawings/drawingN.xml`: `macro="…"` on `<xdr:sp>`, `<xdr:pic>`, `<xdr:cxnSp>`, and children of `<xdr:grpSp>` |
 | `formControlMacro` | `xl/drawings/vmlDrawingN.vml`: `<x:ClientData ObjectType="Button|Checkbox|Drop|Radio|Spin|Scroll|List|Label|GBox"><x:FmlaMacro>` |
-| `worksheetFunction` | `Public Function` in a standard module whose name appears as `Name(` in any cell formula (`excel_list_formulas`, case-insensitive, `\bName\s*\(`) |
+| `worksheetFunction` | `Public Function` in a standard module whose name appears as `Name(` in any cell formula (formulas streamed from the sheet XML via `OpenXmlParts.ReadFormulas` — not `excel_list_formulas`, which would load the workbook through DevExpress: 30 s on ScreeningDB-V2 for nothing; case-insensitive, not preceded by `.` or a word char) |
 | `dynamicDispatch` | string-literal targets of `Application.OnTime`, `Application.OnKey`, `Application.Run`, `.OnAction = "…"` inside VBA — recorded as an edge from the containing procedure *and* listed here |
 
 Macro references in drawing parts have the form `[0]!Module.Proc`, `Module.Proc`, `Proc`, or

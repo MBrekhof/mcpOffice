@@ -112,6 +112,25 @@ A gated "real-world" benchmark exists for VBA analysis: `Excel/Vba/AirSampleAnal
 
 Strategy is regex-on-cleaned-source rather than a full VBA tokenizer. The Air.xlsm benchmark (107 modules, 938 call edges, 3040 object-model sites, ~115ms) is the evidence that this is sufficient. Revisit only if real-world ambiguity defeats the regex layer.
 
+The v4 migration-planning tools (2026-09) compose that model with the package itself instead of
+DevExpress — `OpenXmlParts` maps sheets ↔ codenames ↔ drawing parts and streams formulas and
+defined names straight out of the zip, because DevExpress Spreadsheet exposes form controls but
+not the macro they run:
+
+```
+excel_list_vba_entry_points   DrawingMacroExtractor (drawingN.xml, vmlDrawingN.vml)
+                              + VbaDynamicDispatchScanner + formulas  -->  entry points
+                              VbaCallGraphReachability over the v1 graph -->  unreachable[]
+excel_map_vba_sheet_access    VbaSheetAccessResolver (With / alias / codename / defined-name
+                              aware, never guesses ActiveSheet)         -->  per-sheet read/write map
+excel_compare_vba_corpus      VbaProcedureHasher (normalised body, name excluded) across
+                              N workbooks                                -->  shared procedures
+```
+
+Each of those is a pure class with string-fixture tests; the service layer only opens the zip and
+hands the parts over. Design and closed vocabularies:
+`docs/plans/2026-09-01-mcpoffice-excel-vba-v4-migration-planning-design.md`.
+
 ## PDF text positioning
 
 A PDF is a list of glyph-drawing operations. It has no lines, no columns, and no reading
