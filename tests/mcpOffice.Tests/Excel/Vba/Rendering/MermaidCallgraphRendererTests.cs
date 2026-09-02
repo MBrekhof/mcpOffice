@@ -19,6 +19,29 @@ public class MermaidCallgraphRendererTests
     }
 
     [Fact]
+    public void Output_is_LF_only_on_every_emit_path()
+    {
+        // Wire format inside a JSON-RPC payload, not host text: never CRLF (VBA-011).
+        var nodes = new[]
+        {
+            new CallgraphNode("M.P1", "P1", "M", IsEventHandler: true, IsOrphan: false, IsExternal: false),
+            new CallgraphNode("M.P2", "P2", "M", false, false, false),
+            new CallgraphNode("Ext.Run", "Run", "Ext", false, false, IsExternal: true),
+        };
+        var edges = new[]
+        {
+            new CallgraphEdge(FromId: "M.P1", ToId: "M.P2", Resolved: true),
+            new CallgraphEdge(FromId: "M.P2", ToId: "Ext.Run", Resolved: false),
+        };
+        foreach (var layout in new[] { "clustered", "flat" })
+        {
+            var output = R.Render(new FilteredCallgraph(nodes, edges), new CallgraphRenderOptions(Layout: layout));
+            Assert.DoesNotContain('\r', output);
+            Assert.EndsWith("\n", output);
+        }
+    }
+
+    [Fact]
     public void Single_node_clustered_wraps_in_subgraph()
     {
         var node = new CallgraphNode("M.P1", "P1", "M", IsEventHandler: false, IsOrphan: true, IsExternal: false);

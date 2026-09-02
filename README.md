@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
+**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks.
 
 ## Architecture
 
@@ -127,7 +127,8 @@ Read a column-based report out of a PDF with its layout intact:
 4. **`excel_analyze_vba` v2 + v3** — `excel_render_vba_callgraph` (DOT/Mermaid call-graph rendering) and `excel_suggest_vba_conversion` (procedure role classification, suggested C# equivalents, cross-module coupling score) ✓
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
 6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks), `excel_list_vba_form_controls` (UserForm UI spec) ✓
-7. PowerPoint (.pptx).
+
+Open work lives on ContextBoard (project `mcpOffice`). PowerPoint was dropped from the roadmap on 2026-09-02: no consumer asked for it.
 
 ## Built With
 
