@@ -3,13 +3,17 @@ using McpOffice.Models;
 
 namespace McpOffice.Services.Excel.Vba.Rendering;
 
+// Renderer output is a wire format that lands in JSON-RPC payloads — line endings are LF only,
+// not host-formatted text. Both renderers (Mermaid here, DOT in DotCallgraphRenderer) follow this.
 public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
 {
     public string Render(FilteredCallgraph graph, CallgraphRenderOptions options)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("flowchart TD");
+        sb.Append("flowchart TD\n");
 
+        // Layout match is exact: validation of the user-supplied value is the tool layer's job (Task 15).
+        // Anything that isn't literally "clustered" falls through to flat — the safe default.
         if (options.Layout == "clustered")
             EmitClustered(sb, graph);
         else
@@ -30,21 +34,21 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
 
         foreach (var group in grouped)
         {
-            sb.Append("  subgraph ").AppendLine(MangleId(group.Key));
+            sb.Append("  subgraph ").Append(MangleId(group.Key)).Append('\n');
             foreach (var node in group)
             {
                 sb.Append("    ");
                 EmitNode(sb, node, useFqnLabel: false);
-                sb.AppendLine();
+                sb.Append('\n');
             }
-            sb.AppendLine("  end");
+            sb.Append("  end\n");
         }
 
         foreach (var ext in graph.Nodes.Where(n => n.IsExternal))
         {
             sb.Append("  ");
             EmitNode(sb, ext, useFqnLabel: false);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -54,7 +58,7 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         {
             sb.Append("  ");
             EmitNode(sb, node, useFqnLabel: !node.IsExternal);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -63,6 +67,9 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         var id = MangleId(node.Id);
         var label = EscapeLabel(useFqnLabel ? node.Id : node.Label);
 
+        // Shape priority differs from class priority: handlers get the rounded shape, externals
+        // get the :::external class. Per BuildOutput, externals never have IsEventHandler=true,
+        // so the shape/class disagreement on a single node is unreachable.
         if (node.IsEventHandler)
             sb.Append(id).Append("([").Append(label).Append("])");
         else
@@ -79,28 +86,33 @@ public sealed class MermaidCallgraphRenderer : ICallgraphRenderer
         {
             sb.Append("  ").Append(MangleId(e.FromId));
             sb.Append(e.Resolved ? " --> " : " -.-> ");
-            sb.AppendLine(MangleId(e.ToId));
+            sb.Append(MangleId(e.ToId)).Append('\n');
         }
     }
 
     private static void EmitClassDefs(StringBuilder sb)
     {
-        sb.AppendLine("  classDef handler fill:#e1f5ff,stroke:#0277bd");
-        sb.AppendLine("  classDef orphan stroke-dasharray:5 5");
-        sb.AppendLine("  classDef external fill:#f5f5f5,stroke-dasharray:3 3");
+        sb.Append("  classDef handler fill:#e1f5ff,stroke:#0277bd\n");
+        sb.Append("  classDef orphan stroke-dasharray:5 5\n");
+        sb.Append("  classDef external fill:#f5f5f5,stroke-dasharray:3 3\n");
     }
 
     private static string MangleId(string id)
     {
+        // Mermaid IDs accept [A-Za-z0-9_] only. We replace everything else with '_'.
+        // Theoretical collision: a module literally named "M_P1" mangles to the same id as
+        // FQN "M.P1". Real workbooks haven't hit this; revisit with a bijective mapping if needed.
         var chars = id.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_').ToArray();
         return new string(chars);
     }
 
-    private static string EscapeLabel(string label) =>
-        label
+    private static string EscapeLabel(string label)
+    {
+        return label
             .Replace("\"", "&quot;")
             .Replace("[", "&#91;")
             .Replace("]", "&#93;")
             .Replace("(", "&#40;")
             .Replace(")", "&#41;");
+    }
 }

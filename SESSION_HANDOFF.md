@@ -39,7 +39,6 @@ Board is the source of truth (`list_cards`, project id 27). Shortlist:
 
 - **VBA-011** — stranded LF-only callgraph-renderer diff on `feat/render-vba-callgraph` (0.25h).
 - **MD-001** — unify the two inline writers; only the insertion anchor is left.
-- **PowerPoint (.pptx)** — next domain per the README roadmap; no design doc and no card yet.
 
 ## How To Resume
 

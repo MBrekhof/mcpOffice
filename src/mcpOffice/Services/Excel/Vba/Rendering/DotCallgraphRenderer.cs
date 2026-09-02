@@ -8,9 +8,9 @@ public sealed class DotCallgraphRenderer : ICallgraphRenderer
     public string Render(FilteredCallgraph graph, CallgraphRenderOptions options)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("digraph G {");
-        sb.AppendLine("  rankdir=TB;");
-        sb.AppendLine("  node [shape=box];");
+        sb.Append("digraph G {\n");
+        sb.Append("  rankdir=TB;\n");
+        sb.Append("  node [shape=box];\n");
 
         if (options.Layout == "clustered")
             EmitClustered(sb, graph);
@@ -18,7 +18,7 @@ public sealed class DotCallgraphRenderer : ICallgraphRenderer
             EmitFlat(sb, graph);
 
         EmitEdges(sb, graph);
-        sb.AppendLine("}");
+        sb.Append("}\n");
         return sb.ToString();
     }
 
@@ -32,22 +32,22 @@ public sealed class DotCallgraphRenderer : ICallgraphRenderer
         foreach (var group in grouped)
         {
             var clusterId = "cluster_" + Mangle(group.Key);
-            sb.Append("  subgraph ").Append(clusterId).AppendLine(" {");
-            sb.Append("    label=").Append(Quote(group.Key)).AppendLine(";");
+            sb.Append("  subgraph ").Append(clusterId).Append(" {\n");
+            sb.Append("    label=").Append(Quote(group.Key)).Append(";\n");
             foreach (var node in group)
             {
                 sb.Append("    ");
                 EmitNode(sb, node, useFqnLabel: false);
-                sb.AppendLine();
+                sb.Append('\n');
             }
-            sb.AppendLine("  }");
+            sb.Append("  }\n");
         }
 
         foreach (var ext in graph.Nodes.Where(n => n.IsExternal))
         {
             sb.Append("  ");
             EmitNode(sb, ext, useFqnLabel: false);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -57,7 +57,7 @@ public sealed class DotCallgraphRenderer : ICallgraphRenderer
         {
             sb.Append("  ");
             EmitNode(sb, node, useFqnLabel: !node.IsExternal);
-            sb.AppendLine();
+            sb.Append('\n');
         }
     }
 
@@ -95,7 +95,7 @@ public sealed class DotCallgraphRenderer : ICallgraphRenderer
             sb.Append("  ").Append(Quote(e.FromId)).Append(" -> ").Append(Quote(e.ToId));
             if (!e.Resolved)
                 sb.Append(" [style=\"dashed\"]");
-            sb.AppendLine(";");
+            sb.Append(";\n");
         }
     }
 
