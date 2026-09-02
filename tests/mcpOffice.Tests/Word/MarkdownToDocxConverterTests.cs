@@ -478,6 +478,24 @@ public class MarkdownToDocxConverterTests
     }
 
     [Fact]
+    public void Image_inside_a_table_cell_is_inserted_in_that_cell()
+    {
+        // The cell writer used to drop images (MD-001); one writer with a positional insert keeps them.
+        using var tmpDir = new TempDir();
+        File.WriteAllBytes(Path.Combine(tmpDir.Path, "dot.png"), OnePixelPng());
+        var md = "| Icon | Name |\n|---|---|\n| ![dot](dot.png) | after |\n";
+
+        using var server = new RichEditDocumentServer();
+        MarkdownToDocxConverter.Apply(server.Document, md, tmpDir.Path);
+
+        var doc = server.Document;
+        Assert.Single(doc.Images);
+        var table = Assert.Single(doc.Tables);
+        Assert.Single(doc.Images.Get(table.Range));
+        Assert.Equal("after", doc.GetText(table.Rows[1].Cells[1].ContentRange).Trim());
+    }
+
+    [Fact]
     public void Image_missing_local_file_is_dropped_no_throw()
     {
         using var tmpDir = new TempDir();
