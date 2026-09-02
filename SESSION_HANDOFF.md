@@ -4,8 +4,8 @@
 
 **Branch:** `main` — clean working tree, in sync with `origin/main` (fast-forwarded from `feat/vba-v4`, branch deleted).
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` — **497 unit + 20 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
-**Tool surface:** **37 tools**: 1 ping + 15 Word + 14 Excel + 7 PDF. New: `excel_list_vba_entry_points`, `excel_map_vba_sheet_access`, `excel_compare_vba_corpus`.
+**Tests:** `dotnet test` — **508 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
+**Tool surface:** **38 tools**: 1 ping + 15 Word + 15 Excel + 7 PDF. New: `excel_list_vba_entry_points`, `excel_map_vba_sheet_access`, `excel_compare_vba_corpus`, `excel_list_vba_form_controls`.
 
 ## What Landed This Session (2026-09-01 → 02)
 
@@ -16,19 +16,19 @@ Earlier in the same session (already on main since 779b62a): memory consolidatio
 3. **v4 design** (`3ed5848`, amended in the docs commit) — `docs/plans/2026-09-01-mcpoffice-excel-vba-v4-migration-planning-design.md`. Key finding (dxdocs 26.1): DevExpress Spreadsheet exposes form controls and shapes but not the macro they run, so v4 reads drawing parts, formulas and defined names straight from the package via `OpenXmlParts` and touches DevExpress nowhere.
 4. **VBA-012** (`d708d06`) — `excel_list_vba_entry_points`: six entry-point kinds (event handlers, Auto_*, shape macros from `drawingN.xml`, form-control macros from `vmlDrawingN.vml`, worksheet functions used in formulas, dynamic dispatch) + reachability BFS → `unreachable[]` with confidence. Macros with arguments (`'Copy_results(2)'`, `'Inlezen("Kjeldahl-N")'`) resolve. 76 tests on in-memory packages; gated Air/RingOnderzoek checks.
 5. **VBA-013 + VBA-014** (`e06f115`) — `excel_map_vba_sheet_access` (With/alias/codename/defined-name-aware resolver that never guesses ActiveSheet; per-sheet readers/writers rollup) and `excel_compare_vba_corpus` (normalised-body hash with the name excluded, near-duplicates ≥ 0.9, shared modules). 60 tests; gated real-file checks over the samples directory.
-6. **Docs** — README (37 tools, three entries, roadmap item 6 ✓, design link), usage.md (the five VBA tools v2–v4 — v2/v3 had never been documented there), ARCHITECTURE.md (v4 branch of the VBA pipeline).
+6. **VBA-015** (`faf3353`) — `excel_list_vba_form_controls`: UserForm controls inferred from code-behind (handler names, Me. references, Hungarian prefixes, MSForms declarations); the .frx designer part is not read. Eight unit tests; gated OlieGC / QQQ2 checks.
+7. **Docs** — README (38 tools, four entries, roadmap item 6 ✓, design link), usage.md (the five VBA tools v2–v4 — v2/v3 had never been documented there), ARCHITECTURE.md (v4 branch of the VBA pipeline).
 
 ## Outstanding — Action Required
 
-- **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI.
-- **Live acceptance of the three v4 tools was not run** (the office server needs `/mcp` after every rebuild and the user was away). First thing next session: `/mcp`, then `excel_list_vba_entry_points` and `excel_map_vba_sheet_access` on `C:\Projects\mcpOffice-samples\Air.xlsm`, and `excel_compare_vba_corpus` on the samples directory. The gated unit tests already exercise the same service code on those files.
+- **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI.
+- **Live acceptance of the three v4 tools was not run** (the office server needs `/mcp` after every rebuild and the user was away). First thing next session: `/mcp`, then `excel_list_vba_entry_points`, `excel_map_vba_sheet_access` and `excel_list_vba_form_controls` (on `OlieGC - LABWARE PRD.xlsm`) on `C:\Projects\mcpOffice-samples\Air.xlsm`, and `excel_compare_vba_corpus` on the samples directory. The gated unit tests already exercise the same service code on those files.
 - **Other machine:** `git pull`, restart its session so the server picks up the new DLL.
 
 ## Next Up
 
 Board is the source of truth (`list_cards`, project id 27). Shortlist:
 
-- **VBA-015** — UserForm control inventory inferred from `frm*` code-behind (3h; design doc Tool 4). The user said "when time permits".
 - **DOCS-002** — `word_convert` accepts `.md` input but is documented as `.docx`-only (0.25h).
 - **VBA-011** — stranded LF-only callgraph-renderer diff on `feat/render-vba-callgraph` (0.25h).
 - **MD-001** — unify the two inline writers; only the insertion anchor is left.

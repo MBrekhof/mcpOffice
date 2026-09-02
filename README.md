@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 37 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
+**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks. Next: PowerPoint (.pptx).
 
 ## Architecture
 
@@ -26,7 +26,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 
 ## Current Tools
 
-37 tools shipped: 1 ping + 15 Word + 14 Excel + 7 PDF.
+38 tools shipped: 1 ping + 15 Word + 15 Excel + 7 PDF.
 
 ### Word
 
@@ -62,6 +62,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `excel_list_vba_entry_points(path, includeUnreachable=true, moduleName?)` — what actually runs: event handlers, Auto_* macros, macros wired to shapes and form controls (read from the drawing parts), worksheet functions used in formulas, dynamic dispatch — and `unreachable[]`, the procedures nothing can reach.
 - `excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true)` — per procedure, which sheet and range / defined name it reads and writes; `ActiveSheet` and unqualified access are reported as unresolved, never guessed.
 - `excel_compare_vba_corpus(paths[]? | directory, minOccurrences=2, maxProcedures=200, includeNearDuplicates=true)` — procedures shared across workbooks (identical bodies, renamed copies, ≥ 90 % near-duplicates) so they are migrated once.
+- `excel_list_vba_form_controls(path, formName?)` — each UserForm's controls inferred from its code-behind (handler names, `Me.` references, Hungarian prefixes, `As MSForms.X` declarations) with type, confidence, events and referenced properties.
 
 ### PDF
 
@@ -125,7 +126,7 @@ Read a column-based report out of a PDF with its layout intact:
 3. **`excel_analyze_vba` v1** — call graph, event handlers, Excel object-model refs, external dependencies ✓
 4. **`excel_analyze_vba` v2 + v3** — `excel_render_vba_callgraph` (DOT/Mermaid call-graph rendering) and `excel_suggest_vba_conversion` (procedure role classification, suggested C# equivalents, cross-module coupling score) ✓
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
-6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks) ✓; UserForm control inventory pending.
+6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks), `excel_list_vba_form_controls` (UserForm UI spec) ✓
 7. PowerPoint (.pptx).
 
 ## Built With

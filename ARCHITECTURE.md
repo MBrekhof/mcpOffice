@@ -125,6 +125,8 @@ excel_map_vba_sheet_access    VbaSheetAccessResolver (With / alias / codename / 
                               aware, never guesses ActiveSheet)         -->  per-sheet read/write map
 excel_compare_vba_corpus      VbaProcedureHasher (normalised body, name excluded) across
                               N workbooks                                -->  shared procedures
+excel_list_vba_form_controls  VbaFormControlInventory (handler names, Me., prefixes,
+                              MSForms declarations; .frx not read)      -->  UserForm UI spec
 ```
 
 Each of those is a pure class with string-fixture tests; the service layer only opens the zip and

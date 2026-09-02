@@ -190,9 +190,12 @@ Inference from the `frm*` code-behind only (the binary `.frx` designer half is o
   `frm`) wins over the event hint when present.
 - `Dim … As MSForms.<Type>` / `As <Type>` with `MSForms` types → exact type.
 
-Output per form: `controls[] = { name, inferredType, typeConfidence: "declared|prefix|event",
-events[], referencedProperties[] }`, `handlersWithoutControl[]`, `summary`. Real-file check:
-`OlieGC - LABWARE PRD.xlsm`, `QQQ2 - Absolute.xlsm`.
+Output per form: `controls[] = { name, inferredType, typeConfidence: "declared|prefix|event|member|none",
+events[], referencedProperties[] }`, `formEvents[]` (the form's own `UserForm_*` handlers — replaces the
+planned `handlersWithoutControl[]`, which had no clean definition once a handler name alone implies
+the control exists), `handlerCount`, `summary`. A `member` confidence (`.AddItem` → ListBox,
+`.Caption` → Label, …) beats an event hint when they disagree. *(Implemented 2026-09-02.)*
+Real-file check: `OlieGC - LABWARE PRD.xlsm`, `QQQ2 - Absolute.xlsm`.
 
 ## Shared plumbing added once
 
