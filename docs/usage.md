@@ -253,7 +253,7 @@ Expected `word_get_metadata` shape:
 
 ## Markdown Notes
 
-`word_create_from_markdown` and `word_append_markdown` use a Markdig-based converter (`MarkdownToDocxConverter`). Current coverage: headings, paragraphs, bold/italic, nested lists, block quotes, horizontal rules, fenced and indented code blocks, inline code, links, local images, and pipe tables. `word_create_from_markdown` can build on a `.dotx`/`.docx` template via `templatePath` (see above).
+`word_create_from_markdown` and `word_append_markdown` use a Markdig-based converter (`MarkdownToDocxConverter`). Current coverage: headings, paragraphs, bold/italic, nested lists, block quotes, horizontal rules, fenced and indented code blocks, inline code, links, local images (inside table cells too, since MD-001), and pipe tables. `word_create_from_markdown` can build on a `.dotx`/`.docx` template via `templatePath` (see above).
 
 Known caveats:
 
