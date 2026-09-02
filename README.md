@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks.
+**Status:** Word (.docx and .odt), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks.
 
 ## Architecture
 
@@ -44,7 +44,7 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - `word_insert_table(path, atIndex, headers[], rows[][])`
 - `word_set_metadata(path, properties)`
 - `word_mail_merge(templatePath, outputPath, dataJson, overwrite=false)`
-- `word_convert(inputPath, outputPath, format?, overwrite=false)` — input is `.docx` or `.md`/`.markdown`; an existing Markdown file becomes a PDF or `.docx` in one call, relative image paths resolving against the `.md`'s directory.
+- `word_convert(inputPath, outputPath, format?, overwrite=false)` — input is `.docx`, `.odt` or `.md`/`.markdown`, output adds `odt` to the format list; an existing Markdown file becomes a PDF or `.docx` in one call, relative image paths resolving against the `.md`'s directory.
 
 ### Excel
 

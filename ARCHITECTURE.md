@@ -40,6 +40,11 @@ Cross-cutting:
 | Excel   | `Tools/ExcelTools`    | `Services/Excel/ExcelWorkbookService` | `excel_`    |
 | PDF     | `Tools/PdfTools`      | `Services/Pdf/PdfDocumentService`   | `pdf_`      |
 
+Word file formats are chosen by extension in one place — `Services/Word/WordFormats.ForPath` —
+because `RichEditDocumentServer` does not sniff a format that is passed explicitly, and passing
+OpenXml for an `.odt` fails the load outright. Every Word load and in-place save goes through it,
+so a file is written back in the format it was read as; an unknown extension falls back to OpenXml.
+
 The Excel VBA pipeline lives under `Services/Excel/Vba/` and has more moving parts than the rest of the codebase — see "VBA pipeline" below. The PDF domain has its own wrinkle — see "PDF text positioning" below.
 
 ## Adding a new tool

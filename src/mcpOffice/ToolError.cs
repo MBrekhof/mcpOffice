@@ -14,7 +14,7 @@ public static class ToolError
         Throw(ErrorCode.InvalidPath, $"Path must be absolute and well-formed: {path}");
 
     public static Exception UnsupportedFormat(string format) =>
-        Throw(ErrorCode.UnsupportedFormat, $"Unsupported format: {format}. Use one of pdf, html, rtf, txt, markdown, docx.");
+        Throw(ErrorCode.UnsupportedFormat, $"Unsupported format: {format}. Use one of pdf, html, rtf, txt, markdown, docx, odt.");
 
     public static Exception ParseError(string path, string detail) =>
         Throw(ErrorCode.ParseError, $"Could not parse {path}: {detail}");

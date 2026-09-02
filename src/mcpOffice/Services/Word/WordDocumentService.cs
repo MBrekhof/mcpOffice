@@ -17,29 +17,23 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = new RichEditDocumentServer();
-            server.LoadDocument(path, RichEditFormat.OpenXml);
+            using var server = Load(path);
 
             var document = server.Document;
             var outline = new List<OutlineNode>();
 
             foreach (var paragraph in document.Paragraphs)
             {
-                var styleName = paragraph.Style?.Name ?? string.Empty;
-                if (!styleName.StartsWith("Heading ", StringComparison.OrdinalIgnoreCase))
+                var level = TryGetHeadingLevel(paragraph);
+                if (level is null)
                 {
                     continue;
                 }
 
-                if (!int.TryParse(styleName["Heading ".Length..], out var level))
-                {
-                    continue;
-                }
-
-                var text = document.GetText(paragraph.Range).Trim();
+                var text = StripHeadingNumberLabel(document, paragraph, document.GetText(paragraph.Range).Trim());
                 if (text.Length > 0)
                 {
-                    outline.Add(new OutlineNode(level, text));
+                    outline.Add(new OutlineNode(level.Value, text));
                 }
             }
 
@@ -57,7 +51,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             return BuildMetadata(server);
         }
         catch (Exception ex) when (ex is not McpException)
@@ -72,7 +66,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
 
             var tableRanges = document.Tables
@@ -95,10 +89,10 @@ public sealed class WordDocumentService : IWordDocumentService
                     continue;
                 }
 
-                var headingLevel = TryGetHeadingLevel(paragraph.Style?.Name);
+                var headingLevel = TryGetHeadingLevel(paragraph);
                 if (headingLevel is not null)
                 {
-                    blocks.Add(new HeadingBlock(headingLevel.Value, text));
+                    blocks.Add(new HeadingBlock(headingLevel.Value, StripHeadingNumberLabel(document, paragraph, text)));
                     continue;
                 }
 
@@ -140,7 +134,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
             var entries = new List<CommentEntry>(document.Comments.Count);
 
@@ -175,7 +169,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
             var entries = new List<RevisionEntry>();
 
@@ -205,7 +199,7 @@ public sealed class WordDocumentService : IWordDocumentService
         try
         {
             using var server = new RichEditDocumentServer();
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -220,7 +214,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
             var paragraphCount = document.Paragraphs.Count;
 
@@ -242,7 +236,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 paragraph.Style = document.ParagraphStyles[style];
             }
 
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -271,7 +265,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(templatePath);
+            using var server = Load(templatePath);
             var document = server.Document;
             var fullText = document.GetText(document.Range);
 
@@ -295,7 +289,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 document.ReplaceAll(find, replacement, SearchOptions.None);
             }
 
-            server.SaveDocument(outputPath, RichEditFormat.OpenXml);
+            server.SaveDocument(outputPath, WordFormats.ForPath(outputPath));
             return outputPath;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -315,7 +309,7 @@ public sealed class WordDocumentService : IWordDocumentService
             MarkdownToDocxConverter.Apply(server.Document, md, Path.GetDirectoryName(inputPath));
             return server;
         }
-        return LoadOpenXml(inputPath);
+        return Load(inputPath);
     }
 
     public string Convert(string inputPath, string outputPath, string? format, bool overwrite = false)
@@ -349,6 +343,9 @@ public sealed class WordDocumentService : IWordDocumentService
                 case WordOutputFormat.OpenXml:
                     server.SaveDocument(outputPath, RichEditFormat.OpenXml);
                     break;
+                case WordOutputFormat.OpenDocument:
+                    server.SaveDocument(outputPath, RichEditFormat.Odt);
+                    break;
                 default:
                     throw ToolError.UnsupportedFormat(format ?? Path.GetExtension(outputPath));
             }
@@ -367,7 +364,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var docProps = server.Document.DocumentProperties;
 
             foreach (var (key, value) in properties)
@@ -391,7 +388,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 }
             }
 
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -406,7 +403,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
             var paragraphCount = document.Paragraphs.Count;
 
@@ -442,7 +439,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 }
             }
 
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -457,7 +454,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var document = server.Document;
 
             int count;
@@ -474,7 +471,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 count = document.ReplaceAll(find, replace, options);
             }
 
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return new ReplaceResult(count);
         }
         catch (Exception ex) when (ex is not McpException)
@@ -489,10 +486,10 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             var baseDir = Path.GetDirectoryName(path);
             MarkdownToDocxConverter.Apply(server.Document, markdown ?? string.Empty, baseDir);
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -522,7 +519,7 @@ public sealed class WordDocumentService : IWordDocumentService
                 markdown ?? string.Empty,
                 baseDir,
                 preserveExistingHeadingStyles: templatePath is not null);
-            server.SaveDocument(path, RichEditFormat.OpenXml);
+            server.SaveDocument(path, WordFormats.ForPath(path));
             return path;
         }
         catch (Exception ex) when (ex is not McpException)
@@ -537,7 +534,7 @@ public sealed class WordDocumentService : IWordDocumentService
 
         try
         {
-            using var server = LoadOpenXml(path);
+            using var server = Load(path);
             return RenderMarkdown(server);
         }
         catch (Exception ex) when (ex is not McpException)
@@ -553,7 +550,8 @@ public sealed class WordDocumentService : IWordDocumentService
         Rtf,
         Text,
         Markdown,
-        OpenXml
+        OpenXml,
+        OpenDocument
     }
 
     private static WordOutputFormat ResolveOutputFormat(string? format, string outputPath)
@@ -570,6 +568,7 @@ public sealed class WordDocumentService : IWordDocumentService
             "txt" or "text" => WordOutputFormat.Text,
             "md" or "markdown" => WordOutputFormat.Markdown,
             "docx" => WordOutputFormat.OpenXml,
+            "odt" => WordOutputFormat.OpenDocument,
             _ => throw ToolError.UnsupportedFormat(value)
         };
     }
@@ -587,12 +586,12 @@ public sealed class WordDocumentService : IWordDocumentService
                 continue;
             }
 
-            var headingLevel = TryGetHeadingLevel(paragraph.Style?.Name);
+            var headingLevel = TryGetHeadingLevel(paragraph);
             if (headingLevel is not null)
             {
                 markdown.Append('#', headingLevel.Value);
                 markdown.Append(' ');
-                markdown.AppendLine(text);
+                markdown.AppendLine(StripHeadingNumberLabel(document, paragraph, text));
                 markdown.AppendLine();
                 continue;
             }
@@ -604,10 +603,14 @@ public sealed class WordDocumentService : IWordDocumentService
         return markdown.ToString().TrimEnd();
     }
 
-    private static RichEditDocumentServer LoadOpenXml(string path)
+    /// <summary>
+    /// Loads a document in the format its extension implies (see <see cref="WordFormats"/>).
+    /// Anything unrecognised is read as OpenXML.
+    /// </summary>
+    private static RichEditDocumentServer Load(string path)
     {
         var server = new RichEditDocumentServer();
-        server.LoadDocument(path, RichEditFormat.OpenXml);
+        server.LoadDocument(path, WordFormats.ForPath(path));
         return server;
     }
 
@@ -697,16 +700,110 @@ public sealed class WordDocumentService : IWordDocumentService
         _ => type.ToString().ToLowerInvariant()
     };
 
+    /// <summary>
+    /// "Heading 1" (OpenXML) and "Heading1" (what the ODT importer produces) both count.
+    /// </summary>
+    private static readonly Regex HeadingStyleNamePattern =
+        new(@"^heading\s*([1-9])$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static int? TryGetHeadingLevel(string? styleName)
     {
-        const string prefix = "Heading ";
-
-        if (styleName is null || !styleName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        if (styleName is null)
         {
             return null;
         }
 
-        return int.TryParse(styleName[prefix.Length..], out var level) ? level : null;
+        var match = HeadingStyleNamePattern.Match(styleName.Trim());
+        return match.Success ? int.Parse(match.Groups[1].Value) : null;
+    }
+
+    /// <summary>
+    /// A "{0}" placeholder inside a <see cref="Regex.Escape(string)"/>d format string.
+    /// Escape turns "{" into "\{" but leaves "}" alone, hence the optional backslashes.
+    /// </summary>
+    private static readonly Regex ListLabelPlaceholderPattern = new(@"\\?\{\d+\\?\}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Drops the numbering label from a numbered heading's text.
+    /// <para>
+    /// <c>Document.GetText</c> renders the list label into the paragraph text, and for a
+    /// document that came in through ODT the counters are not resolved — every level comes
+    /// out as "1", so section 1.2 reads "1.1.Versiebeheer". A wrong section number is worse
+    /// for an agent than no number: one citing "section 1.1" would be citing nothing.
+    /// </para>
+    /// <para>
+    /// The label to remove is derived from the list level's own
+    /// <c>DisplayFormatString</c> ("{0}.{1}." and the like) rather than guessed, so exactly
+    /// the rendered label goes and a number the author typed into the heading survives.
+    /// </para>
+    /// </summary>
+    private static string StripHeadingNumberLabel(Document document, Paragraph paragraph, string text)
+    {
+        var pattern = TryGetListLabelPattern(document, paragraph);
+        if (pattern is null)
+        {
+            return text;
+        }
+
+        var match = pattern.Match(text);
+        if (!match.Success || match.Length == 0)
+        {
+            return text;
+        }
+
+        var stripped = text[match.Length..];
+        return stripped.Length > 0 ? stripped : text;
+    }
+
+    /// <summary>
+    /// Turns the paragraph's list level format ("{0}.{1}.") into a regex anchored at the
+    /// start of the text (<c>^\s*\d+\.\d+\.\s*</c>). Null when the paragraph is not in a
+    /// numbering list, or the level has no numeric format to strip.
+    /// </summary>
+    private static Regex? TryGetListLabelPattern(Document document, Paragraph paragraph)
+    {
+        if (paragraph.ListIndex < 0 || paragraph.ListLevel is < 0 or > 8)
+        {
+            return null;
+        }
+
+        string? format;
+        try
+        {
+            format = document.NumberingLists[paragraph.ListIndex]
+                .Levels[paragraph.ListLevel]
+                .DisplayFormatString;
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(format) || !format.Contains('{'))
+        {
+            return null;
+        }
+
+        var body = ListLabelPlaceholderPattern.Replace(Regex.Escape(format), @"\d+");
+        return new Regex($@"^\s*{body}\s*");
+    }
+
+    /// <summary>
+    /// Heading level from the style name, falling back to the paragraph's outline level.
+    /// The fallback is what makes a document with renamed or localised heading styles
+    /// readable — an ODT round-trip through Word keeps the outline level even where the
+    /// style name is document-specific (e.g. "Hoofdstkbijlagen"). 0 means body text.
+    /// </summary>
+    private static int? TryGetHeadingLevel(Paragraph paragraph)
+    {
+        var fromStyleName = TryGetHeadingLevel(paragraph.Style?.Name);
+        if (fromStyleName is not null)
+        {
+            return fromStyleName;
+        }
+
+        var outlineLevel = paragraph.OutlineLevel;
+        return outlineLevel is >= 1 and <= 9 ? outlineLevel : null;
     }
 
     private static string? EmptyToNull(string? value) =>
