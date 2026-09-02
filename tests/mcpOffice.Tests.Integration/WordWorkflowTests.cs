@@ -1,5 +1,6 @@
 using ModelContextProtocol.Protocol;
 using System.Text;
+using System.Text.Json;
 
 namespace McpOffice.Tests.Integration;
 
@@ -62,6 +63,57 @@ public class WordWorkflowTests
 
             Assert.Contains("Stdio Title", outlineJson);
             Assert.Contains("\"level\":1", outlineJson, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            DeleteIfExists(path);
+        }
+    }
+
+    [Fact]
+    public async Task Read_structured_returns_block_content_via_stdio()
+    {
+        // `Block` is an abstract record: serialized by its declared type it contributes no
+        // properties at all, and every block reaches the caller as `{}`. Unit tests pattern-
+        // match the objects directly and cannot see it — the bug only exists on the wire.
+        var path = TempPath(".docx");
+        try
+        {
+            await using var harness = await ServerHarness.StartAsync();
+            await CallTextAsync(
+                harness,
+                "word_create_from_markdown",
+                new Dictionary<string, object?>
+                {
+                    ["path"] = path,
+                    ["markdown"] = "# Structured Title\n\nBody with **bold** text.",
+                    ["overwrite"] = false
+                });
+
+            var structuredJson = await CallTextAsync(
+                harness,
+                "word_read_structured",
+                new Dictionary<string, object?> { ["path"] = path });
+
+            Assert.DoesNotContain("{}", structuredJson);
+
+            using var document = JsonDocument.Parse(structuredJson);
+            var blocks = document.RootElement.GetProperty("blocks");
+            Assert.NotEqual(0, blocks.GetArrayLength());
+
+            var heading = blocks.EnumerateArray()
+                .Single(b => b.TryGetProperty("type", out var type) && type.GetString() == "heading");
+            Assert.Equal(1, heading.GetProperty("level").GetInt32());
+            Assert.Equal("Structured Title", heading.GetProperty("text").GetString());
+
+            var paragraph = blocks.EnumerateArray()
+                .Single(b => b.TryGetProperty("type", out var type) && type.GetString() == "paragraph");
+            var runText = string.Concat(
+                paragraph.GetProperty("runs").EnumerateArray().Select(r => r.GetProperty("text").GetString()));
+            Assert.Equal("Body with bold text.", runText);
+            Assert.Contains(
+                paragraph.GetProperty("runs").EnumerateArray(),
+                r => r.GetProperty("bold").GetBoolean());
         }
         finally
         {

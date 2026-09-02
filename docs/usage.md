@@ -97,7 +97,7 @@ Read tools:
 - `word_get_outline(path)`: returns heading nodes from a `.docx`.
 - `word_get_metadata(path)`: returns core properties, page count, and word count.
 - `word_read_markdown(path)`: returns a conservative Markdown projection.
-- `word_read_structured(path)`: returns headings, paragraphs with runs, tables, images, and properties.
+- `word_read_structured(path)`: returns headings, paragraphs with runs, tables, images, and properties. Each entry in `blocks` carries a `type` discriminator — `heading` (`level`, `text`) or `paragraph` (`runs[]`) — so a caller can branch on it without inspecting which fields are present.
 - `word_list_comments(path)`: returns comment summaries.
 - `word_list_revisions(path)`: returns tracked-change summaries.
 
