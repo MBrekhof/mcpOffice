@@ -361,6 +361,40 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public ExcelVbaFormControlsResult ListVbaFormControls(string path, string? formName)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            var project = new VbaProjectReader().Read(path);
+            if (!project.HasVbaProject)
+                return new ExcelVbaFormControlsResult(path, false, new ExcelVbaFormControlsSummary(0, 0, 0), []);
+
+            var forms = project.Modules.Where(m => m.Kind == "userForm").ToList();
+            if (!string.IsNullOrWhiteSpace(formName))
+            {
+                var match = forms.FirstOrDefault(f => string.Equals(f.Name, formName, StringComparison.OrdinalIgnoreCase))
+                            ?? throw ToolError.ModuleNotFound(formName, forms.Select(f => f.Name));
+                forms = [match];
+            }
+
+            var analyzed = forms
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(VbaFormControlInventory.Analyze)
+                .ToList();
+            var summary = new ExcelVbaFormControlsSummary(
+                analyzed.Count,
+                analyzed.Sum(f => f.Controls.Count),
+                analyzed.Sum(f => f.Controls.Count(c => c.TypeConfidence != "none")));
+            return new ExcelVbaFormControlsResult(path, true, summary, analyzed);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
     public ExcelVbaCorpusResult CompareVbaCorpus(IReadOnlyList<string>? paths, string? directory, int minOccurrences, int maxProcedures, bool includeNearDuplicates)
     {
         var hasPaths = paths is { Count: > 0 };

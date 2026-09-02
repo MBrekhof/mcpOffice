@@ -124,6 +124,13 @@ public static class ExcelTools
         [Description("Include records whose sheet could not be resolved (activeSheet, aliasReassigned, unknownSheet, unknownName, dynamicSheet). Default true.")] bool includeUnresolved = true)
         => Service.MapVbaSheetAccess(path, moduleName, sheetName, includeUnresolved);
 
+    [McpServerTool(Name = "excel_list_vba_form_controls")]
+    [Description("The UI spec of each UserForm, inferred from its code-behind (the binary .frx designer part is not read): controls named by event handlers (cmdOK_Click), Me.<control> references, Hungarian-prefixed bare references (txt/cmd/lst/cbo/chk/opt/lbl/…) and 'As MSForms.<Type>' declarations. Each control has inferredType (MSForms type or Control) with typeConfidence declared | prefix | event | member | none, its events and referenced properties; formEvents lists the form's own handlers. formName scopes to one form; throws module_not_found if unknown.")]
+    public static object ExcelListVbaFormControls(
+        [Description("Absolute path to the .xlsm workbook")] string path,
+        [Description("Optional case-insensitive UserForm module name (e.g. frmLogin).")] string? formName = null)
+        => Service.ListVbaFormControls(path, formName);
+
     [McpServerTool(Name = "excel_compare_vba_corpus")]
     [Description("Finds VBA procedures shared across several .xlsm workbooks so they can be migrated once as a library instead of once per file. Pass exactly one of paths[] or directory (non-recursive *.xlsm). Tier identical = same normalised body (comments, whitespace and case ignored; name not part of the identity, so renamed copies still group); tier nearDuplicate = same name, body ≥ 90% line-similar. sharedModules[] lists module names present in several workbooks whose procedures are mostly shared. Per-workbook read failures land in workbooks[].error and the run continues. Loads every workbook: expect minutes on a directory of large files.")]
     public static object ExcelCompareVbaCorpus(

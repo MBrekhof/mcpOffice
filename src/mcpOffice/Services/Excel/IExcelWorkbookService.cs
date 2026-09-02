@@ -54,6 +54,7 @@ public interface IExcelWorkbookService
         string? moduleName,
         string? sheetName,
         bool includeUnresolved);
+    ExcelVbaFormControlsResult ListVbaFormControls(string path, string? formName);
     ExcelVbaCorpusResult CompareVbaCorpus(
         IReadOnlyList<string>? paths,
         string? directory,

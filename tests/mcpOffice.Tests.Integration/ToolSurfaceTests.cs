@@ -17,6 +17,7 @@ public class ToolSurfaceTests
             "excel_list_formulas",
             "excel_list_sheets",
             "excel_list_vba_entry_points",
+            "excel_list_vba_form_controls",
             "excel_map_vba_sheet_access",
             "excel_read_sheet",
             "excel_render_vba_callgraph",

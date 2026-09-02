@@ -177,6 +177,23 @@ public class ExcelWorkflowTests
     }
 
     [Fact]
+    public async Task List_vba_form_controls_via_stdio()
+    {
+        var fixture = ResolveFixturePath("synthetic-vba.xlsm");
+        if (!File.Exists(fixture)) return;
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_list_vba_form_controls",
+            new Dictionary<string, object?> { ["path"] = fixture });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+        Assert.Contains("\"hasVbaProject\":true", text);
+        Assert.Contains("\"forms\":[]", text);   // the fixture has no UserForm
+    }
+
+    [Fact]
     public async Task Compare_vba_corpus_via_stdio()
     {
         var a = ResolveFixturePath("synthetic-vba.xlsm");
