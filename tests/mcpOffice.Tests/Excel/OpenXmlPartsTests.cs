@@ -10,6 +10,21 @@ public class OpenXmlPartsTests
     private const string R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
     [Fact]
+    public void ReadDefinedNames_returns_workbook_and_sheet_scoped_names()
+    {
+        using var zip = new ZipArchive(TestOpenXmlPackages.Build(
+            ("xl/workbook.xml",
+                $"""<workbook xmlns="{Main}"><sheets/><definedNames><definedName name="Total">Config!$C$2</definedName><definedName name="Local" localSheetId="1" hidden="1">'My Sheet'!$A$1:$B$9</definedName><definedName name="Rate">0.21</definedName></definedNames></workbook>""")));
+
+        var names = OpenXmlParts.ReadDefinedNames(zip);
+
+        Assert.Equal(3, names.Count);
+        Assert.Equal(("Total", (int?)null, "Config!$C$2"), (names[0].Name, names[0].LocalSheetIndex, names[0].RefersTo));
+        Assert.Equal(("Local", (int?)1, "'My Sheet'!$A$1:$B$9"), (names[1].Name, names[1].LocalSheetIndex, names[1].RefersTo));
+        Assert.Equal("0.21", names[2].RefersTo);
+    }
+
+    [Fact]
     public void ListSheets_follows_workbook_order_resolves_relative_and_absolute_targets_and_reads_codenames()
     {
         // rels deliberately list rId2 first; workbook.xml order (Blad1, Data) must win.

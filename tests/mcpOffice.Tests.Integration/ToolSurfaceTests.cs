@@ -8,6 +8,7 @@ public class ToolSurfaceTests
         string[] expected =
         [
             "excel_analyze_vba",
+            "excel_compare_vba_corpus",
             "excel_export_csv",
             "excel_extract_vba",
             "excel_get_metadata",
@@ -16,6 +17,7 @@ public class ToolSurfaceTests
             "excel_list_formulas",
             "excel_list_sheets",
             "excel_list_vba_entry_points",
+            "excel_map_vba_sheet_access",
             "excel_read_sheet",
             "excel_render_vba_callgraph",
             "excel_suggest_vba_conversion",

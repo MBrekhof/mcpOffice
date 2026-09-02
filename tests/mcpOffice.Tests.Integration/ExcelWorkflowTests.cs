@@ -159,6 +159,42 @@ public class ExcelWorkflowTests
     }
 
     [Fact]
+    public async Task Map_vba_sheet_access_via_stdio()
+    {
+        var fixture = ResolveFixturePath("synthetic-vba.xlsm");
+        if (!File.Exists(fixture)) return;
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_map_vba_sheet_access",
+            new Dictionary<string, object?> { ["path"] = fixture });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+        Assert.Contains("\"hasVbaProject\":true", text);
+        Assert.Contains("\"sheetAccess\":[", text);
+        Assert.Contains("\"sheets\":[", text);
+    }
+
+    [Fact]
+    public async Task Compare_vba_corpus_via_stdio()
+    {
+        var a = ResolveFixturePath("synthetic-vba.xlsm");
+        var b = ResolveFixturePath("sample-with-macros.xlsm");
+        if (!File.Exists(a) || !File.Exists(b)) return;
+
+        await using var harness = await ServerHarness.StartAsync();
+        var result = await harness.Client.CallToolAsync(
+            "excel_compare_vba_corpus",
+            new Dictionary<string, object?> { ["paths"] = new[] { a, b } });
+
+        var text = result.Content.OfType<TextContentBlock>().Single().Text;
+
+        Assert.Contains("\"workbookCount\":2", text);
+        Assert.Contains("\"sharedProcedures\":[", text);
+    }
+
+    [Fact]
     public async Task Analyze_vba_via_stdio_returns_summary()
     {
         var fixture = ResolveFixturePath("sample-with-macros.xlsm");

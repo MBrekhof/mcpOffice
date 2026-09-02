@@ -81,6 +81,25 @@ internal static class OpenXmlParts
         return result;
     }
 
+    public sealed record DefinedNameEntry(string Name, int? LocalSheetIndex, string RefersTo);
+
+    /// <summary>Workbook and sheet-scoped defined names from <c>xl/workbook.xml</c>; <c>LocalSheetIndex</c> is the 0-based sheet position for sheet scope.</summary>
+    public static IReadOnlyList<DefinedNameEntry> ReadDefinedNames(ZipArchive zip)
+    {
+        var workbook = LoadXml(zip, "xl/workbook.xml");
+        if (workbook is null) return [];
+
+        var result = new List<DefinedNameEntry>();
+        foreach (var dn in workbook.Descendants().Where(e => e.Name.LocalName == "definedName"))
+        {
+            var name = dn.Attribute("name")?.Value;
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            int? local = int.TryParse(dn.Attribute("localSheetId")?.Value, out var idx) ? idx : null;
+            result.Add(new DefinedNameEntry(name, local, dn.Value.Trim()));
+        }
+        return result;
+    }
+
     private static string? ResolveReference(XDocument? sheetXml, string elementLocalName, Dictionary<string, string> rels)
     {
         var rid = sheetXml?.Descendants().FirstOrDefault(e => e.Name.LocalName == elementLocalName)

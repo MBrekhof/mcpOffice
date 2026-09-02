@@ -334,6 +334,74 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         }
     }
 
+    public ExcelVbaSheetAccessResult MapVbaSheetAccess(string path, string? moduleName, string? sheetName, bool includeUnresolved)
+    {
+        PathGuard.RequireExists(path);
+
+        try
+        {
+            var project = new VbaProjectReader().Read(path);
+            var sheets = new List<VbaSheetAccessResolver.SheetName>();
+            var names = new List<VbaSheetAccessResolver.DefinedName>();
+            if (project.HasVbaProject)
+            {
+                using var zip = ZipFile.OpenRead(path);
+                var parts = OpenXmlParts.ListSheets(zip);
+                sheets.AddRange(parts.Select(s => new VbaSheetAccessResolver.SheetName(s.Name, s.CodeName)));
+                names.AddRange(OpenXmlParts.ReadDefinedNames(zip).Select(n => new VbaSheetAccessResolver.DefinedName(
+                    n.Name,
+                    n.LocalSheetIndex is int i && i >= 0 && i < parts.Count ? parts[i].Name : null,
+                    n.RefersTo)));
+            }
+            return VbaSheetAccessAnalyzer.Analyze(path, project, sheets, names, moduleName, sheetName, includeUnresolved);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(path, ex.Message);
+        }
+    }
+
+    public ExcelVbaCorpusResult CompareVbaCorpus(IReadOnlyList<string>? paths, string? directory, int minOccurrences, int maxProcedures, bool includeNearDuplicates)
+    {
+        var hasPaths = paths is { Count: > 0 };
+        var hasDirectory = !string.IsNullOrWhiteSpace(directory);
+        if (hasPaths == hasDirectory)
+            throw ToolError.InvalidPath("pass exactly one of paths[] or directory");
+
+        List<string> files;
+        if (hasDirectory)
+        {
+            PathGuard.RequireAbsolute(directory!);
+            if (!Directory.Exists(directory)) throw ToolError.FileNotFound(directory!);
+            files = Directory.EnumerateFiles(directory!, "*.xlsm", SearchOption.TopDirectoryOnly)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        else
+        {
+            foreach (var p in paths!) PathGuard.RequireAbsolute(p);
+            files = paths!.ToList();
+        }
+        if (files.Count < 2)
+            throw ToolError.InvalidPath($"a corpus needs at least two .xlsm workbooks, found {files.Count}");
+
+        var inputs = new List<VbaCorpusComparer.WorkbookInput>(files.Count);
+        foreach (var file in files)
+        {
+            try
+            {
+                PathGuard.RequireExists(file);
+                inputs.Add(new VbaCorpusComparer.WorkbookInput(file, new VbaProjectReader().Read(file), null));
+            }
+            catch (Exception ex)
+            {
+                // Per-workbook failures (locked project, corrupt file, missing) are reported, not fatal.
+                inputs.Add(new VbaCorpusComparer.WorkbookInput(file, null, ex.Message));
+            }
+        }
+        return VbaCorpusComparer.Compare(inputs, minOccurrences, maxProcedures, includeNearDuplicates);
+    }
+
     public ExcelWorkbookMetadata GetMetadata(string path)
     {
         PathGuard.RequireExists(path);

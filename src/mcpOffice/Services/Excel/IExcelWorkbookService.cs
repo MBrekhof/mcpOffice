@@ -49,6 +49,17 @@ public interface IExcelWorkbookService
         string path,
         bool includeUnreachable,
         string? moduleName);
+    ExcelVbaSheetAccessResult MapVbaSheetAccess(
+        string path,
+        string? moduleName,
+        string? sheetName,
+        bool includeUnresolved);
+    ExcelVbaCorpusResult CompareVbaCorpus(
+        IReadOnlyList<string>? paths,
+        string? directory,
+        int minOccurrences,
+        int maxProcedures,
+        bool includeNearDuplicates);
     ExcelExportCsvResult ExportCsv(
         string path,
         string outputPath,

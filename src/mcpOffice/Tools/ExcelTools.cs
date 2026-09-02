@@ -114,4 +114,23 @@ public static class ExcelTools
         [Description("Include the unreachable[] array (reachability BFS). Default true.")] bool includeUnreachable = true,
         [Description("Optional case-insensitive VBA module name to scope entryPoints/unreachable to. Throws module_not_found if unknown.")] string? moduleName = null)
         => Service.ListVbaEntryPoints(path, includeUnreachable, moduleName);
+
+    [McpServerTool(Name = "excel_map_vba_sheet_access")]
+    [Description("The workbook's hidden data schema: per VBA procedure, which sheet and range / defined name it reads and writes. Resolves Worksheets(\"X\"), Sheets(n), sheet codenames (Blad1.Range), the sheet module's own unqualified Range/Cells, With blocks, one-assignment aliases (Set ws = …) and defined names (via refersTo). ActiveSheet and unqualified access outside a sheet module are reported as unresolved, never guessed. Records: {procedure, sheet{name,codeName}|null, target{kind: range|definedName|column|row|wholeSheet|dynamicCells, address?, definedName?}, mode: read|write|both, siteCount, unresolvedReason?}; sheets[] is the per-sheet rollup of readers/writers. moduleName / sheetName scope the records; the summary stays whole-workbook.")]
+    public static object ExcelMapVbaSheetAccess(
+        [Description("Absolute path to the .xlsm workbook")] string path,
+        [Description("Optional case-insensitive VBA module name to scope sheetAccess to. Throws module_not_found if unknown.")] string? moduleName = null,
+        [Description("Optional sheet name to scope sheetAccess and sheets to. Throws sheet_not_found if unknown.")] string? sheetName = null,
+        [Description("Include records whose sheet could not be resolved (activeSheet, aliasReassigned, unknownSheet, unknownName, dynamicSheet). Default true.")] bool includeUnresolved = true)
+        => Service.MapVbaSheetAccess(path, moduleName, sheetName, includeUnresolved);
+
+    [McpServerTool(Name = "excel_compare_vba_corpus")]
+    [Description("Finds VBA procedures shared across several .xlsm workbooks so they can be migrated once as a library instead of once per file. Pass exactly one of paths[] or directory (non-recursive *.xlsm). Tier identical = same normalised body (comments, whitespace and case ignored; name not part of the identity, so renamed copies still group); tier nearDuplicate = same name, body ≥ 90% line-similar. sharedModules[] lists module names present in several workbooks whose procedures are mostly shared. Per-workbook read failures land in workbooks[].error and the run continues. Loads every workbook: expect minutes on a directory of large files.")]
+    public static object ExcelCompareVbaCorpus(
+        [Description("Absolute paths to .xlsm workbooks (use this or directory).")] string[]? paths = null,
+        [Description("Absolute directory whose *.xlsm files are compared, non-recursive (use this or paths).")] string? directory = null,
+        [Description("Minimum number of distinct workbooks a procedure must appear in. Default 2.")] int minOccurrences = 2,
+        [Description("Cap on sharedProcedures[] (sorted by occurrence count). Default 200; truncated=true when cut.")] int maxProcedures = 200,
+        [Description("Also report same-named near-duplicate bodies (≥ 90% similar). Default true.")] bool includeNearDuplicates = true)
+        => Service.CompareVbaCorpus(paths, directory, minOccurrences, maxProcedures, includeNearDuplicates);
 }
