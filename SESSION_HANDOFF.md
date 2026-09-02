@@ -1,10 +1,10 @@
-# Session Handoff — 2026-09-02 (VBA analyzer v4: entry points, sheet access, corpus dedup)
+# Session Handoff — 2026-09-02 (v4 live acceptance → fix/vba-v4-acceptance)
 
 ## Where Things Stand
 
-**Branch:** `main` — clean working tree, in sync with `origin/main` (fast-forwarded from `feat/vba-v4`, branch deleted).
+**Branch:** `fix/vba-v4-acceptance` — four commits (`c489aa1` acceptance fixes, `5bfa765` handoff, `50a05dc` VBA-016, then the default lowered to 100), pushed, **PR #16** open against `main`. `main` is untouched since `0d2b2dd`.
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` — **508 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
+**Tests:** `dotnet test` — **512 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
 **Tool surface:** **38 tools**: 1 ping + 15 Word + 15 Excel + 7 PDF. New: `excel_list_vba_entry_points`, `excel_map_vba_sheet_access`, `excel_compare_vba_corpus`, `excel_list_vba_form_controls`.
 
 ## What Landed This Session (2026-09-01 → 02)
@@ -19,11 +19,19 @@ Earlier in the same session (already on main since 779b62a): memory consolidatio
 6. **VBA-015** (`faf3353`) — `excel_list_vba_form_controls`: UserForm controls inferred from code-behind (handler names, Me. references, Hungarian prefixes, MSForms declarations); the .frx designer part is not read. Eight unit tests; gated OlieGC / QQQ2 checks.
 7. **Docs** — README (38 tools, four entries, roadmap item 6 ✓, design link), usage.md (the five VBA tools v2–v4 — v2/v3 had never been documented there), ARCHITECTURE.md (v4 branch of the VBA pipeline).
 
+## Live acceptance of the v4 tools (2026-09-02, later session)
+
+Run through the live `office` server on the samples corpus:
+
+- `excel_list_vba_entry_points(Air.xlsm)` — 233 entry points (110 event handlers, 104 form-control macros, 10 shape macros, 9 worksheet functions), 39 unreachable, one unresolved form-control macro (`StartDiscreteAnalyzer` on sheet `no3+no2` — no such procedure exists; a real finding). Bug: `MPNindex` listed `campy!K13` three times (three calls in one formula) — fixed in `c489aa1`.
+- `excel_list_vba_form_controls(OlieGC - LABWARE PRD.xlsm)` — 3 forms, 6 controls. Bug: `Label2_Click` typed as CommandButton via the Click hint — VBE default names now in the prefix table, fixed in `c489aa1`.
+- `excel_compare_vba_corpus(directory)` — 20 workbooks, 550 procedures, 79 shared (31 identical groups, 2 near-duplicate, 9 shared modules), one call, no timeout. Looks right: the three `kalibratieberekening` books share `frmSerialInput`/`Module6`, the two Mediaformulier books are copies.
+- `excel_map_vba_sheet_access(Air.xlsm)` unscoped — **114 KB in one line, over the client's tool-result limit**; the caller sees only "output saved to file". Fixed as **VBA-016** on the same branch: `includeRecords` (false = summary + rollup only, 9 KB on Air) and `maxRecords` (default 100, was a hidden 1000, `truncated: true` when cut). Live check after the first cut: rollup-only and `sheetName="WO"` land; a default of 300 records was 59 KB and still overflowed the client, hence 100 (~26 KB with the rollup). The gated Air test pins 100 + truncated; the default call was then seen live: 100 records, `truncated: true`, full 50-sheet rollup, readable.
+
 ## Outstanding — Action Required
 
-- **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI.
-- **Live acceptance of the three v4 tools was not run** (the office server needs `/mcp` after every rebuild and the user was away). First thing next session: `/mcp`, then `excel_list_vba_entry_points`, `excel_map_vba_sheet_access` and `excel_list_vba_form_controls` (on `OlieGC - LABWARE PRD.xlsm`) on `C:\Projects\mcpOffice-samples\Air.xlsm`, and `excel_compare_vba_corpus` on the samples directory. The gated unit tests already exercise the same service code on those files.
-- **Other machine:** `git pull`, restart its session so the server picks up the new DLL.
+- **Merge PR #16** (squash), then `git pull` on the other machine.
+- **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI. The v4 cards' conclusions carry the acceptance note.
 
 ## Next Up
 

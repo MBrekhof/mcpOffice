@@ -33,10 +33,20 @@ public class VbaSheetAccessSampleTests
     public void Air_maps_and_stays_within_caps()
     {
         if (!File.Exists(Air)) return;
-        var r = new ExcelWorkbookService().MapVbaSheetAccess(Air, null, null, true);
+        var svc = new ExcelWorkbookService();
+        var r = svc.MapVbaSheetAccess(Air, null, null, true);
         Assert.True(r.HasVbaProject);
         Assert.True(r.Summary.SiteCount > 100, "Air has thousands of object-model sites");
-        Assert.True(r.SheetAccess.Count <= 1000);
+        // Measured live 2026-09-02: 672 records = 114 KB and 300 records = 59 KB both exceed Claude Code's
+        // tool-result cap; 100 records + the 50-sheet rollup is ~26 KB and lands.
+        Assert.Equal(100, r.SheetAccess.Count);
+        Assert.True(r.Truncated, "Air has ~670 records unscoped; the default cap must say so");
+
+        var rollupOnly = svc.MapVbaSheetAccess(Air, null, null, true, includeRecords: false);
+        Assert.Empty(rollupOnly.SheetAccess);
+        Assert.False(rollupOnly.Truncated);
+        Assert.Equal(r.Sheets.Count, rollupOnly.Sheets.Count);
+        Assert.Equal(r.Summary, rollupOnly.Summary);
     }
 
     [Fact]

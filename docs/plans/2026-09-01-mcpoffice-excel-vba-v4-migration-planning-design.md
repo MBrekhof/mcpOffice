@@ -100,7 +100,7 @@ Drawing parts that fail to parse are skipped and counted in `summary.skippedDraw
 
 ## Tool 2 — `excel_map_vba_sheet_access` (VBA-013)
 
-`excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true)`
+`excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true, includeRecords=true, maxRecords=100)`
 
 ### Resolution rules (regex on cleaned lines, `With`-aware)
 
@@ -135,8 +135,13 @@ same target gets `both`.
 }
 ```
 
-`sheetAccess` is one record per (procedure, sheet, target, mode); capped at 1000, `moduleName` /
-`sheetName` scope it. `sheets` is the per-sheet rollup and is never cut.
+`sheetAccess` is one record per (procedure, sheet, target, mode); capped at `maxRecords` (default
+100, `truncated: true` when cut), `moduleName` / `sheetName` scope it, and `includeRecords=false`
+drops it altogether, leaving the summary and the rollup — the first call on a big workbook.
+`sheets` is the per-sheet rollup and is never cut. *(VBA-016, 2026-09-02: the cap was a hidden
+1000 and Air.xlsm returned 672 records = 114 KB on one line, more than the MCP client shows the
+caller. Measured live: 300 records = 59 KB still overflowed Claude Code's tool-result cap, the
+50-sheet rollup alone is 9 KB and lands, so the default is 100 — roughly 26 KB with the rollup.)*
 
 ## Tool 3 — `excel_compare_vba_corpus` (VBA-014)
 
@@ -187,7 +192,9 @@ Inference from the `frm*` code-behind only (the binary `.frx` designer half is o
 - `<ctrl>_<Event>(…)` handler → control + event; event → type hint: `Click` → `button?`,
   `Change`/`KeyPress` → `textBox?`/`comboBox?`, `AfterUpdate` → `textBox?`, `DblClick` on a
   `lst*` name → `listBox?`. Name prefix (`txt`, `cmd`, `btn`, `lst`, `cbo`, `chk`, `opt`, `lbl`,
-  `frm`) wins over the event hint when present.
+  `frm`) wins over the event hint when present. The VBE default names (`Label2`, `TextBox1`,
+  `CommandButton3` — MSForms type name + number) count as prefixes too; OlieGC's `Label2_Click`
+  came back as a CommandButton before that (acceptance 2026-09-02).
 - `Dim … As MSForms.<Type>` / `As <Type>` with `MSForms` types → exact type.
 
 Output per form: `controls[] = { name, inferredType, typeConfidence: "declared|prefix|event|member|none",

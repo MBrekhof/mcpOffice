@@ -90,6 +90,16 @@ public class VbaFormControlInventoryTests
     }
 
     [Fact]
+    public void Vbe_default_names_type_by_their_type_name_not_by_event()
+    {
+        // OlieGC's frmKeuze has Label2_Click: the Click hint said CommandButton, but the VBE named it a Label.
+        const string code = "Private Sub Label2_Click()\nEnd Sub\nPrivate Sub ComboBox1_DropButtonClick()\nEnd Sub\nPrivate Sub TextBox1_Change()\nEnd Sub";
+        Assert.Equal(("Label", "prefix"), (Control("Label2", code).InferredType, Control("Label2", code).TypeConfidence));
+        Assert.Equal(("ComboBox", "prefix"), (Control("ComboBox1", code).InferredType, Control("ComboBox1", code).TypeConfidence));
+        Assert.Equal(("TextBox", "prefix"), (Control("TextBox1", code).InferredType, Control("TextBox1", code).TypeConfidence));
+    }
+
+    [Fact]
     public void Controls_are_sorted_and_unknown_type_is_Control_none()
     {
         var f = Run("Private Sub Widget_Enter()\nEnd Sub\nPrivate Sub Alpha_Exit()\nEnd Sub");

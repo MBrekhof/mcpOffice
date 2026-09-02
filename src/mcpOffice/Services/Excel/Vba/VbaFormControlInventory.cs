@@ -35,6 +35,11 @@ internal static partial class VbaFormControlInventory
         ("chk", "CheckBox"), ("opt", "OptionButton"), ("rb", "OptionButton"), ("lbl", "Label"),
         ("fra", "Frame"), ("frm", "Frame"), ("img", "Image"), ("spn", "SpinButton"), ("scr", "ScrollBar"),
         ("mpg", "MultiPage"), ("tab", "TabStrip"), ("tgl", "ToggleButton"),
+        // VBE default names: Label2, TextBox1, CommandButton3 … (the type name followed by a number).
+        ("TextBox", "TextBox"), ("CommandButton", "CommandButton"), ("ListBox", "ListBox"), ("ComboBox", "ComboBox"),
+        ("CheckBox", "CheckBox"), ("OptionButton", "OptionButton"), ("Label", "Label"), ("Frame", "Frame"), ("Image", "Image"),
+        ("SpinButton", "SpinButton"), ("ScrollBar", "ScrollBar"), ("MultiPage", "MultiPage"), ("TabStrip", "TabStrip"),
+        ("ToggleButton", "ToggleButton"),
     ];
 
     private static readonly Dictionary<string, string> EventTypeHints = new(Ci)
