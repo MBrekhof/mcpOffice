@@ -55,7 +55,7 @@ public interface IExcelWorkbookService
         string? sheetName,
         bool includeUnresolved,
         bool includeRecords = true,
-        int maxRecords = 300);
+        int maxRecords = 100);
     ExcelVbaFormControlsResult ListVbaFormControls(string path, string? formName);
     ExcelVbaCorpusResult CompareVbaCorpus(
         IReadOnlyList<string>? paths,

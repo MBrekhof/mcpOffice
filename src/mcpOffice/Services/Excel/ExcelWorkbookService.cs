@@ -335,7 +335,7 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
     }
 
     public ExcelVbaSheetAccessResult MapVbaSheetAccess(string path, string? moduleName, string? sheetName, bool includeUnresolved,
-                                                       bool includeRecords = true, int maxRecords = 300)
+                                                       bool includeRecords = true, int maxRecords = 100)
     {
         PathGuard.RequireExists(path);
 

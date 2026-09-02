@@ -123,7 +123,7 @@ public static class ExcelTools
         [Description("Optional sheet name to scope sheetAccess and sheets to. Throws sheet_not_found if unknown.")] string? sheetName = null,
         [Description("Include records whose sheet could not be resolved (activeSheet, aliasReassigned, unknownSheet, unknownName, dynamicSheet). Default true.")] bool includeUnresolved = true,
         [Description("Include the per-procedure sheetAccess[] records. Default true; pass false for the summary and per-sheet rollup only.")] bool includeRecords = true,
-        [Description("Maximum number of sheetAccess records to return; truncated=true when cut. Default 300.")] int maxRecords = 300)
+        [Description("Maximum number of sheetAccess records to return; truncated=true when cut. Default 100 (300 already overflows the client on a large workbook).")] int maxRecords = 100)
         => Service.MapVbaSheetAccess(path, moduleName, sheetName, includeUnresolved, includeRecords, maxRecords);
 
     [McpServerTool(Name = "excel_list_vba_form_controls")]

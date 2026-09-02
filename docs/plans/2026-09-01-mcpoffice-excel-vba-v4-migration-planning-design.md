@@ -100,7 +100,7 @@ Drawing parts that fail to parse are skipped and counted in `summary.skippedDraw
 
 ## Tool 2 — `excel_map_vba_sheet_access` (VBA-013)
 
-`excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true, includeRecords=true, maxRecords=300)`
+`excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true, includeRecords=true, maxRecords=100)`
 
 ### Resolution rules (regex on cleaned lines, `With`-aware)
 
@@ -136,11 +136,12 @@ same target gets `both`.
 ```
 
 `sheetAccess` is one record per (procedure, sheet, target, mode); capped at `maxRecords` (default
-300, `truncated: true` when cut), `moduleName` / `sheetName` scope it, and `includeRecords=false`
+100, `truncated: true` when cut), `moduleName` / `sheetName` scope it, and `includeRecords=false`
 drops it altogether, leaving the summary and the rollup — the first call on a big workbook.
 `sheets` is the per-sheet rollup and is never cut. *(VBA-016, 2026-09-02: the cap was a hidden
 1000 and Air.xlsm returned 672 records = 114 KB on one line, more than the MCP client shows the
-caller; the rollup alone is 9 KB.)*
+caller. Measured live: 300 records = 59 KB still overflowed Claude Code's tool-result cap, the
+50-sheet rollup alone is 9 KB and lands, so the default is 100 — roughly 26 KB with the rollup.)*
 
 ## Tool 3 — `excel_compare_vba_corpus` (VBA-014)
 

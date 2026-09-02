@@ -19,7 +19,7 @@ internal static class VbaSheetAccessAnalyzer
         string? sheetName,
         bool includeUnresolved,
         bool includeRecords = true,
-        int maxRecords = 300)
+        int maxRecords = 100)   // 300 measured 59 KB on Air.xlsm, still over Claude Code's tool-result cap
     {
         if (!project.HasVbaProject)
             return new ExcelVbaSheetAccessResult(path, false, new ExcelVbaSheetAccessSummary(0, 0, 0, 0, 0), [], [], false);

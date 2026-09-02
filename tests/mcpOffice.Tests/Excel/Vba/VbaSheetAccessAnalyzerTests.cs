@@ -21,7 +21,7 @@ public class VbaSheetAccessAnalyzerTests
     private static readonly IReadOnlyList<VbaSheetAccessResolver.DefinedName> Names = [new("Total", null, "=Config!$C$2")];
 
     private static ExcelVbaSheetAccessResult Run(string? moduleName = null, string? sheetName = null, bool includeUnresolved = true,
-                                                 bool includeRecords = true, int maxRecords = 300) =>
+                                                 bool includeRecords = true, int maxRecords = 100) =>
         VbaSheetAccessAnalyzer.Analyze(@"C:\t.xlsm",
             new ExcelVbaProject(true, [new ExcelVbaModule("Module1", "standardModule", 9, Module1)]),
             Sheets, Names, moduleName, sheetName, includeUnresolved, includeRecords, maxRecords);
