@@ -2,7 +2,7 @@
 
 ## Where Things Stand
 
-**Branch:** `fix/vba-v4-acceptance` — four commits (`c489aa1` acceptance fixes, `5bfa765` handoff, `50a05dc` VBA-016, then the default lowered to 100), pushed, **PR #16** open against `main`. `main` is untouched since `0d2b2dd`.
+**Branch:** `docs/DOCS-002` off `main`. PR #16 (`fix/vba-v4-acceptance`: VBA-012/015 acceptance fixes + VBA-016) was squash-merged as `3b1f3d6` on 2026-09-02; `main` is in sync with `origin/main`.
 **Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
 **Tests:** `dotnet test` — **512 unit + 21 integration pass, 2 skipped** (both smoke generators in `tests/mcpOffice.Tests/Word/MarkdownRealWorldTests.cs`). One gated Air test has a 600 ms performance budget and flakes when a build runs alongside it — rerun before believing it.
 **Tool surface:** **38 tools**: 1 ping + 15 Word + 15 Excel + 7 PDF. New: `excel_list_vba_entry_points`, `excel_map_vba_sheet_access`, `excel_compare_vba_corpus`, `excel_list_vba_form_controls`.
@@ -30,14 +30,13 @@ Run through the live `office` server on the samples corpus:
 
 ## Outstanding — Action Required
 
-- **Merge PR #16** (squash), then `git pull` on the other machine.
+- **Merge the DOCS-002 PR** (squash), then `git pull` on the other machine. PR #16 is already in.
 - **Board:** VBA-006, VBA-007, VBA-012, VBA-013, VBA-014, VBA-015 are in **Review** (plus MD-003, DOCS-001, WORD-001 from earlier if not yet confirmed) — Confirm Done in the UI. The v4 cards' conclusions carry the acceptance note.
 
 ## Next Up
 
 Board is the source of truth (`list_cards`, project id 27). Shortlist:
 
-- **DOCS-002** — `word_convert` accepts `.md` input but is documented as `.docx`-only (0.25h).
 - **VBA-011** — stranded LF-only callgraph-renderer diff on `feat/render-vba-callgraph` (0.25h).
 - **MD-001** — unify the two inline writers; only the insertion anchor is left.
 - **PowerPoint (.pptx)** — next domain per the README roadmap; no design doc and no card yet.

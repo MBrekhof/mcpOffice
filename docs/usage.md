@@ -114,7 +114,7 @@ Write/create tools:
 
 Convert tools:
 
-- `word_convert(inputPath, outputPath, format?, overwrite=false)`: converts to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`. Pass `overwrite=true` to regenerate into an existing output path.
+- `word_convert(inputPath, outputPath, format?, overwrite=false)`: converts a `.docx` or a `.md`/`.markdown` file to `pdf`, `html`, `rtf`, `txt`, `md`/`markdown`, or `docx`. If `format` is omitted, it is inferred from `outputPath`. Pass `overwrite=true` to regenerate into an existing output path. A Markdown input is rendered by the same engine as `word_create_from_markdown`, so for a Markdown file that already exists on disk this is the route — `report.md` → `report.pdf` in one call, nothing passes through the agent's context; relative image paths resolve against the `.md`'s directory.
 
 Excel read tools:
 
@@ -156,7 +156,7 @@ PDF export tools:
 sorting by `y` ascending gives reading order. PDF's own coordinate system has the origin at the
 bottom-left; the flip is done for you.
 
-There is no PDF *writer* here — `word_convert` already produces PDFs from `.docx`.
+There is no PDF *writer* here — `word_convert` already produces PDFs from `.docx` and `.md`.
 
 All `path`, `inputPath`, `outputPath`, `outputDirectory`, and `templatePath` values must be absolute Windows paths.
 
