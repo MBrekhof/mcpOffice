@@ -9,6 +9,7 @@ public class ToolSurfaceTests
         [
             "excel_analyze_vba",
             "excel_compare_vba_corpus",
+            "excel_create_workbook",
             "excel_export_csv",
             "excel_extract_vba",
             "excel_get_metadata",
@@ -22,6 +23,7 @@ public class ToolSurfaceTests
             "excel_read_sheet",
             "excel_render_vba_callgraph",
             "excel_suggest_vba_conversion",
+            "excel_update_workbook",
             "pdf_extract_images",
             "pdf_find_text",
             "pdf_get_metadata",

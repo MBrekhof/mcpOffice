@@ -82,6 +82,24 @@ public class UpdateWorkbookTests
     }
 
     [Fact]
+    public void Formula_written_by_update_is_evaluated_on_write_while_untouched_cached_values_stay()
+    {
+        var input = Input();
+        var output = TempPath(".xlsx");
+        try
+        {
+            Update(input, output,
+                new ExcelOperation("writeRange", Sheet: "Data", StartCell: "A2", Rows: Rows([7, "=A2*2"])),
+                new ExcelOperation("writeRange", Sheet: "Data", StartCell: "A1", Rows: Rows([50])));
+
+            var data = Read(output, "Data");
+            Assert.Equal(14d, data.Cell("B2").Value);     // DevExpress evaluates a formula when it is assigned
+            Assert.Equal(80d, data.Cell("B1").Value);     // but does not touch the cached value of an existing one
+        }
+        finally { Delete(input, output); }
+    }
+
+    [Fact]
     public void Failing_operation_writes_nothing()
     {
         var input = Input();

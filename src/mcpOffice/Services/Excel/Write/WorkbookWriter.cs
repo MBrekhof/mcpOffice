@@ -68,6 +68,10 @@ internal static class WorkbookWriter
                 }
                 if (!cell.HasFormula)
                     throw new WriteValidationException($"formula '{formula}' was not accepted as a formula. Use English function names, ',' between arguments and '.' as the decimal separator.");
+                // Without this a written formula is saved with a cached value of 0, which a reader would
+                // trust. Evaluating only this cell leaves every pre-existing cached value alone (no
+                // CalculateFull on update: VBA UDFs and external links would become #NAME?).
+                cell.Calculate();
                 break;
         }
     }
