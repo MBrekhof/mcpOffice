@@ -30,10 +30,12 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 
 ### Word
 
-- `word_get_outline(path)`
+Every `word_` tool accepts `.docx` and `.odt` (OpenDocument, e.g. as exported by Word); the format is chosen by extension, and in-place edits save back in the format the file was read as.
+
+- `word_get_outline(path)` — heading tree; detects `Heading 1` and `Heading1` style names and falls back to the paragraph outline level, so renamed or localised heading styles still count.
 - `word_get_metadata(path)`
 - `word_read_markdown(path)`
-- `word_read_structured(path)`
+- `word_read_structured(path)` — blocks as a typed list: each carries `type` (`heading` | `paragraph`) so a caller can branch on it.
 - `word_list_comments(path)`
 - `word_list_revisions(path)`
 - `word_create_blank(path, overwrite=false)`
@@ -127,6 +129,7 @@ Read a column-based report out of a PDF with its layout intact:
 4. **`excel_analyze_vba` v2 + v3** — `excel_render_vba_callgraph` (DOT/Mermaid call-graph rendering) and `excel_suggest_vba_conversion` (procedure role classification, suggested C# equivalents, cross-module coupling score) ✓
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
 6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks), `excel_list_vba_form_controls` (UserForm UI spec) ✓
+7. **OpenDocument** — read and write `.odt` across the Word tools, `word_convert` to/from `odt` ✓
 
 Open work lives on ContextBoard (project `mcpOffice`). PowerPoint was dropped from the roadmap on 2026-09-02: no consumer asked for it.
 
@@ -136,3 +139,9 @@ Open work lives on ContextBoard (project `mcpOffice`). PowerPoint was dropped fr
 - DevExpress `Document.Processor` 26.1 — server-side RichEdit / Spreadsheet / PDF APIs.
 - [`Markdig`](https://github.com/xoofx/markdig) — Markdown parser behind the Markdown-to-DOCX converter.
 - [`OpenMcdf`](https://www.nuget.org/packages/OpenMcdf) — OLE compound file reader for VBA project extraction.
+
+DevExpress is a commercial product: building or running mcpOffice needs your own DevExpress license (see [Usage](docs/usage.md)).
+
+## License
+
+[MIT](LICENSE) — covers this repository's code only, not the DevExpress components it depends on.
