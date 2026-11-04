@@ -20,7 +20,7 @@ dotnet build --no-restore
 dotnet test --no-restore
 ```
 
-Expected current test count: 676 unit + 24 integration passing, 2 skipped (the two Markdown fixture generators).
+Expected current test count: 705 unit + 24 integration passing, 2 skipped (the two Markdown fixture generators).
 
 ## Run The MCP Server
 
