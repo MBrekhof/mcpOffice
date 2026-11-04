@@ -61,7 +61,8 @@ internal static partial class PackagePartInventory
     }
 
     /// <summary>One plain-language warning per kind whose count dropped.</summary>
-    public static IReadOnlyList<string> Compare(IReadOnlyDictionary<string, int> before, IReadOnlyDictionary<string, int> after)
+    /// <param name="sheetName">Maps the sheet id in a <c>macroButtons:</c> key (code name) to the name the caller knows.</param>
+    public static IReadOnlyList<string> Compare(IReadOnlyDictionary<string, int> before, IReadOnlyDictionary<string, int> after, Func<string, string>? sheetName = null)
     {
         var warnings = new List<string>();
         foreach (var (kind, count) in before.OrderBy(kv => kv.Key, StringComparer.Ordinal))
@@ -71,9 +72,13 @@ internal static partial class PackagePartInventory
             if (kind == VbaProject)
                 warnings.Add("The VBA project was not preserved");
             else if (kind.StartsWith(MacroButtonsPrefix, StringComparison.Ordinal))
+            {
+                var id = kind[MacroButtonsPrefix.Length..];
+                var name = sheetName?.Invoke(id) ?? id;
                 warnings.Add(lost == 1
-                    ? $"1 form-control button with a macro assignment on sheet '{kind[MacroButtonsPrefix.Length..]}' was not preserved"
-                    : $"{lost} form-control buttons with macro assignments on sheet '{kind[MacroButtonsPrefix.Length..]}' were not preserved");
+                    ? $"1 form-control button with a macro assignment on sheet '{name}' was not preserved"
+                    : $"{lost} form-control buttons with macro assignments on sheet '{name}' were not preserved");
+            }
             else
             {
                 var (_, _, singular, plural) = PartKinds.First(k => k.Kind == kind);

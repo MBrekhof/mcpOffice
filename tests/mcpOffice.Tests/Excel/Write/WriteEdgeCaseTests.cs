@@ -169,25 +169,81 @@ public class WriteEdgeCaseTests
     }
 
     [Fact]
-    public void Input_held_open_blocks_an_overwrite_through_an_unrecognised_alias()
+    public void Overwrite_through_an_unrecognised_alias_is_refused_by_the_os_and_reported_as_io_error()
     {
         // The string check cannot know every alias (junctions, 8.3 names). The OS can: the input is
-        // held open without write sharing, so moving the new file over it fails instead of clobbering.
-        var input = Input();
+        // held open without write sharing, so the final move over it fails instead of clobbering.
+        var dir = Path.Combine(Path.GetTempPath(), $"mcpoffice-write-link-{Guid.NewGuid():N}");
+        var real = Path.Combine(dir, "real");
+        Directory.CreateDirectory(real);
+        var junction = Path.Combine(dir, "alias");
+        var input = Path.Combine(real, "book.xlsx");
+        try
+        {
+            var source = Input();
+            File.Copy(source, input);
+            Delete(source);
+            Directory.CreateSymbolicLink(junction, real);   // needs no privilege for a directory symlink in dev mode; skip otherwise
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Directory.Delete(dir, true);
+            return;   // symlinks not permitted on this account; the string-prefix test still covers the detector
+        }
         try
         {
             var before = File.ReadAllBytes(input);
-            using (new FileStream(input, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                var temp = TempPath(".xlsx");
-                File.WriteAllBytes(temp, [1, 2, 3]);
-                var ex = Assert.ThrowsAny<Exception>(() => File.Move(temp, input, overwrite: true));
-                Assert.True(ex is IOException or UnauthorizedAccessException, ex.GetType().Name);
-                Delete(temp);
-            }
+            var alias = Path.Combine(junction, "book.xlsx");
+            var ex = Assert.Throws<McpException>(() => new ExcelWorkbookService().UpdateWorkbook(input, alias, [new ExcelOperation("addSheet", Name: "X")], overwrite: true));
+            Assert.StartsWith("[io_error]", ex.Message);
             Assert.Equal(before, File.ReadAllBytes(input));
+            Assert.Empty(Directory.GetFiles(real, "~*"));   // temp file cleaned up
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Input_open_elsewhere_for_writing_is_io_error()
+    {
+        var input = Input();
+        try
+        {
+            using (new FileStream(input, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+            {
+                var ex = Assert.Throws<McpException>(() => Update(input, TempPath(".xlsx"), new ExcelOperation("addSheet", Name: "X")));
+                Assert.StartsWith("[io_error]", ex.Message);
+                Assert.Contains("open in Excel", ex.Message);
+            }
         }
         finally { Delete(input); }
+    }
+
+    [Fact]
+    public void Huge_insert_count_does_not_overflow_the_bounds_check()
+    {
+        var input = Input();
+        try
+        {
+            var ex = Fails(input, new ExcelOperation("insertRows", Sheet: "Data", Row: 2, Count: int.MaxValue));
+            Assert.StartsWith("[invalid_operation] operations[0] (insertRows): row 2 + count 2147483647 runs past", ex.Message);
+            ex = Fails(input, new ExcelOperation("insertColumns", Sheet: "Data", Column: "B", Count: int.MaxValue));
+            Assert.StartsWith("[invalid_operation] operations[0] (insertColumns)", ex.Message);
+        }
+        finally { Delete(input); }
+    }
+
+    [Fact]
+    public void Evaluation_notices_a_type_change_with_the_same_text()
+    {
+        var input = Input();
+        var output = TempPath(".xlsx");
+        try
+        {
+            Update(input, output, new ExcelOperation("writeRange", Sheet: "Data", StartCell: "A1",
+                Rows: Rows(["=IF(ISTEXT(B1),\"yes\",\"\")", "=\"\""])));
+            Assert.Equal("yes", Read(output, "Data").Cell("A1").Value);
+        }
+        finally { Delete(input, output); }
     }
 
     [Fact]

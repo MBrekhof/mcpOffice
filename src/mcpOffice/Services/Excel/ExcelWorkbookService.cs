@@ -84,7 +84,16 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
         // Held open without write sharing for the whole call: if outputPath turns out to be the same
         // physical file under another spelling (junction, 8.3 name, \\?\ prefix), the OS refuses the
         // final move instead of letting it overwrite the original.
-        using var inputGuard = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        FileStream inputGuard;
+        try
+        {
+            inputGuard = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw ToolError.IoError($"{ex.Message} (is {inputPath} open in Excel?)");
+        }
+        using var _ = inputGuard;
 
         IReadOnlyDictionary<string, int> before;
         try
@@ -110,8 +119,13 @@ public sealed class ExcelWorkbookService : IExcelWorkbookService
             WorkbookWriter.SaveAtomic(workbook, outputPath);
 
             IReadOnlyDictionary<string, int> after;
-            using (var zip = ZipFile.OpenRead(outputPath)) after = PackagePartInventory.Take(zip);
-            warnings.AddRange(PackagePartInventory.Compare(before, after));
+            Dictionary<string, string> sheetNames;
+            using (var zip = ZipFile.OpenRead(outputPath))
+            {
+                after = PackagePartInventory.Take(zip);
+                sheetNames = OpenXmlParts.ListSheets(zip).ToDictionary(s => s.CodeName ?? s.Name, s => s.Name, StringComparer.Ordinal);
+            }
+            warnings.AddRange(PackagePartInventory.Compare(before, after, id => sheetNames.GetValueOrDefault(id, id)));
             return WorkbookWriter.Summarize(workbook, outputPath, cells, operations.Count, warnings);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

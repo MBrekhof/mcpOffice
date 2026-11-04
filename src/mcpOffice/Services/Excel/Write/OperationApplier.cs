@@ -274,7 +274,7 @@ internal static class OperationApplier
         var row = op.Row ?? throw new WriteValidationException("row is required");
         if (row < 1 || row > ExcelWriteParsers.MaxRows) throw new WriteValidationException($"row {row} is outside 1..{ExcelWriteParsers.MaxRows}");
         var count = Count(op);
-        if (row - 1 + count > ExcelWriteParsers.MaxRows - (insert ? 1 : 0))
+        if ((long)row - 1 + count > ExcelWriteParsers.MaxRows - (insert ? 1 : 0))
             throw new WriteValidationException($"row {row} + count {count} runs past the last row ({ExcelWriteParsers.MaxRows})");
         return (row, count);
     }
@@ -283,7 +283,7 @@ internal static class OperationApplier
     {
         var column = ExcelWriteParsers.ParseColumn(Require(op.Column, "column"));
         var count = Count(op);
-        if (column - 1 + count > ExcelWriteParsers.MaxColumns - (insert ? 1 : 0))
+        if ((long)column - 1 + count > ExcelWriteParsers.MaxColumns - (insert ? 1 : 0))
             throw new WriteValidationException($"column {op.Column} + count {count} runs past the last column (XFD, {ExcelWriteParsers.MaxColumns})");
         return (column, count);
     }

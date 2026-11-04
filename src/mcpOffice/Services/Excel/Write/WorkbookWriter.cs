@@ -109,9 +109,9 @@ internal static class WorkbookWriter
             var changed = false;
             foreach (var cell in formulas)
             {
-                var before = cell.Value.ToString();
+                var before = (cell.Value.Type, cell.Value.ToString());   // type too: Empty and "" both print as ""
                 cell.Calculate();
-                if (cell.Value.ToString() != before) changed = true;
+                if ((cell.Value.Type, cell.Value.ToString()) != before) changed = true;
             }
             if (!changed) break;
         }

@@ -53,6 +53,16 @@ public class PackagePartInventoryTests
     }
 
     [Fact]
+    public void Compare_names_the_sheet_the_caller_knows_not_its_code_name()
+    {
+        var before = new Dictionary<string, int> { ["macroButtons:Blad1"] = 2 };
+        var after = new Dictionary<string, int>();
+        Assert.Equal(
+            ["2 form-control buttons with macro assignments on sheet 'Invoer' were not preserved"],
+            PackagePartInventory.Compare(before, after, id => id == "Blad1" ? "Invoer" : id));
+    }
+
+    [Fact]
     public void Take_keys_buttons_by_sheet_name_when_there_is_no_code_name()
     {
         using var ms = TestOpenXmlPackages.BuildWorkbookWithDrawings(sheetName: "Invoer", codeName: null, vmlDrawing: VmlWithOneButton);
