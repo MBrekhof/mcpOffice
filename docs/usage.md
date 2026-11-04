@@ -20,7 +20,7 @@ dotnet build --no-restore
 dotnet test --no-restore
 ```
 
-Expected current test count: 134 passing tests / 1 skipped (the locked-VBA fixture, awaiting a real password-protected sample).
+Expected current test count: 676 unit + 24 integration passing, 2 skipped (the two Markdown fixture generators).
 
 ## Run The MCP Server
 
@@ -125,6 +125,11 @@ Excel read tools:
 - `excel_list_formulas(path, sheetName?, includeValues=false, maxFormulas=10000)`: returns formula cells with optional cached values; raises `range_too_large` when capped.
 - `excel_get_structure(path, includeSheets=true, includeFormulaCounts=true, includeDefinedNames=true)`: returns a workbook-level rollup with optional per-sheet detail.
 
+Excel write tools:
+
+- `excel_create_workbook(path, sheets[], operations[]?, overwrite=false)`: creates an `.xlsx` from `sheets[{name, rows[][], header=true, columns[]?}]`. Cell values are raw JSON and the JSON type decides the cell type: number → numeric cell, `true`/`false` → boolean, `null` → empty, a string starting with `=` → formula (English function names, `,` between arguments, `.` decimal: `=SUM(A2:A9)`, never `=SOM(A2;A9)`), an ISO date `yyyy-MM-dd` or date-time `yyyy-MM-dd HH:mm[:ss]` → date cell (a `Z` or `+01:00` suffix is dropped, the wall-clock time kept), any other string → text; `"12.5"` stays text, `"'=x"` forces text. With `header=true` row 1 is bold on `#D9D9D9` with a thin bottom border, frozen, and carries an AutoFilter; columns without an explicit `width` are auto-fitted, capped at 60 characters. `columns[{column, numberFormat?, width?, horizontalAlign?, wrapText?}]` apply to the data cells. Formulas are recalculated before saving. Returns `{outputPath, sheets[{name, usedRange}], cellsWritten, operationsApplied, warnings: []}`.
+- `excel_update_workbook(inputPath, outputPath, operations[], overwrite=false)`: writes a **new version** of an `.xlsx`/`.xlsm` under a different name; `inputPath` is never written and `outputPath` must differ from it (`invalid_path` otherwise). `operations[]` is one flat list applied in order, each `{op, ...fields}`: `addSheet{name, position?}`, `renameSheet{sheet, newName}`, `deleteSheet{sheet}`, `writeRange{sheet, startCell, rows[][]}`, `clearRange{sheet, range, what: contents|formats|all}`, `formatRange{sheet, range, bold?, italic?, underline?, fontColor?, fontSize?, fillColor?, numberFormat?, horizontalAlign?, verticalAlign?, wrapText?, border?, borderScope?}`, `mergeCells`/`unmergeCells{sheet, range}`, `setColumnWidth{sheet, columns, width | autoFit: true}`, `insertRows`/`deleteRows{sheet, row, count?}`, `insertColumns`/`deleteColumns{sheet, column, count?}`, `freezePanes{sheet, cell | null}`, `autoFilter{sheet, range | null}`. Colours are `#RRGGBB`. **Atomic:** the first failing operation throws `invalid_operation` naming `operations[i] (op)` and nothing is written. Existing formulas are not recalculated (their cached values stay; the file is flagged so Excel recalculates on open); formulas written by the call are evaluated from the current values. `.xlsm` → `.xlsm` keeps the VBA project; an input with VBA and an `.xlsx` output is refused with `unsupported_format`. Package parts DevExpress cannot carry over (form-control buttons with macro assignments, ActiveX controls, slicers, external connections, query tables, charts, pivot tables) are listed in `warnings[]`; a clean update returns `warnings: []`. At most 100,000 cells per call (`range_too_large`).
+
 Excel macro tools:
 
 - `excel_extract_vba(path)`: returns raw VBA module source from `.xlsm` (in-process via OpenMcdf — no Excel install required). For `.xlsx` or workbooks without macros, returns `hasVbaProject=false`.
@@ -158,7 +163,7 @@ bottom-left; the flip is done for you.
 
 There is no PDF *writer* here — `word_convert` already produces PDFs from `.docx` and `.md`.
 
-All `path`, `inputPath`, `outputPath`, `outputDirectory`, and `templatePath` values must be absolute Windows paths.
+All `path`, `inputPath`, `outputPath`, `outputDirectory`, and `templatePath` values must be absolute Windows paths. `excel_update_workbook` never writes to `inputPath`: a new version always gets a new name.
 
 ## Example Calls
 
@@ -234,6 +239,58 @@ Analyze VBA with full call graph and references (heaviest output):
 }
 ```
 
+Create a formatted workbook from query results (`excel_create_workbook`):
+
+```json
+{
+  "path": "C:\\Temp\\results.xlsx",
+  "sheets": [
+    {
+      "name": "Resultaten",
+      "rows": [
+        ["Sample", "Analysis", "Result", "Sampled", "Pass"],
+        ["S-1001", "Kjeldahl-N", 12.5, "2026-11-04T10:15", true],
+        ["S-1002", "Kjeldahl-N", 9.75, "2026-11-04T11:40", false],
+        ["Mean", null, "=AVERAGE(C2:C3)", null, null]
+      ],
+      "columns": [{ "column": "C", "numberFormat": "0.00" }]
+    }
+  ],
+  "operations": [
+    { "op": "formatRange", "sheet": "Resultaten", "range": "A4:E4", "bold": true, "border": "thin", "borderScope": "outline" }
+  ]
+}
+```
+
+Make a new version of an existing workbook (`excel_update_workbook`); the original is untouched:
+
+```json
+{
+  "inputPath": "C:\\Workbooks\\budget-2026.xlsx",
+  "outputPath": "C:\\Workbooks\\budget-2026-v2.xlsx",
+  "operations": [
+    { "op": "writeRange", "sheet": "Q4", "startCell": "B10", "rows": [[1250, 980, "=B10-C10"]] },
+    { "op": "insertRows", "sheet": "Q4", "row": 2, "count": 1 },
+    { "op": "writeRange", "sheet": "Q4", "startCell": "A2", "rows": [["Inserted after review"]] },
+    { "op": "formatRange", "sheet": "Q4", "range": "A2", "italic": true, "fontColor": "#808080" },
+    { "op": "addSheet", "name": "Notes" },
+    { "op": "freezePanes", "sheet": "Q4", "cell": "A3" }
+  ]
+}
+```
+
+Expected `excel_update_workbook` shape:
+
+```json
+{
+  "outputPath": "C:\\Workbooks\\budget-2026-v2.xlsx",
+  "sheets": [ { "name": "Q4", "usedRange": "A1:D11" }, { "name": "Notes", "usedRange": "A1" } ],
+  "cellsWritten": 4,
+  "operationsApplied": 6,
+  "warnings": []
+}
+```
+
 Expected `word_get_metadata` shape:
 
 ```json
@@ -285,7 +342,8 @@ Tool errors are returned as `McpException` messages prefixed with stable codes:
 - `[io_error]`
 - `[internal_error]`
 - `[sheet_not_found]` — Excel: named sheet not in workbook
-- `[range_too_large]` — Excel: result would exceed `maxCells` / `maxFormulas`
+- `[range_too_large]` — Excel: result would exceed `maxCells` / `maxFormulas`, or a write call exceeds 100,000 cells
+- `[invalid_operation]` — Excel write: unknown `op`, missing or contradictory fields, a bad range/colour/sheet name, a duplicate sheet name, deleting the last sheet, a formula DevExpress rejects (`=SUM(A1;A2)`), a JSON object/array as a cell value; the message names `operations[i] (op)` or `sheets[i]` and the cell
 - `[vba_project_missing]` — reserved for future strict mode of `excel_extract_vba`
 - `[vba_project_locked]` — VBA project is password-protected for viewing
 - `[vba_parse_error]` — OLE walk / MS-OVBA decompression / dir-record-walk failure

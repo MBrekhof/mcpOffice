@@ -2,7 +2,10 @@
 
 **Date:** 2026-11-04
 **Card:** ContextBoard #2853 "Create Excel files" (project mcpOffice, id 27)
-**Status:** Draft, awaiting approval
+**Status:** Implemented 2026-11-04 (branch `feat/card-2853-excel-create`). One deviation from the
+recalculation paragraph below: a formula *written by an update* is evaluated individually
+(`CellRange.Calculate`) at write time. Without that DevExpress saved it with a cached value of
+**0**, not empty, which a reader would trust. Pre-existing cached values are still untouched.
 
 ## Why
 

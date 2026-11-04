@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for Microsoft Office documents, written in C# (.NET 10) and backed by DevExpress Office File API packages. It lets AI agents read, write, and convert Office documents through tool calls instead of one-off scripts.
 
-**Status:** Word (.docx and .odt), Excel (.xlsx / .xlsm) and PDF are shipped — 38 tools. Excel includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks.
+**Status:** Word (.docx and .odt), Excel (.xlsx / .xlsm) and PDF are shipped — 40 tools. Excel writes workbooks (`excel_create_workbook`, `excel_update_workbook`) and includes `excel_analyze_vba` v3 (procedures, event handlers, call graph, object-model references, external dependencies, conversion hints) and the v4 migration-planning tools (entry points and dead code, sheet-access map, cross-workbook procedure dedup, UserForm control inventory). PDF covers metadata, text with layout preservation, positioned words/lines, search, page rendering, embedded images and bookmarks.
 
 ## Architecture
 
@@ -23,10 +23,11 @@ Source: [`docs/img/architecture.excalidraw`](docs/img/architecture.excalidraw) (
 - [CSV export design](docs/plans/2026-05-07-mcpoffice-excel-export-csv-design.md) — streaming `excel_export_csv`.
 - [VBA v4 migration-planning design](docs/plans/2026-09-01-mcpoffice-excel-vba-v4-migration-planning-design.md) — entry points / dead code, sheet-access map, corpus dedup, form controls; why the drawing parts are read raw.
 - [PDF tools design](docs/plans/2026-08-20-pdf-tools-design.md) — `pdf_` surface, top-left coordinate convention, layout reconstruction.
+- [Excel write design](docs/plans/2026-11-04-mcpoffice-excel-write-design.md) — `excel_create_workbook` / `excel_update_workbook`: cell-value rules, the closed operation vocabulary, new-version-new-name, lost-part warnings.
 
 ## Current Tools
 
-38 tools shipped: 1 ping + 15 Word + 15 Excel + 7 PDF.
+40 tools shipped: 1 ping + 15 Word + 17 Excel + 7 PDF.
 
 ### Word
 
@@ -65,6 +66,8 @@ Every `word_` tool accepts `.docx` and `.odt` (OpenDocument, e.g. as exported by
 - `excel_map_vba_sheet_access(path, moduleName?, sheetName?, includeUnresolved=true, includeRecords=true, maxRecords=100)` — per procedure, which sheet and range / defined name it reads and writes; `ActiveSheet` and unqualified access are reported as unresolved, never guessed. On a big workbook call with `includeRecords=false` first (summary + per-sheet rollup only), then scope the records with `moduleName` / `sheetName`.
 - `excel_compare_vba_corpus(paths[]? | directory, minOccurrences=2, maxProcedures=200, includeNearDuplicates=true)` — procedures shared across workbooks (identical bodies, renamed copies, ≥ 90 % near-duplicates) so they are migrated once.
 - `excel_list_vba_form_controls(path, formName?)` — each UserForm's controls inferred from its code-behind (handler names, `Me.` references, Hungarian prefixes or VBE default names, `As MSForms.X` declarations) with type, confidence, events and referenced properties.
+- `excel_create_workbook(path, sheets[], operations[]?, overwrite=false)` — a formatted `.xlsx` from tabular data in one call: the JSON type decides the cell type (numbers stay numbers, ISO dates become dates, `=` strings are formulas in invariant English), row 1 is bold, filled, frozen and filtered, columns auto-fit (capped at 60). Formulas are recalculated before saving.
+- `excel_update_workbook(inputPath, outputPath, operations[], overwrite=false)` — a new version of an existing `.xlsx`/`.xlsm` under a different name; the original is never written. One flat list of operations (`writeRange`, `formatRange`, `addSheet`, `insertRows`, `freezePanes`, `autoFilter`, …) applied atomically. `.xlsm` → `.xlsm` keeps the VBA project; VBA → `.xlsx` is refused. Existing formulas keep their cached values and Excel recalculates on open; package parts DevExpress drops (macro buttons, ActiveX, slicers, connections) come back in `warnings[]`.
 
 ### PDF
 
@@ -130,6 +133,7 @@ Read a column-based report out of a PDF with its layout intact:
 5. **PDF** — metadata, text (with layout preservation), positioned words/lines, search, page rendering, embedded images, bookmarks ✓
 6. **VBA v4 — migration planning** — `excel_list_vba_entry_points` (entry points + dead code), `excel_map_vba_sheet_access` (the workbook's data schema), `excel_compare_vba_corpus` (shared code across workbooks), `excel_list_vba_form_controls` (UserForm UI spec) ✓
 7. **OpenDocument** — read and write `.odt` across the Word tools, `word_convert` to/from `odt` ✓
+8. **Excel write** — `excel_create_workbook` (formatted `.xlsx` from data in one call) and `excel_update_workbook` (a new version of an existing workbook, VBA preserved) ✓
 
 Open work lives on ContextBoard (project `mcpOffice`). PowerPoint was dropped from the roadmap on 2026-09-02: no consumer asked for it.
 
