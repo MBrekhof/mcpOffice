@@ -24,4 +24,5 @@ public static class ErrorCode
     public const string PasswordRequired = "password_required";
     public const string PageNotFound = "page_not_found";
     public const string InvalidPageRange = "invalid_page_range";
+    public const string InvalidOperation = "invalid_operation";
 }

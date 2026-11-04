@@ -77,6 +77,15 @@ public static class ToolError
     public static Exception UnsupportedImageFormat(string format) =>
         Throw(ErrorCode.UnsupportedFormat, $"Unsupported image format: {format}. Use one of png, jpeg, jpg, bmp, gif, tiff.");
 
+    public static Exception InvalidOperation(string where, string detail) =>
+        Throw(ErrorCode.InvalidOperation, $"{where}: {detail}");
+
+    public static Exception UnsupportedWorkbookFormat(string detail) =>
+        Throw(ErrorCode.UnsupportedFormat, detail);
+
+    public static Exception TooManyCells(int count, int max) =>
+        Throw(ErrorCode.RangeTooLarge, $"This call writes {count} cells, which exceeds the limit of {max}.");
+
     private static McpException Throw(string code, string message) =>
         new($"[{code}] {message}");
 }
