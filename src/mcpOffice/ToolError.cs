@@ -13,6 +13,9 @@ public static class ToolError
     public static Exception InvalidPath(string path) =>
         Throw(ErrorCode.InvalidPath, $"Path must be absolute and well-formed: {path}");
 
+    public static Exception InvalidPathDetail(string detail) =>
+        Throw(ErrorCode.InvalidPath, detail);
+
     public static Exception UnsupportedFormat(string format) =>
         Throw(ErrorCode.UnsupportedFormat, $"Unsupported format: {format}. Use one of pdf, html, rtf, txt, markdown, docx, odt.");
 
