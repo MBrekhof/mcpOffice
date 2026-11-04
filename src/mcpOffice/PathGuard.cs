@@ -20,6 +20,17 @@ public static class PathGuard
         }
     }
 
+    /// <summary>Like <see cref="RequireWritable"/> but creates nothing, for callers that save atomically later.</summary>
+    public static void RequireAbsentOrOverwrite(string path, bool overwrite)
+    {
+        RequireAbsolute(path);
+
+        if (File.Exists(path) && !overwrite)
+        {
+            throw ToolError.FileExists(path);
+        }
+    }
+
     public static void RequireWritable(string path, bool overwrite)
     {
         RequireAbsolute(path);

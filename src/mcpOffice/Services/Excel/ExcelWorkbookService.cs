@@ -5,6 +5,7 @@ using McpOffice.Models;
 using McpOffice.Services.Excel.Csv;
 using McpOffice.Services.Excel.Vba;
 using McpOffice.Services.Excel.Vba.Rendering;
+using McpOffice.Services.Excel.Write;
 using ModelContextProtocol;
 
 namespace McpOffice.Services.Excel;
@@ -12,6 +13,156 @@ namespace McpOffice.Services.Excel;
 public sealed class ExcelWorkbookService : IExcelWorkbookService
 {
     private const int DefaultSheetIndex = 0;
+    public const int MaxCellsPerWrite = 100_000;
+
+    public ExcelWriteResult CreateWorkbook(string path, IReadOnlyList<ExcelSheetSpec> sheets, IReadOnlyList<ExcelOperation>? operations, bool overwrite)
+    {
+        PathGuard.RequireAbsolute(path);
+        if (!path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            throw ToolError.UnsupportedWorkbookFormat($"excel_create_workbook writes .xlsx only (an .xlsm without macros is pointless): {path}");
+        if (sheets is null || sheets.Count == 0)
+            throw ToolError.InvalidOperation("sheets", "at least one sheet is required");
+        operations ??= [];
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < sheets.Count; i++)
+        {
+            if (sheets[i] is null) throw ToolError.InvalidOperation($"sheets[{i}]", "sheet is null");
+            try { ExcelWriteParsers.ValidateSheetName(sheets[i].Name); }
+            catch (WriteValidationException ex) { throw ToolError.InvalidOperation($"sheets[{i}]", ex.Message); }
+            if (!names.Add(sheets[i].Name))
+                throw ToolError.InvalidOperation($"sheets[{i}]", $"duplicate sheet name '{sheets[i].Name}' (names are case-insensitive)");
+        }
+        RequireNoNullOperations(operations);
+        EnforceCellLimit(sheets.Sum(s => CountCells(s.Rows)) + operations.Sum(o => CountCells(o.Rows)));
+        PathGuard.RequireAbsentOrOverwrite(path, overwrite);
+
+        try
+        {
+            using var workbook = new Workbook();
+            workbook.Options.Culture = CultureInfo.InvariantCulture;
+            workbook.Worksheets[0].Name = sheets[0].Name;
+            for (var i = 1; i < sheets.Count; i++) workbook.Worksheets.Add(sheets[i].Name);
+
+            var cells = 0;
+            var worksheets = MaterializeWorksheets(workbook);
+            for (var i = 0; i < sheets.Count; i++)
+            {
+                try { cells += WorkbookWriter.WriteSheet(worksheets[i], sheets[i]); }
+                catch (WriteValidationException ex) { throw ToolError.InvalidOperation($"sheets[{i}]", ex.Message); }
+                catch (Exception ex) when (ex is not McpException) { throw ToolError.InvalidOperation($"sheets[{i}]", ex.Message.TrimEnd('.')); }
+            }
+            // warnings: null makes a #NAME? an error: a fresh workbook has no VBA, so it is always a wrong function name.
+            cells += OperationApplier.Apply(workbook, operations, warnings: null);
+
+            workbook.CalculateFull();
+            WorkbookWriter.SaveAtomic(workbook, path);
+            return WorkbookWriter.Summarize(workbook, path, cells, operations.Count, []);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+    }
+
+    public ExcelWriteResult UpdateWorkbook(string inputPath, string outputPath, IReadOnlyList<ExcelOperation> operations, bool overwrite)
+    {
+        PathGuard.RequireExists(inputPath);
+        PathGuard.RequireAbsolute(outputPath);
+        if (!IsXlsxOrXlsm(inputPath))
+            throw ToolError.UnsupportedWorkbookFormat($"inputPath must be .xlsx or .xlsm: {inputPath}");
+        if (!IsXlsxOrXlsm(outputPath))
+            throw ToolError.UnsupportedWorkbookFormat($"outputPath must be .xlsx or .xlsm: {outputPath}");
+        if (string.Equals(ComparablePath(inputPath), ComparablePath(outputPath), StringComparison.OrdinalIgnoreCase))
+            throw ToolError.InvalidPathDetail($"outputPath must differ from inputPath; a new version gets a new name, the original is never written: {outputPath}");
+        if (operations is null || operations.Count == 0)
+            throw ToolError.InvalidOperation("operations", "at least one operation is required");
+        RequireNoNullOperations(operations);
+        EnforceCellLimit(operations.Sum(o => CountCells(o.Rows)));
+        PathGuard.RequireAbsentOrOverwrite(outputPath, overwrite);
+
+        // Held open without write sharing for the whole call: if outputPath turns out to be the same
+        // physical file under another spelling (junction, 8.3 name, \\?\ prefix), the OS refuses the
+        // final move instead of letting it overwrite the original.
+        FileStream inputGuard;
+        try
+        {
+            inputGuard = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw ToolError.IoError($"{ex.Message} (is {inputPath} open in Excel?)");
+        }
+        using var _ = inputGuard;
+
+        IReadOnlyDictionary<string, int> before;
+        try
+        {
+            using var zip = new ZipArchive(inputGuard, ZipArchiveMode.Read, leaveOpen: true);
+            before = PackagePartInventory.Take(zip);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(inputPath, ex.Message);
+        }
+        if (before.ContainsKey(PackagePartInventory.VbaProject) && !outputPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+            throw ToolError.UnsupportedWorkbookFormat($"{inputPath} has a VBA project; saving it as .xlsx would silently drop the macros. Use an .xlsm outputPath.");
+
+        var warnings = new List<string>();
+        try
+        {
+            using var workbook = LoadWorkbook(inputPath);
+            var cells = OperationApplier.Apply(workbook, operations, warnings);
+            // No CalculateFull here: DevExpress cannot evaluate VBA UDFs or external links and would
+            // overwrite Excel's cached results with #NAME?. Excel recalculates on open instead.
+            workbook.DocumentSettings.Calculation.FullCalculationOnLoad = true;
+            WorkbookWriter.SaveAtomic(workbook, outputPath);
+
+            IReadOnlyDictionary<string, int> after;
+            Dictionary<string, string> sheetNames;
+            using (var zip = ZipFile.OpenRead(outputPath))
+            {
+                after = PackagePartInventory.Take(zip);
+                sheetNames = OpenXmlParts.ListSheets(zip).ToDictionary(s => s.CodeName ?? s.Name, s => s.Name, StringComparer.Ordinal);
+            }
+            warnings.AddRange(PackagePartInventory.Compare(before, after, id => sheetNames.GetValueOrDefault(id, id)));
+            return WorkbookWriter.Summarize(workbook, outputPath, cells, operations.Count, warnings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw ToolError.IoError(ex.Message);
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            throw ToolError.ParseError(inputPath, ex.Message);
+        }
+    }
+
+    /// <summary>Full path without the Win32 device prefixes <c>\\?\</c> and <c>\\.\</c>, so those spellings compare equal to the plain one.</summary>
+    private static string ComparablePath(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) return @"\\" + full[8..];
+        if (full.StartsWith(@"\\?\", StringComparison.Ordinal) || full.StartsWith(@"\\.\", StringComparison.Ordinal)) return full[4..];
+        return full;
+    }
+
+    private static void RequireNoNullOperations(IReadOnlyList<ExcelOperation> operations)
+    {
+        for (var i = 0; i < operations.Count; i++)
+            if (operations[i] is null) throw ToolError.InvalidOperation($"operations[{i}]", "operation is null");
+    }
+
+    private static bool IsXlsxOrXlsm(string path) =>
+        path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
+
+    private static int CountCells(System.Text.Json.JsonElement[][]? rows) =>
+        rows is null ? 0 : rows.Sum(r => r?.Length ?? 0);
+
+    private static void EnforceCellLimit(int count)
+    {
+        if (count > MaxCellsPerWrite) throw ToolError.TooManyCells(count, MaxCellsPerWrite);
+    }
 
     public IReadOnlyList<ExcelSheetInfo> ListSheets(string path)
     {

@@ -72,4 +72,14 @@ public interface IExcelWorkbookService
         bool overwrite,
         int maxRows,
         bool trimTrailingEmptyRows = false);
+    ExcelWriteResult CreateWorkbook(
+        string path,
+        IReadOnlyList<ExcelSheetSpec> sheets,
+        IReadOnlyList<ExcelOperation>? operations,
+        bool overwrite);
+    ExcelWriteResult UpdateWorkbook(
+        string inputPath,
+        string outputPath,
+        IReadOnlyList<ExcelOperation> operations,
+        bool overwrite);
 }
