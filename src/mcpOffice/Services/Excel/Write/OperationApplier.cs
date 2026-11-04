@@ -18,27 +18,34 @@ internal static class OperationApplier
         "insertColumns", "deleteColumns", "freezePanes", "autoFilter",
     ];
 
+    /// <param name="warnings">Collects #NAME? results of written formulas; null makes them errors (create).</param>
     /// <returns>Cells written by <c>writeRange</c> operations.</returns>
-    public static int Apply(Workbook wb, IReadOnlyList<ExcelOperation> ops)
+    public static int Apply(Workbook wb, IReadOnlyList<ExcelOperation> ops, List<string>? warnings)
     {
         var cellsWritten = 0;
         for (var i = 0; i < ops.Count; i++)
         {
             var op = ops[i];
+            if (op is null) throw ToolError.InvalidOperation($"operations[{i}]", "operation is null");
             var where = $"operations[{i}] ({op.Op})";
             try
             {
-                cellsWritten += ApplyOne(wb, op, where);
+                cellsWritten += ApplyOne(wb, op, where, warnings);
             }
             catch (WriteValidationException ex)
             {
                 throw ToolError.InvalidOperation(where, ex.Message);
             }
+            catch (Exception ex) when (ex is not McpException)
+            {
+                // DevExpress refused the operation (cells shifted off the sheet, a multi-area range, ...).
+                throw ToolError.InvalidOperation(where, ex.Message.TrimEnd('.'));
+            }
         }
         return cellsWritten;
     }
 
-    private static int ApplyOne(Workbook wb, ExcelOperation op, string where)
+    private static int ApplyOne(Workbook wb, ExcelOperation op, string where, List<string>? warnings)
     {
         switch (op.Op)
         {
@@ -69,6 +76,8 @@ internal static class OperationApplier
             {
                 var ws = Sheet(wb, op, where);
                 if (wb.Worksheets.Count == 1) throw new WriteValidationException("cannot delete the last sheet of a workbook");
+                if (ws.Visible && !wb.Worksheets.Any(w => w.Visible && !ReferenceEquals(w, ws)))
+                    throw new WriteValidationException($"cannot delete '{ws.Name}': it is the only visible sheet (the others are hidden)");
                 wb.Worksheets.Remove(ws);
                 return 0;
             }
@@ -76,7 +85,7 @@ internal static class OperationApplier
             {
                 var ws = Sheet(wb, op, where);
                 var (row, column) = ExcelWriteParsers.ParseCell(Require(op.StartCell, "startCell"));
-                return WorkbookWriter.WriteRows(ws, row, column, op.Rows ?? throw new WriteValidationException("rows is required"));
+                return WorkbookWriter.WriteRows(ws, row, column, op.Rows ?? throw new WriteValidationException("rows is required"), warnings);
             }
             case "clearRange":
             {
@@ -127,25 +136,29 @@ internal static class OperationApplier
             case "insertRows":
             {
                 var ws = Sheet(wb, op, where);
-                ws.Rows.Insert(RequireRow(op) - 1, Count(op));
+                var (row, count) = RowSpan(op, insert: true);
+                ws.Rows.Insert(row - 1, count);
                 return 0;
             }
             case "deleteRows":
             {
                 var ws = Sheet(wb, op, where);
-                ws.Rows.Remove(RequireRow(op) - 1, Count(op));
+                var (row, count) = RowSpan(op, insert: false);
+                ws.Rows.Remove(row - 1, count);
                 return 0;
             }
             case "insertColumns":
             {
                 var ws = Sheet(wb, op, where);
-                ws.Columns.Insert(ExcelWriteParsers.ParseColumn(Require(op.Column, "column")) - 1, Count(op));
+                var (column, count) = ColumnSpan(op, insert: true);
+                ws.Columns.Insert(column - 1, count);
                 return 0;
             }
             case "deleteColumns":
             {
                 var ws = Sheet(wb, op, where);
-                ws.Columns.Remove(ExcelWriteParsers.ParseColumn(Require(op.Column, "column")) - 1, Count(op));
+                var (column, count) = ColumnSpan(op, insert: false);
+                ws.Columns.Remove(column - 1, count);
                 return 0;
             }
             case "freezePanes":
@@ -240,21 +253,39 @@ internal static class OperationApplier
     private static CellRange Range(Worksheet ws, string? reference)
     {
         var r = Require(reference, "range");
+        CellRange range;
         try
         {
-            return ws.Range[r];
+            range = ws.Range[r];
         }
         catch (Exception ex) when (ex is not McpException)
         {
             throw new WriteValidationException($"range '{r}' is not a valid A1 reference: {ex.Message}");
         }
+        if (!ReferenceEquals(range.Worksheet, ws) && !string.Equals(range.Worksheet?.Name, ws.Name, StringComparison.OrdinalIgnoreCase))
+            throw new WriteValidationException($"range '{r}' refers to another sheet; use 'sheet' to pick the sheet and a plain A1 range");
+        return range;
     }
 
-    private static int RequireRow(ExcelOperation op)
+    // An insert shifts everything from the index on; inserting Max - index + 1 or more would shift the
+    // whole remainder off the sheet (DevExpress then silently does nothing), hence the stricter bound.
+    private static (int Row, int Count) RowSpan(ExcelOperation op, bool insert)
     {
         var row = op.Row ?? throw new WriteValidationException("row is required");
         if (row < 1 || row > ExcelWriteParsers.MaxRows) throw new WriteValidationException($"row {row} is outside 1..{ExcelWriteParsers.MaxRows}");
-        return row;
+        var count = Count(op);
+        if (row - 1 + count > ExcelWriteParsers.MaxRows - (insert ? 1 : 0))
+            throw new WriteValidationException($"row {row} + count {count} runs past the last row ({ExcelWriteParsers.MaxRows})");
+        return (row, count);
+    }
+
+    private static (int Column, int Count) ColumnSpan(ExcelOperation op, bool insert)
+    {
+        var column = ExcelWriteParsers.ParseColumn(Require(op.Column, "column"));
+        var count = Count(op);
+        if (column - 1 + count > ExcelWriteParsers.MaxColumns - (insert ? 1 : 0))
+            throw new WriteValidationException($"column {op.Column} + count {count} runs past the last column (XFD, {ExcelWriteParsers.MaxColumns})");
+        return (column, count);
     }
 
     private static int Count(ExcelOperation op)

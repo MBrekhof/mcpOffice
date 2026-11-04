@@ -147,7 +147,7 @@ public static class ExcelTools
     private const string CellValueRules =
         "CELL VALUES are raw JSON and the JSON type decides the cell type: a number becomes a numeric cell, true/false a boolean, null an empty cell, " +
         "a string starting with '=' a formula (English function names, ',' between arguments, '.' as decimal separator: =SUM(A2:A9), never =SOM(A2;A9)), " +
-        "an ISO date 'yyyy-MM-dd' or date-time 'yyyy-MM-dd HH:mm[:ss]' / 'yyyy-MM-ddTHH:mm[:ss]' a real date cell (a trailing Z or +01:00 is dropped, the wall-clock time kept), " +
+        "an ISO date 'yyyy-MM-dd' or date-time 'yyyy-MM-dd HH:mm[:ss[.fff]]' / 'yyyy-MM-ddTHH:mm[:ss[.fff]]' a real date cell (a trailing Z or +01:00 is dropped, the wall-clock time kept), " +
         "any other string text. A number sent as a string (\"12.5\") stays text, so send numbers as JSON numbers. Prefix a string with ' to force text (\"'=not a formula\"). ";
 
     private const string OperationRules =
@@ -157,7 +157,8 @@ public static class ExcelTools
         "mergeCells{sheet, range} | unmergeCells{sheet, range} | setColumnWidth{sheet, columns 'B' or 'A:C', width (characters) OR autoFit: true} | " +
         "insertRows{sheet, row (1-based, inserts before it), count?} | deleteRows{sheet, row, count?} | insertColumns{sheet, column ('B' or 2), count?} | deleteColumns{sheet, column, count?} | " +
         "freezePanes{sheet, cell: 'A2' freezes row 1, 'B2' row 1 and column A, null unfreezes} | autoFilter{sheet, range, or null to remove}. " +
-        "ATOMIC: the first failing operation throws invalid_operation naming operations[i] (op) and nothing is written. At most 100,000 cells per call. ";
+        "ATOMIC: the first failing operation throws invalid_operation (or sheet_not_found for an unknown sheet) naming operations[i] (op), and nothing is written. At most 100,000 cells per call. " +
+        "A written formula is evaluated from the values present at that point; a formula whose function name DevExpress does not know evaluates to #NAME? (an error on create, a warning on update because it may be a VBA function). ";
 
     [McpServerTool(Name = "excel_create_workbook")]
     [Description(
@@ -166,10 +167,10 @@ public static class ExcelTools
         "Use this instead of writing a CSV or a throwaway script whenever a person wants data as a spreadsheet. " +
         CellValueRules + "Optional per-column settings (numberFormat, width, horizontalAlign, wrapText) apply to the data cells, not the header. " +
         "Optional operations run after the sheets are written, for anything beyond the defaults (a bold total row, merged title cells). " + OperationRules +
-        "Returns {outputPath, sheets[{name, usedRange}], cellsWritten, operationsApplied, warnings[]}; warnings is always empty for create. Errors: unsupported_format (path not .xlsx), file_exists (pass overwrite=true), invalid_operation, range_too_large.")]
+        "Returns {outputPath, sheets[{name, usedRange}], cellsWritten, operationsApplied, warnings[]}; warnings is always empty for create. Errors: invalid_path, unsupported_format (path not .xlsx), file_exists (pass overwrite=true), invalid_operation, sheet_not_found (an operation names an unknown sheet), range_too_large, io_error.")]
     public static object ExcelCreateWorkbook(
         [Description("Absolute path of the .xlsx to create.")] string path,
-        [Description("Sheets in order. Each: {name (<= 31 chars, none of : \\ / ? * [ ]), rows?: array of rows of JSON cell values (ragged rows are fine), header?: true, columns?: [{column: 'B' or 2, numberFormat?, width?, horizontalAlign?, wrapText?}]}.")] ExcelSheetSpec[] sheets,
+        [Description("Sheets in order. Each: {name (<= 31 chars, none of : \\ / ? * [ ], no leading or trailing apostrophe), rows?: array of rows of JSON cell values (ragged rows are fine), header?: true, columns?: [{column: 'B' or 2, numberFormat?, width? (0..255 characters), horizontalAlign?, wrapText?}]}.")] ExcelSheetSpec[] sheets,
         [Description("Optional operations applied after the sheets are written (same vocabulary as excel_update_workbook).")] ExcelOperation[]? operations = null,
         [Description("Overwrite path if it already exists. Defaults to false.")] bool overwrite = false)
         => Service.CreateWorkbook(path, sheets, operations, overwrite);
@@ -183,7 +184,7 @@ public static class ExcelTools
         "only the formulas written by this call are evaluated, from the current cell values. The file is flagged to recalculate fully when Excel opens it, so dependents of changed cells are correct in Excel but may still show the old cached value in excel_read_sheet. " +
         "MACROS: .xlsm -> .xlsm keeps the VBA project; an input with VBA and an .xlsx outputPath is refused with unsupported_format. .xlsx -> .xlsm is allowed. " +
         "Package parts DevExpress cannot carry over (form-control buttons with macro assignments, ActiveX controls, slicers, external connections, query tables, some charts, pivot tables) are reported in warnings[] after saving; a clean update returns warnings: []. " +
-        "Returns {outputPath, sheets[{name, usedRange}], cellsWritten, operationsApplied, warnings[]}. Errors: file_not_found, invalid_path (same path), unsupported_format, file_exists (pass overwrite=true), sheet_not_found, invalid_operation, range_too_large.")]
+        "Returns {outputPath, sheets[{name, usedRange}], cellsWritten, operationsApplied, warnings[]}. Errors: file_not_found, invalid_path (same path), unsupported_format, file_exists (pass overwrite=true), sheet_not_found, invalid_operation, range_too_large, parse_error (input could not be loaded), io_error.")]
     public static object ExcelUpdateWorkbook(
         [Description("Absolute path to the existing .xlsx/.xlsm. It is read only, never written.")] string inputPath,
         [Description("Absolute path of the new version (.xlsx or .xlsm). Must differ from inputPath; the parent directory is created if missing.")] string outputPath,

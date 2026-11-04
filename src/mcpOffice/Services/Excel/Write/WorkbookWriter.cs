@@ -9,12 +9,26 @@ namespace McpOffice.Services.Excel.Write;
 internal static class WorkbookWriter
 {
     public const int MaxAutoFitWidthInCharacters = 60;
+    private const int MaxEvaluationPasses = 5;
     private static readonly System.Drawing.Color HeaderFill = ExcelWriteParsers.ParseHexColor("#D9D9D9");
 
-    /// <summary>Writes <paramref name="rows"/> with its top-left at (1-based) <paramref name="startRow"/>/<paramref name="startColumn"/>. Returns cells written.</summary>
-    public static int WriteRows(Worksheet ws, int startRow, int startColumn, JsonElement[][] rows)
+    /// <summary>
+    /// Writes <paramref name="rows"/> with its top-left at (1-based) <paramref name="startRow"/>/<paramref name="startColumn"/>,
+    /// then evaluates the formulas it wrote (so forward references inside the block get a value) and
+    /// reports any that evaluate to #NAME?: thrown when <paramref name="warnings"/> is null (create: no
+    /// VBA can exist, so it is always a wrong function name), otherwise added as a warning (update: it
+    /// may be a VBA user-defined function that only Excel can evaluate). Returns cells written.
+    /// </summary>
+    public static int WriteRows(Worksheet ws, int startRow, int startColumn, JsonElement[][] rows, List<string>? warnings)
     {
+        var width = rows.Length == 0 ? 0 : rows.Max(r => r?.Length ?? 0);
+        if (startRow - 1 + rows.Length > ExcelWriteParsers.MaxRows)
+            throw new WriteValidationException($"{rows.Length} rows from row {startRow} run past the last row ({ExcelWriteParsers.MaxRows})");
+        if (startColumn - 1 + width > ExcelWriteParsers.MaxColumns)
+            throw new WriteValidationException($"{width} columns from column {ExcelWriteParsers.ColumnLetter(startColumn)} run past the last column (XFD)");
+
         var written = 0;
+        var formulas = new List<Cell>();
         for (var r = 0; r < rows.Length; r++)
         {
             var row = rows[r];
@@ -24,7 +38,7 @@ internal static class WorkbookWriter
                 var cell = ws.Cells[startRow - 1 + r, startColumn - 1 + c];
                 try
                 {
-                    Apply(cell, CellValueMapper.Map(row[c]));
+                    if (Apply(cell, CellValueMapper.Map(row[c]))) formulas.Add(cell);
                 }
                 catch (WriteValidationException ex)
                 {
@@ -33,30 +47,40 @@ internal static class WorkbookWriter
                 written++;
             }
         }
+
+        EvaluateWrittenFormulas(formulas);
+        foreach (var cell in formulas)
+        {
+            if (!cell.Value.IsError || cell.Value.ErrorValue.Type != ErrorType.Name) continue;
+            var message = $"cell {cell.GetReferenceA1()}: formula '{cell.Formula}' evaluates to #NAME? (unknown function). Use English function names (SUM, AVERAGE, IF)";
+            if (warnings is null) throw new WriteValidationException(message);
+            warnings.Add(message + "; a VBA user-defined function is fine and gets its value when Excel opens the file");
+        }
         return written;
     }
 
-    private static void Apply(Cell cell, MappedCell mapped)
+    /// <returns>true when the cell now holds a formula.</returns>
+    private static bool Apply(Cell cell, MappedCell mapped)
     {
         switch (mapped.Kind)
         {
             case MappedCellKind.Empty:
                 cell.Value = CellValue.Empty;
-                break;
+                return false;
             case MappedCellKind.Number:
                 cell.Value = (double)mapped.Value!;
-                break;
+                return false;
             case MappedCellKind.Boolean:
                 cell.Value = (bool)mapped.Value!;
-                break;
+                return false;
             case MappedCellKind.Text:
                 cell.Value = (string)mapped.Value!;
-                break;
+                return false;
             case MappedCellKind.DateTime:
                 cell.Value = (DateTime)mapped.Value!;
                 cell.NumberFormat = mapped.DefaultNumberFormat;
-                break;
-            case MappedCellKind.Formula:
+                return false;
+            default:
                 var formula = (string)mapped.Value!;
                 try
                 {
@@ -68,52 +92,75 @@ internal static class WorkbookWriter
                 }
                 if (!cell.HasFormula)
                     throw new WriteValidationException($"formula '{formula}' was not accepted as a formula. Use English function names, ',' between arguments and '.' as the decimal separator.");
-                // Without this a written formula is saved with a cached value of 0, which a reader would
-                // trust. Evaluating only this cell leaves every pre-existing cached value alone (no
-                // CalculateFull on update: VBA UDFs and external links would become #NAME?).
-                cell.Calculate();
-                break;
+                return true;
         }
     }
 
-    /// <summary>Rows, then header defaults, then per-column settings, then auto-fit (capped) for columns without an explicit width.</summary>
+    /// <summary>
+    /// Without this a written formula is saved with a cached value of 0, which a reader would trust.
+    /// Only the written cells are evaluated, so pre-existing cached values stay (no CalculateFull on
+    /// update: VBA UDFs and external links would become #NAME?). Repeated until stable so a written
+    /// formula that refers to another written formula gets its value too.
+    /// </summary>
+    private static void EvaluateWrittenFormulas(List<Cell> formulas)
+    {
+        for (var pass = 0; pass < MaxEvaluationPasses && formulas.Count > 0; pass++)
+        {
+            var changed = false;
+            foreach (var cell in formulas)
+            {
+                var before = cell.Value.ToString();
+                cell.Calculate();
+                if (cell.Value.ToString() != before) changed = true;
+            }
+            if (!changed) break;
+        }
+    }
+
+    /// <summary>Rows, per-column formats, header defaults, auto-fit (capped) and then explicit widths.</summary>
     public static int WriteSheet(Worksheet ws, ExcelSheetSpec spec)
     {
         var rows = spec.Rows ?? [];
-        var written = WriteRows(ws, 1, 1, rows);
+        var written = WriteRows(ws, 1, 1, rows, warnings: null);
         var rowCount = rows.Length;
         var columnCount = rows.Length == 0 ? 0 : rows.Max(r => r?.Length ?? 0);
-        if (columnCount == 0) return written;
-
-        if (spec.Header)
-        {
-            var header = ws.Range.FromLTRB(0, 0, columnCount - 1, 0);
-            header.Font.Bold = true;
-            header.Fill.BackgroundColor = HeaderFill;
-            header.Borders.BottomBorder.LineStyle = BorderLineStyle.Thin;
-            ws.FreezeRows(0);
-            ws.AutoFilter.Apply(ws.Range.FromLTRB(0, 0, columnCount - 1, rowCount - 1));
-        }
-
-        ws.Columns.AutoFit(0, columnCount - 1);
-        var explicitWidth = new HashSet<int>();
         var firstDataRow = spec.Header ? 2 : 1;
-        foreach (var column in spec.Columns ?? [])
+
+        // Column formats first: auto-fit must measure the formatted text, not the raw number.
+        var explicitWidths = new List<(int Column, double Width)>();
+        var columns = spec.Columns ?? [];
+        for (var i = 0; i < columns.Length; i++)
         {
+            var column = columns[i] ?? throw new WriteValidationException($"columns[{i}] is null");
             var c = ExcelWriteParsers.ParseColumn(column.Column);
+            var horizontal = column.HorizontalAlign is null ? (SpreadsheetHorizontalAlignment?)null : ParseHorizontal(column.HorizontalAlign);
             if (column.Width is double width)
             {
-                explicitWidth.Add(c);
-                SetWidth(ws, c, width);
+                if (width is < 0 or > 255) throw new WriteValidationException($"columns[{i}]: width {width} is outside 0..255 characters");
+                explicitWidths.Add((c, width));
             }
             if (rowCount < firstDataRow) continue;
             var data = ws.Range.FromLTRB(c - 1, firstDataRow - 1, c - 1, rowCount - 1);
             if (column.NumberFormat is not null) data.NumberFormat = column.NumberFormat;
-            if (column.HorizontalAlign is not null) data.Alignment.Horizontal = ParseHorizontal(column.HorizontalAlign);
+            if (horizontal is { } h) data.Alignment.Horizontal = h;
             if (column.WrapText is bool wrap) data.Alignment.WrapText = wrap;
         }
-        for (var c = 1; c <= columnCount; c++)
-            if (!explicitWidth.Contains(c)) ClampWidth(ws, c);
+
+        if (columnCount > 0)
+        {
+            if (spec.Header)
+            {
+                var header = ws.Range.FromLTRB(0, 0, columnCount - 1, 0);
+                header.Font.Bold = true;
+                header.Fill.BackgroundColor = HeaderFill;
+                header.Borders.BottomBorder.LineStyle = BorderLineStyle.Thin;
+                ws.FreezeRows(0);
+                ws.AutoFilter.Apply(ws.Range.FromLTRB(0, 0, columnCount - 1, rowCount - 1));
+            }
+            ws.Columns.AutoFit(0, columnCount - 1);
+            for (var c = 1; c <= columnCount; c++) ClampWidth(ws, c);
+        }
+        foreach (var (c, width) in explicitWidths) SetWidth(ws, c, width);
 
         return written;
     }
@@ -154,6 +201,7 @@ internal static class WorkbookWriter
     public static void SaveAtomic(Workbook wb, string outputPath)
     {
         var dir = Path.GetDirectoryName(outputPath)!;
+        Directory.CreateDirectory(dir);
         var temp = Path.Combine(dir, $"~{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
         try
         {

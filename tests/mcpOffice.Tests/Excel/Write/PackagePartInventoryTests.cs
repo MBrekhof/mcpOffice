@@ -27,7 +27,14 @@ public class PackagePartInventoryTests
         // Append the other kinds to the same package.
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Update, leaveOpen: true))
         {
-            foreach (var part in new[] { "xl/vbaProject.bin", "xl/activeX/activeX1.xml", "xl/activeX/activeX1.bin", "xl/charts/chart1.xml", "xl/charts/chart2.xml", "xl/charts/style1.xml", "xl/slicers/slicer1.xml", "xl/connections.xml", "xl/queryTables/queryTable1.xml", "xl/pivotTables/pivotTable1.xml" })
+            foreach (var part in new[]
+            {
+                "xl/vbaProject.bin",
+                "xl/activeX/activeX1.xml", "xl/activeX/activeX1.bin", "xl/activeX/_rels/activeX1.xml.rels",
+                "xl/charts/chart1.xml", "xl/charts/chart2.xml", "xl/charts/chartEx3.xml", "xl/charts/style1.xml", "xl/charts/chartStyle1.xml", "xl/charts/chartColorStyle1.xml", "xl/charts/_rels/chart1.xml.rels",
+                "xl/slicers/slicer1.xml", "xl/connections.xml", "xl/queryTables/queryTable1.xml",
+                "xl/pivotTables/pivotTable1.xml", "xl/pivotTables/_rels/pivotTable1.xml.rels",
+            })
                 zip.CreateEntry(part);
         }
         ms.Position = 0;
@@ -36,13 +43,21 @@ public class PackagePartInventoryTests
         var counts = PackagePartInventory.Take(read);
 
         Assert.Equal(1, counts["vbaProject"]);
-        Assert.Equal(3, counts["macroButtons:Invoer"]);
+        Assert.Equal(3, counts["macroButtons:Blad1"]);   // keyed by code name, so a rename is not a loss
         Assert.Equal(1, counts["activeX"]);
-        Assert.Equal(2, counts["charts"]);
+        Assert.Equal(3, counts["charts"]);   // chart1, chart2, chartEx3; not the style/colour/rels parts
         Assert.Equal(1, counts["slicers"]);
         Assert.Equal(1, counts["connections"]);
         Assert.Equal(1, counts["queryTables"]);
         Assert.Equal(1, counts["pivotTables"]);
+    }
+
+    [Fact]
+    public void Take_keys_buttons_by_sheet_name_when_there_is_no_code_name()
+    {
+        using var ms = TestOpenXmlPackages.BuildWorkbookWithDrawings(sheetName: "Invoer", codeName: null, vmlDrawing: VmlWithOneButton);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        Assert.Equal(1, PackagePartInventory.Take(zip)["macroButtons:Invoer"]);
     }
 
     [Fact]
@@ -64,13 +79,14 @@ public class PackagePartInventoryTests
     [Fact]
     public void Compare_reports_each_drop_in_plain_language()
     {
-        var before = new Dictionary<string, int> { ["vbaProject"] = 1, ["macroButtons:Invoer"] = 3, ["charts"] = 2, ["activeX"] = 1 };
+        var before = new Dictionary<string, int> { ["vbaProject"] = 1, ["macroButtons:Invoer"] = 3, ["macroButtons:Blad2"] = 1, ["charts"] = 3, ["activeX"] = 1 };
         var after = new Dictionary<string, int> { ["charts"] = 1, ["macroButtons:Invoer"] = 1 };
 
         Assert.Equal(
         [
-            "1 ActiveX controls was not preserved",
-            "1 charts was not preserved",
+            "1 ActiveX control was not preserved",
+            "2 charts were not preserved",
+            "1 form-control button with a macro assignment on sheet 'Blad2' was not preserved",
             "2 form-control buttons with macro assignments on sheet 'Invoer' were not preserved",
             "The VBA project was not preserved",
         ], PackagePartInventory.Compare(before, after));

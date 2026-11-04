@@ -15,6 +15,7 @@ internal sealed record MappedCell(MappedCellKind Kind, object? Value, string? De
 internal static partial class CellValueMapper
 {
     public const int MaxTextLength = 32767;   // Excel's cell limit
+    public const int MaxFormulaLength = 8192; // Excel's formula limit
 
     private static readonly string[] DateFormats = ["yyyy-MM-dd"];
     private static readonly string[] DateTimeMinuteFormats = ["yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm"];
@@ -51,7 +52,12 @@ internal static partial class CellValueMapper
     private static MappedCell MapString(string s)
     {
         if (s.StartsWith('\'')) return Text(s[1..]);
-        if (s.StartsWith('=')) return new MappedCell(MappedCellKind.Formula, s, null);
+        if (s.StartsWith('='))
+        {
+            if (s.Length > MaxFormulaLength)
+                throw new WriteValidationException($"formula is {s.Length} characters; Excel formulas hold at most {MaxFormulaLength}");
+            return new MappedCell(MappedCellKind.Formula, s, null);
+        }
 
         // Only strings shaped like a date are worth the parse; everything else is text.
         if (s.Length >= 10 && s.Length <= 40 && char.IsAsciiDigit(s[0]))

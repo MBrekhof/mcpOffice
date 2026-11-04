@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using McpOffice.Services.Excel.Vba;
 
 namespace McpOffice.Services.Excel.Write;
@@ -8,20 +9,30 @@ namespace McpOffice.Services.Excel.Write;
 /// <c>excel_update_workbook</c> can save anyway and warn (design doc, "Losing parts on update").
 /// Compared by kind and count, never by bytes: DevExpress rewrites every part it keeps.
 /// </summary>
-internal static class PackagePartInventory
+internal static partial class PackagePartInventory
 {
     public const string VbaProject = "vbaProject";
     public const string MacroButtonsPrefix = "macroButtons:";
 
-    private static readonly (string Kind, Func<string, bool> Match, string Label)[] PartKinds =
+    // Only the main part of each kind: chartStyle1.xml / colors1.xml and the _rels siblings are not
+    // separate objects, and counting them would report one lost chart as three.
+    [GeneratedRegex(@"^xl/charts/chart(Ex)?\d+\.xml$", RegexOptions.IgnoreCase)]
+    private static partial Regex ChartPartRegex();
+
+    private static readonly (string Kind, Func<string, bool> Match, string Singular, string Plural)[] PartKinds =
     [
-        ("activeX", p => p.StartsWith("xl/activeX/", StringComparison.OrdinalIgnoreCase) && p.EndsWith(".xml", StringComparison.OrdinalIgnoreCase), "ActiveX controls"),
-        ("slicers", p => p.StartsWith("xl/slicers/", StringComparison.OrdinalIgnoreCase), "slicers"),
-        ("connections", p => string.Equals(p, "xl/connections.xml", StringComparison.OrdinalIgnoreCase), "external data connections"),
-        ("queryTables", p => p.StartsWith("xl/queryTables/", StringComparison.OrdinalIgnoreCase), "query tables"),
-        ("charts", p => p.StartsWith("xl/charts/chart", StringComparison.OrdinalIgnoreCase) && p.EndsWith(".xml", StringComparison.OrdinalIgnoreCase), "charts"),
-        ("pivotTables", p => p.StartsWith("xl/pivotTables/", StringComparison.OrdinalIgnoreCase), "pivot tables"),
+        ("activeX", p => IsMainPartUnder("xl/activeX/", p), "ActiveX control", "ActiveX controls"),
+        ("slicers", p => IsMainPartUnder("xl/slicers/", p), "slicer", "slicers"),
+        ("connections", p => string.Equals(p, "xl/connections.xml", StringComparison.OrdinalIgnoreCase), "external data connections part", "external data connections parts"),
+        ("queryTables", p => IsMainPartUnder("xl/queryTables/", p), "query table", "query tables"),
+        ("charts", p => ChartPartRegex().IsMatch(p), "chart", "charts"),
+        ("pivotTables", p => IsMainPartUnder("xl/pivotTables/", p), "pivot table", "pivot tables"),
     ];
+
+    private static bool IsMainPartUnder(string folder, string path) =>
+        path.StartsWith(folder, StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
+        && !path.Contains("/_rels/", StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyDictionary<string, int> Take(ZipArchive zip)
     {
@@ -29,7 +40,7 @@ internal static class PackagePartInventory
         foreach (var entry in zip.Entries)
         {
             if (string.Equals(entry.FullName, "xl/vbaProject.bin", StringComparison.OrdinalIgnoreCase)) counts[VbaProject] = 1;
-            foreach (var (kind, match, _) in PartKinds)
+            foreach (var (kind, match, _, _) in PartKinds)
                 if (match(entry.FullName)) counts[kind] = counts.GetValueOrDefault(kind) + 1;
         }
 
@@ -43,7 +54,8 @@ internal static class PackagePartInventory
             }
             if (sheet.LegacyDrawingPartPath is not null && OpenXmlParts.ReadEntryText(zip, sheet.LegacyDrawingPartPath) is string vml)
                 buttons += DrawingMacroExtractor.FromVmlDrawing(vml).Count;
-            if (buttons > 0) counts[MacroButtonsPrefix + sheet.Name] = buttons;
+            // Keyed by code name where there is one, so a renameSheet in the same call is not reported as a loss.
+            if (buttons > 0) counts[MacroButtonsPrefix + (sheet.CodeName ?? sheet.Name)] = buttons;
         }
         return counts;
     }
@@ -59,9 +71,14 @@ internal static class PackagePartInventory
             if (kind == VbaProject)
                 warnings.Add("The VBA project was not preserved");
             else if (kind.StartsWith(MacroButtonsPrefix, StringComparison.Ordinal))
-                warnings.Add($"{lost} form-control button{(lost == 1 ? "" : "s")} with macro assignments on sheet '{kind[MacroButtonsPrefix.Length..]}' {(lost == 1 ? "was" : "were")} not preserved");
+                warnings.Add(lost == 1
+                    ? $"1 form-control button with a macro assignment on sheet '{kind[MacroButtonsPrefix.Length..]}' was not preserved"
+                    : $"{lost} form-control buttons with macro assignments on sheet '{kind[MacroButtonsPrefix.Length..]}' were not preserved");
             else
-                warnings.Add($"{lost} {PartKinds.First(k => k.Kind == kind).Label} {(lost == 1 ? "was" : "were")} not preserved");
+            {
+                var (_, _, singular, plural) = PartKinds.First(k => k.Kind == kind);
+                warnings.Add(lost == 1 ? $"1 {singular} was not preserved" : $"{lost} {plural} were not preserved");
+            }
         }
         return warnings;
     }
