@@ -1,113 +1,104 @@
-# Session Handoff — 2026-09-02 (late) — merged the ODT work; nailed down the tool-result cap
+# Session Handoff — 2026-11-04 — DevExpress 26.1.6, share redeployed, Excel write tools designed (#2853)
 
 ## Where Things Stand
 
-**Branch:** `main` at `3bbaa31`, in sync with `origin/main`. No open PRs, no side branches local or remote.
-**Build:** `dotnet build` — 0 warnings, 0 errors. Target framework **net10.0** (SDK 10.0.400).
-**Tests:** `dotnet test` on merged main — **547 unit + 22 integration pass, 2 skipped** (the two Markdown fixture generators in `Word/MarkdownRealWorldTests.cs`). `OdtRealWorldTests` *ran* rather than skipping: the benchmark file is present on this machine.
-**Tool surface:** **38 tools**, unchanged. `.odt` is a new input/output format, not a new tool.
+**Branch:** `main` at `9277bd4`, in sync with `origin/main`.
+**Feature branch:** `feat/card-2853-excel-create` at `409083b`, pushed. It holds the Excel-write **design and plan only (docs, no code yet)**, 2 commits ahead of `main`. There are no open PRs.
+**Build:** `dotnet build` gives **0 warnings, 0 errors** again (it was 36 NuGet audit warnings before #26). Target framework **net10.0**, DevExpress **26.1.6**.
+**Tests:** **547 unit + 22 integration pass, 2 skipped** (the two Markdown fixture generators).
+**Tool surface:** **38 tools**. It becomes 40 when #2853 lands.
 
-**No code was written this session.** It merged the previous session's work and answered a design question standing in front of WORD-004.
-
-## What Landed (2026-09-02, late)
-
-Three PRs from the evening session on the other machine, squash-merged in order, branches deleted:
+## What Landed (2026-11-04)
 
 | Commit | PR | What |
 |--------|----|----|
-| `e272017` | #21 | WORD-003 — `word_read_structured` serialised every block as `{}`; now `[JsonPolymorphic]` with a `type` discriminator |
-| `fe86812` | #22 | WORD-002 — read/write OpenDocument `.odt` via `Services/Word/WordFormats.ForPath`, plus heading-style and heading-number fixes that also improve `.docx` |
-| `3bbaa31` | #23 | The evening handoff |
+| `f7aa8b2` | #25 | README: every `word_` tool reads/writes `.odt`, heading detection, `word_read_structured` `type` discriminator, roadmap item 7, License section (MIT covers this repo only, not DevExpress) |
+| `9277bd4` | #26 | DevExpress 26.1.4 → **26.1.6** in `src/mcpOffice` and `tests/mcpOffice.Tests`. This alone cleared the NU1902/NU1903 advisories on transitive `System.Security.Cryptography.Xml` 8.0.4 / `.Pkcs` 8.0.1, which came in via `DevExpress.Printing.Core` and `System.ServiceModel.*`. No package pins were needed. `dotnet list package --vulnerable --include-transitive` is clean. |
 
-**#22 needed no rebase.** The evening handoff warned it might, because both PRs touch `docs/usage.md`. `git merge-tree --write-tree` of the two branches merged clean beforehand — the hunks are adjacent, not overlapping. Use that command instead of guessing next time two branches touch one file.
+Housekeeping:
+- Deleted the merged local branches `docs/handoff-odt`, `feat/odt-support` and `fix/word-structured-blocks`, after checking that all their code is on `main`.
+- Dropped the July stash, which held an outdated handoff and a csproj pointing at a local MarkdownToDocxGenerator.
 
-**Board:** WORD-002 (1466) and WORD-003 (1467) are in **Review** awaiting Confirm Done in the UI. Both conclusions now cite the squashed `main` SHAs rather than the pre-merge branch commits.
+## Share deployment
 
-## The tool-result cap — settled
+`\\dev-san-001\applicatiedata\WLN\Labware\Claude\tools\mcpOffice` holds a **self-contained win-x64 Release** publish. Teammates run it from there.
 
-WORD-004 exists because `word_read_markdown` returned 77,655 chars on the ODT manual and the caller
-saw only "output saved to file". The mechanism behind that, verified against the Claude Code docs:
+- **Current contents:** `main` at `f7aa8b2` (pre-#26, so DevExpress **26.1.4**, runtime 10.0.14). It was deployed this session and the old 2026-09-02 build was replaced.
+- **How to deploy:**
+  1. `dotnet publish src\mcpOffice -c Release -r win-x64 --self-contained true -o <scratch>`.
+  2. Smoke-test the exe.
+  3. Back up the share.
+  4. `robocopy <scratch> <share> /E`.
+  5. Remove leftover version-named runtime files that robocopy reports as `*EXTRA` (e.g. `mscordaccore_amd64_amd64_<oldver>.dll`).
+  6. Verify that the hash of `mcpOffice.dll` matches.
+- robocopy exit codes 1–3 mean success (1 = copied, 2 = extras present, 3 = both).
+- **Next redeploy is batched with #2853, at the user's request.** That ships 26.1.6 and closes #2854.
+- Anyone running from the share keeps the old version until they restart their Claude session.
 
-- The cap is **Claude Code's, client-side, and token-based: 25,000 tokens by default**, with a
-  separate **warning at 10,000 tokens** before anything truncates.
-- **The full result always crosses stdio.** mcpOffice returns 77 KB, considers itself successful, and
-  never learns otherwise. This is precisely why 547 green unit tests cannot see the problem — they
-  assert on the returned object, and the object is correct. The failure happens after the value
-  leaves the process.
-- Over the cap, the client writes the payload to a file and hands the agent the path. Nothing is
-  lost; it just is not in context, which is the one place it was needed.
-- The client's own error text is `result (N characters) exceeds maximum allowed tokens` — it
-  **reports characters but enforces tokens**. Every size measurement in this repo's earlier notes is
-  in the wrong unit from the one actually being checked. That is why the observed 26 KB-lands /
-  59 KB-rejected bracket looked arbitrary.
+## Board
 
-**`MAX_MCP_OUTPUT_TOKENS` would raise it client-side. Do not propose it.** Rejected on policy
-2026-09-02: env vars are invisible six months later, are inherited by every process, and would
-silently change behaviour for every MCP server in every session — a tool would then work on one
-machine and not the other with nothing in the repo to explain it. The fix belongs in the server,
-in git. Same argument the global CLAUDE.md already makes for API keys.
+| Card | Column | State |
+|------|--------|-------|
+| **#2853** "Create Excel files" | **Doing** (claimed) | Design + plan approved, on the feature branch. No code yet. |
+| **#2854** vulnerable crypto packages | Todo | Fixed on `main` by #26. Move to Review **after the share redeploy**. |
 
-**Open question that decides WORD-004's shape:** the docs describe a per-tool override in tool
-metadata, `_meta: { "anthropic/maxResultSizeChars": N }`, hard ceiling 500,000 chars. **It is
-unverified whether MCP SDK 1.2.0's C# `[McpServerTool]` exposes this** — that SDK's surface is known
-to lag (no `IMcpClient`, no `McpClientFactory`, names auto-lowercase). Check before designing:
+## Next Up — #2853, Excel write tools
 
-- If `_meta` **is** reachable → declare it on `word_read_markdown` / `word_read_structured` and
-  overflow stops being an error case. `fromHeading` stays worth having for context economy, but the
-  card shrinks.
-- If it **is not** → scoping is the only fix and WORD-004 stands as carded.
+- **Design:** `docs/plans/2026-11-04-mcpoffice-excel-write-design.md`.
+- **Plan:** `docs/plans/2026-11-04-mcpoffice-excel-write-plan.md`. Both are on `feat/card-2853-excel-create`.
 
-Either way, raising a cap is not the same as solving the problem: a 77 KB result that *arrives*
-still costs 20k+ tokens of context on every call. Scoping is what makes a long document usable.
+**The two tools:**
+- `excel_create_workbook(path, sheets[], operations[]?, overwrite)`: `.xlsx` with header defaults (bold, `#D9D9D9` fill, row 1 frozen, AutoFilter, auto-fit capped at 60).
+- `excel_update_workbook(inputPath, outputPath, operations[], overwrite)`: the original is never written, and the output must be a different path.
+- Both use one closed, flat list of operations. They're atomic (an error saves nothing), and each returns `{outputPath, sheets, cellsWritten, operationsApplied, warnings}`.
 
-## Outstanding — Action Required
+**Decisions to respect:**
+- **New version = new name**, chosen by the session (user).
+- **Lost package parts on update: save and warn** in `warnings[]`, not refuse (user). Parts are compared by kind and count with `PackagePartInventory`.
+- Create recalculates. Update does **not**: it sets `FullCalculationOnLoad`, because DevExpress would overwrite cached results of VBA UDFs and unsupported functions with `#NAME?` (designer's call).
+- The JSON type decides the cell type. ISO dates, including space-separated, fractional and with an offset, become dates; the offset is dropped and the wall-clock time kept. `"12.5"` stays text.
+- Formulas use invariant English with `,` separators. `'` escapes text.
+- `.xlsm` → `.xlsm` keeps VBA. VBA → `.xlsx` gives `unsupported_format`.
 
-- **Board:** Confirm Done for WORD-002 (1466) and WORD-003 (1467).
-- **Other machine:** `git pull` and restart its session so the server picks up the new DLL.
+**Execution:** the plan has 9 TDD tasks. Native execution was recommended: tasks 3–7 all extend the same `OperationApplier`/service, so do them in one session with one whole-branch review at the end. The user hasn't chosen yet, so ask before starting. Start with `git checkout feat/card-2853-excel-create` and `git merge main` (no-op today).
 
-## Next Up
+Unchanged older candidates:
+- **WORD-004** (1468): the `word_read_markdown` payload cap. Answer the `_meta: anthropic/maxResultSizeChars` question for SDK 1.2.0 first; it decides whether this is a small declaration or a scoping feature.
+- **WORD-005** (1469): body list markers in the Markdown projection.
+- **VBA-009**: scanner tests.
+- **VBA-010**: pagination.
+- **CHORE-001**: `.editorconfig`.
+- **PDF-001**: `pdf_extract_tables`.
 
-Board is the source of truth (`list_cards`, project id 27). Nothing is claimed.
+## The tool-result cap (still applies to WORD-004)
 
-- **WORD-004** (1468, Todo) — the payload problem above. Answer the `_meta` question first; it decides
-  whether this is a two-line declaration or a scoping feature.
-- **WORD-005** (1469, Backlog) — body list items lose their marker in the Markdown projection
-  (`1.Importeren`, no space, counters stuck at 1). The body-text half of the numbering problem #22
-  fixed for headings.
-- **VBA-009** — scanner tests for `ParamArray` and `Static Sub` forms (small).
-- **VBA-010** — pagination on `callGraph` / `references` in `excel_analyze_vba`; same shape as VBA-016.
-- **CHORE-001** — baseline `.editorconfig`.
-- **PDF-001** — `pdf_extract_tables` on top of `LineGrouper` (largest open feature).
+- Claude Code caps MCP results **client-side at 25,000 tokens**, with a warning at 10,000. It *reports characters but enforces tokens*.
+- The full result always crosses stdio, so unit tests can't see an overflow.
+- **Do not propose `MAX_MCP_OUTPUT_TOKENS`.** It was rejected on policy on 2026-09-02, because env vars are invisible and machine-specific; the fix belongs in the server, in git.
+- Raising a cap doesn't fix context cost. Scoping does.
 
 ## How To Resume
 
 ```powershell
 cd C:\Projects\mcpOffice
 git pull
-gh pr list
+git checkout feat/card-2853-excel-create
+git merge main
 dotnet build --nologo
 dotnet test --nologo
 ```
 
 ## Operational notes
 
-- The MCP server holds a lock on `bin\Debug\net10.0\mcpOffice.dll` (MSB3027). Kill and build in the
-  *same* command — in PowerShell:
+- **The server holds a lock on `bin\Debug\net10.0\mcpOffice.dll` (MSB3027).** Kill and build in the *same* command:
   `$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'dotnet.exe' -and $_.CommandLine -like '*mcpOffice.dll*' }; if ($p) { $p | ForEach-Object { taskkill /PID $_.ProcessId /F /T | Out-Null } }; dotnet build --nologo`.
-  Then `/mcp` to respawn the server against the fresh DLL. Every build costs one `/mcp`; batch accordingly.
-- **Live acceptance is the bar, and it keeps finding what unit tests cannot.** The empty outline, the
-  396 `{}` blocks, and the 77 KB overflow were all invisible to 500-odd green unit tests, because
-  those assert against the objects rather than the JSON on the wire. When a tool's shape or size
-  matters, test it *through the transport*.
-- **A defect found while accepting feature A often belongs to B.** WORD-003 was pre-existing and
-  format-independent; it went to its own branch and PR rather than riding along in the ODT PR.
-- Before merging two branches that touch one file, `git merge-tree --write-tree <a> <b>` answers
-  "will this conflict" definitively. Exit 0 and a bare tree SHA means clean.
-- `gh`'s active account matters: `MartinWLN` is not a collaborator on `MBrekhof/mcpOffice` and
-  `gh pr create` fails with `must be a collaborator`. This session's account was already `MBrekhof`.
-  Switch with `gh auth switch --hostname github.com --user MBrekhof`.
-- PowerShell 5.1 reports git's stderr as `NativeCommandError` even on success. Check `git branch -vv`
-  rather than believing the red text.
-- The ODT benchmark file is outside this repo: `C:\Projects\WLNCentral\rewab\20221220 Handleiding
-  Risicogestuurd monitoren.odt` (1.7 MB, 40 pages, Dutch). `Word/OdtRealWorldTests.cs` skips when it
-  is absent, like the Air.xlsm one.
+  Then run `/mcp`. Every build costs one `/mcp`.
+- **The DevExpress installer is now 26.1.6.** If restore ever fails with `NU1301`, the feed folder moved: repoint `nuget.config` and the `DevExpress.*` versions together (CLAUDE.md).
+  - **NuGet audit warnings appear without any code change** when a new advisory is published. Check `dotnet list src\mcpOffice package --vulnerable --include-transitive` and try the newest installed DevExpress patch before pinning packages.
+- **Smoke-testing a published exe by piping a file into stdin shows nothing on stdout.** The server shuts down at end-of-input before the replies flush. Read stderr instead: the Serilog lines show each handler completing. For real coverage, the integration tests go through the transport.
+- **Editing a csproj with `[IO.File]::WriteAllText` drops its UTF-8 BOM** and makes a spurious first-line diff. Pass `New-Object System.Text.UTF8Encoding $true`, or use the Edit tool.
+- **Live acceptance is the bar.** Shape and size problems only show *through the transport* (WORD-003, the 77 KB overflow). The Excel write plan's Task 8 tests binding through stdio for the same reason.
+- **`gh` account:** `MartinWLN` is the default active account and can't create PRs on `MBrekhof/mcpOffice`. Switch with `gh auth switch --hostname github.com --user MBrekhof` and switch back after.
+- **PowerShell 5.1 shows git's stderr as `NativeCommandError` even on success.** Check `git branch -vv`. Quote `'stash@{0}'`, because PowerShell expands the braces.
+- **Before merging two branches that touch one file,** run `git merge-tree --write-tree <a> <b>`.
+- **The ODT benchmark** is `C:\Projects\WLNCentral\rewab\20221220 Handleiding Risicogestuurd monitoren.odt`. `Word/OdtRealWorldTests.cs` skips when it's absent.
