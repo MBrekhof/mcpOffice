@@ -196,7 +196,7 @@ internal static class OperationApplier
         if (op.FontColor is not null) { range.Font.Color = ExcelWriteParsers.ParseHexColor(op.FontColor); touched = true; }
         if (op.FontSize is double size)
         {
-            if (size is < 1 or > 409) throw new WriteValidationException($"fontSize {size} is outside 1..409");
+            if (size is < 1 or > 409) throw new WriteValidationException(FormattableString.Invariant($"fontSize {size} is outside 1..409"));
             range.Font.Size = size;
             touched = true;
         }

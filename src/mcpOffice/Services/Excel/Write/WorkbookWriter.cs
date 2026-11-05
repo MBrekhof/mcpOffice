@@ -136,7 +136,7 @@ internal static class WorkbookWriter
             var horizontal = column.HorizontalAlign is null ? (SpreadsheetHorizontalAlignment?)null : ParseHorizontal(column.HorizontalAlign);
             if (column.Width is double width)
             {
-                if (width is < 0 or > 255) throw new WriteValidationException($"columns[{i}]: width {width} is outside 0..255 characters");
+                if (width is < 0 or > 255) throw new WriteValidationException(FormattableString.Invariant($"columns[{i}]: width {width} is outside 0..255 characters"));
                 explicitWidths.Add((c, width));
             }
             if (rowCount < firstDataRow) continue;
@@ -168,7 +168,7 @@ internal static class WorkbookWriter
     public static void SetWidth(Worksheet ws, int column, double widthInCharacters)
     {
         if (widthInCharacters is < 0 or > 255)
-            throw new WriteValidationException($"width {widthInCharacters} is outside 0..255 characters");
+            throw new WriteValidationException(FormattableString.Invariant($"width {widthInCharacters} is outside 0..255 characters"));
         ws.Columns[column - 1].WidthInCharacters = widthInCharacters;
     }
 

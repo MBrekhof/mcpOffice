@@ -387,6 +387,29 @@ public class WriteEdgeCaseTests
     }
 
     [Fact]
+    public void Validation_messages_use_invariant_decimals_under_a_comma_culture()
+    {
+        var input = Input();
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("nl-NL");
+        try
+        {
+            var ex = Fails(input, new ExcelOperation("formatRange", Sheet: "Data", Range: "A1", FontSize: 0.5));
+            Assert.Contains("fontSize 0.5 ", ex.Message);
+
+            using var wb = new Workbook();
+            var widthEx = Assert.Throws<McpOffice.Services.Excel.Write.WriteValidationException>(
+                () => McpOffice.Services.Excel.Write.WorkbookWriter.SetWidth(wb.Worksheets[0], 1, 300.5));
+            Assert.Contains("width 300.5 ", widthEx.Message);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+            Delete(input);
+        }
+    }
+
+    [Fact]
     public void RenameSheet_rules()
     {
         var input = Input();
