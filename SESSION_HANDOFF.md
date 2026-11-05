@@ -1,77 +1,93 @@
-# Session Handoff — 2026-11-04 (evening) — Excel write tools built, reviewed, awaiting live acceptance (#2853)
+# Session Handoff — 2026-11-05 — Excel write tools merged and deployed to the share
 
 ## Where Things Stand
 
-**Branch:** `feat/card-2853-excel-create`, pushed. `main` at `2ca40b4` is unchanged since the morning handoff.
-**Build:** `dotnet build` 0 warnings, 0 errors. net10.0, DevExpress 26.1.6.
-**Tests:** **705 unit + 24 integration pass, 2 skipped** (the Markdown fixture generators). The write tools add 158 unit tests under `tests/mcpOffice.Tests/Excel/Write/` and 2 stdio tests.
-**Tool surface:** **40 tools** (`excel_create_workbook`, `excel_update_workbook` added).
+**Branch:** `main`, which includes #28 (Excel write tools) and #29 (culture fix). There are no open PRs or feature branches.
+**Build:** `dotnet build` gives 0 warnings, 0 errors. Target framework net10.0, DevExpress **26.1.6**. `dotnet list src\mcpOffice package --vulnerable --include-transitive` is clean.
+**Tests:** **706 unit + 24 integration pass, 2 skipped** (the Markdown fixture generators).
+**Tool surface:** **40 tools**, including `excel_create_workbook` and `excel_update_workbook`.
 
-**One known flaky test:** `AirSampleConversionHintsTests.Suggests_conversion_for_air_workbook_within_budget` asserts < 600 ms and ran 685 ms once during a full suite on a loaded machine; alone it takes 240 ms. Not touched by this branch.
+## What Landed
 
-## What landed on the branch (2026-11-04)
+| Commit | PR | What |
+|--------|----|------|
+| `12d05ad` | #28 | `excel_create_workbook` / `excel_update_workbook` (#2853). Design: `docs/plans/2026-11-04-mcpoffice-excel-write-design.md`. Two Gemini reviews found 14 issues; each is fixed and has its own test in `Excel/Write/WriteEdgeCaseTests.cs`. |
+| (squash) | #29 | `fontSize` and column-`width` validation messages put a double straight into the message text, which follows the machine's culture, so nl-NL produced `fontSize 0,5`. `WriteEdgeCaseTests.FormatRange_fontSize_and_borderScope_validation` failed every time on a Dutch machine. The fix is `FormattableString.Invariant`, plus a regression test pinned to nl-NL. |
 
-| Commit | What |
-|--------|------|
-| `ec065f1` | Tasks 1–2: `ExcelOperation` flat record, sheet/column specs, `invalid_operation`, A1/name/colour parsers, `CellValueMapper` |
-| `6d98480` | Tasks 3–7: `WorkbookWriter`, `OperationApplier` (all 15 ops), `PackagePartInventory`, `CreateWorkbook` / `UpdateWorkbook` |
-| `09d27a8` | Task 8: the two tools, catalog at 40, stdio round trip |
-| `032090e` | Task 9 docs: README, usage.md, design doc marked implemented |
-| `a982b17` | Fixes for the first Gemini review (below) |
-| `efcf641` | Fixes for the second Gemini pass on `a982b17` (below) |
+**Recorded design deviation:** a formula *written by an update* is evaluated at write time. Without that, DevExpress caches `0` for it. Existing cached values are left alone, and `FullCalculationOnLoad` is still set.
 
-**Design deviation, recorded at the top of the design doc:** a formula *written by an update* is evaluated at write time (per block, to a fixed point), because DevExpress otherwise saves it with a cached value of **0**, not empty. Pre-existing cached values stay untouched; `FullCalculationOnLoad` is still set so Excel recalculates dependents on open.
+## Share Deployment — done 2026-11-05
 
-## Gemini review (whole branch) and what it found
+`\\dev-san-001\applicatiedata\WLN\Labware\Claude\tools\mcpOffice` now holds a self-contained win-x64 Release built from `775fd66` (the #29 branch head). Its code is identical to the squash-merged `main`. That means DevExpress 26.1.6, 40 tools, and #2854 shipped.
 
-Nine findings, all reproduced by a test in `WriteEdgeCaseTests.cs` before fixing (`a982b17`):
+- **Before the copy:** the old share (`f7aa8b2`, 26.1.4) was backed up to the session scratchpad. That backup is temporary.
+- **Smoke test** of the published exe over stdio: `initialize`, then `tools/list` (40 tools), then `excel_create_workbook`, then `excel_read_sheet` round-tripped. Dates came back typed and `=SUM` returned 19.5.
+- **robocopy** reported no `*EXTRA` files, because the runtime is unchanged at 10.0.14.
+- **Hashes** of `mcpOffice.dll`, `mcpOffice.exe` and `DevExpress.Docs.v26.1.dll` match the publish output.
 
-1. A formula referring to a cell written *later in the same block* got a stale value → block-level evaluation to a fixed point.
-2. DevExpress refusals escaped as `parse_error` / `io_error` → translated to `invalid_operation operations[i] (op)`; bounds checks for the sheet edge, insert counts, only-visible-sheet deletion, cross-sheet and union ranges.
-3. `insertColumns count: 16384` did nothing silently → stricter insert bound.
-4. `null` entries in `sheets[]` / `operations[]` / `columns[]` crashed → `invalid_operation`.
-5. `\\?\C:\…` spelling of the input with `overwrite: true` would have overwritten the original → prefix-normalised compare **and** the input is held open without write sharing during the update, so the OS refuses an overwrite through any alias.
-6. Auto-fit ran before per-column number formats → reordered; column specs now work on sheets with no data rows.
-7. Inventory counted `chartStyle1.xml` and `_rels` as objects, warned falsely after `renameSheet`, wrong singular grammar → fixed (keyed by sheet code name).
-8. `=SOM(A1,A2)` (localized name, English separator) was saved as `#NAME?` silently → error on create, `warnings[]` entry on update (it may be a VBA UDF). Formulas > 8192 chars rejected.
-9. Tool descriptions corrected (error lists, fractional seconds, apostrophe rule).
+How to deploy:
+1. `dotnet publish src\mcpOffice -c Release -r win-x64 --self-contained true -o <scratch>`.
+2. Smoke-test the exe.
+3. Back up the share.
+4. `robocopy <scratch> <share> /E`.
+5. Remove any `*EXTRA` version-named runtime files.
+6. Verify the hashes.
 
-A **second Gemini pass on `a982b17`** found five more, all fixed in the follow-up commit with a test each: the input-file guard was opened outside the try (an input open in Excel escaped as a raw exception → `io_error` with "is it open in Excel?"); the alias test did not go through `UpdateWorkbook` (now a directory-symlink test that expects `io_error` and an untouched input; skips silently where symlinks are not permitted); `row - 1 + count` could overflow `int` (long arithmetic); the fixed-point comparison missed a type change with the same text (`Empty` → `""`), now compares type and text; lost-button warnings named the sheet's VBA code name, now the display name.
+robocopy exit codes 1–3 mean success.
 
-## Outstanding — needs the user
+## Board
 
-1. **Live acceptance has not happened.** The `office` MCP server was disconnected for the whole session (the DLL lock forced kill-and-build cycles) and only a `/mcp` restart brings it back, which the session cannot do. Plan Task 9 step 2: create a workbook from a real PRD query result through the live server, make a new version of a corpus `.xlsm` with buttons from `C:\Projects\mcpOffice-samples`, open both in Excel. **Do this before merging.**
-2. **PR:** opened from `feat/card-2853-excel-create` to `main` (see `gh pr list`). Squash-merge after live acceptance.
-3. **Share redeploy** (batched with #2853 per the morning handoff, tracked on #2854): after the merge, publish self-contained win-x64 Release and robocopy to `\\dev-san-001\applicatiedata\WLN\Labware\Claude\tools\mcpOffice` per the morning handoff's steps.
-4. **Board:** #2853 is claimed (Doing). Move to Review with the merge SHA once merged. #2854 moves to Review after the redeploy.
+| Card | Column | State |
+|------|--------|-------|
+| #2853 "Create Excel files" | Review | Merged in #28 and deployed. |
+| #2854 vulnerable crypto packages | Todo → **Review (move by hand; agents can't)** | The conclusion records the fix (#26), the clean vulnerability scan and the redeploy. |
 
-## Things learned this session
+## Outstanding
 
-- **`Workbook.Options.Culture = Invariant` makes DevExpress reject `;` as an argument separator** (it throws on `cell.Formula = "=SUM(A1;A2)"`), but a localized *function name* with `,` parses fine and evaluates to `#NAME?`. Only evaluation reveals it.
-- **DevExpress evaluates nothing on assignment in Manual mode** and saves an unevaluated formula with cached `0`, not empty. `CellRange.Calculate()` evaluates one cell from current values without touching anything else.
-- **`File.Move(temp, target, overwrite: true)` onto a file held open with `FileShare.Read` throws `UnauthorizedAccessException`**, not `IOException`. Both map to `io_error`.
-- **Frozen panes and `fullCalcOnLoad` have no read-back API worth trusting**; the tests read `xl/worksheets/sheetN.xml` (`<pane state="frozen" ySplit="1"/>`) and `xl/workbook.xml` (`fullCalcOnLoad="1"`) straight from the zip, which is also what Excel reads.
-- **`Worksheet.MergedCells` does not exist**; `CellRange.IsMerged` / `GetMergedRanges()` do.
-- The synthetic-vba.xlsm round trip (`Update_reports_lost_macro_buttons_if_devexpress_drops_them`) is written as an equality between the inventory diff and `warnings[]`, so it holds whether DevExpress keeps the buttons or drops them. What it actually does on that fixture is not recorded here; the live acceptance on a corpus `.xlsm` will show it.
+- **Live acceptance of the write tools is still not done.** The user deferred it on 2026-11-05. It means three steps through the live `office` MCP server:
+  1. Make a workbook from a real PRD query result.
+  2. Make a new version of a corpus `.xlsm` with buttons from `C:\Projects\mcpOffice-samples`.
+  3. Open both in Excel.
+
+  What DevExpress does to form-control buttons on a real `.xlsm` round trip is still unrecorded.
+- **Known flaky test:** `AirSampleConversionHintsTests.Suggests_conversion_for_air_workbook_within_budget` asserts under 600 ms. It once took 685 ms on a loaded machine.
+
+## Next Up
+
+These candidates are unchanged:
+- **WORD-004** (1468): the `word_read_markdown` payload cap. First answer the `_meta: anthropic/maxResultSizeChars` question for SDK 1.2.0.
+- **WORD-005** (1469): body list markers in the Markdown projection.
+- **VBA-009**: scanner tests.
+- **VBA-010**: pagination.
+- **CHORE-001**: `.editorconfig`.
+- **PDF-001**: `pdf_extract_tables`.
+
+## The Tool-Result Cap (still applies to WORD-004)
+
+- Claude Code caps MCP results **client-side at 25,000 tokens**, with a warning at 10,000. It *reports characters but enforces tokens*.
+- The full result always crosses stdio, so unit tests can't see an overflow.
+- **Do not propose `MAX_MCP_OUTPUT_TOKENS`.** It was rejected on policy on 2026-09-02.
+- Scoping fixes context cost; raising the cap doesn't.
 
 ## How To Resume
 
 ```powershell
 cd C:\Projects\mcpOffice
 git pull
-git checkout feat/card-2853-excel-create
 dotnet build --nologo
 dotnet test --nologo
 ```
 
-Then `/mcp` so the `office` server runs the new DLL, and do the live acceptance above.
+## Operational Notes
 
-## Operational notes
-
-- **The server holds a lock on `bin\Debug\net10.0\mcpOffice.dll` (MSB3027).** Kill and build in the *same* command:
+- **The machine culture is nl-NL.** Any number put into a message or test string has to be formatted invariant, or tests pass only on English machines. #29 was the first bite.
+- **The server holds a lock on `bin\Debug\net10.0\mcpOffice.dll` (MSB3027).** Kill it and build in the *same* command:
   `$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'dotnet.exe' -and $_.CommandLine -like '*mcpOffice.dll*' }; if ($p) { $p | ForEach-Object { taskkill /PID $_.ProcessId /F /T | Out-Null } }; dotnet build --nologo`.
-  Then run `/mcp`. Every build costs one `/mcp`; the session that builds cannot bring the server back itself.
-- **Gemini review:** prompt in the scratchpad, `agy -p "$(cat prompt)" --model gemini-4-argon-high --mode plan --sandbox --dangerously-skip-permissions --output-format stream-json --print-timeout 40m > out.jsonl`, review text in the last line's `result.response`. The whole-branch review took about 12 minutes and found real bugs the 128 green unit tests had not.
-- **The tool-result cap still applies** (25,000 tokens client-side; do not propose `MAX_MCP_OUTPUT_TOKENS`): the write tools return a small summary by design.
-- **`gh` account:** `MBrekhof` was active this session and owns the repo; `MartinWLN` cannot create PRs here.
-- **The DevExpress installer is 26.1.6.** `NU1301` on restore means the feed folder moved: repoint `nuget.config` and the `DevExpress.*` versions together.
+  Then run `/mcp`. The session that builds can't bring the server back itself.
+- **Smoke-testing over stdio by hand:** the server handles requests **concurrently**, so replies can come back out of order. Send a request and read its reply before sending the next. Keep stdin open until the replies have arrived; on EOF the server exits before it flushes.
+- **PowerShell 5.1 splits `git commit -m` here-strings that contain double quotes.** The commit silently fails and the push still runs. Use `git commit -F <file>` instead.
+- **Gemini review:** `agy -p "$(cat prompt)" --model gemini-4-argon-high --mode plan --sandbox --dangerously-skip-permissions --output-format stream-json --print-timeout 40m > out.jsonl`. The review text is in the last line's `result.response`.
+- **`gh` account:** `MartinWLN` is the default and can't create PRs on `MBrekhof/mcpOffice`. Run `gh auth switch --hostname github.com --user MBrekhof`, then switch back.
+- **DevExpress installer 26.1.6.** If restore fails with `NU1301`, the feed folder moved: repoint `nuget.config` and the `DevExpress.*` versions together (CLAUDE.md). New NuGet audit warnings can appear without any code change; try the newest DevExpress patch before pinning packages.
+- **Editing a csproj with `[IO.File]::WriteAllText` drops its UTF-8 BOM.** Use the Edit tool.
+- **The ODT benchmark** is `C:\Projects\WLNCentral\rewab\20221220 Handleiding Risicogestuurd monitoren.odt`.
