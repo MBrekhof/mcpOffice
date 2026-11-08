@@ -1,4 +1,4 @@
-# Session Handoff — 2026-11-05 — Excel write tools merged and deployed to the share
+# Session Handoff — 2026-11-08 — Excel write tools merged, deployed and live-accepted
 
 ## Where Things Stand
 
@@ -39,17 +39,20 @@ robocopy exit codes 1–3 mean success.
 
 | Card | Column | State |
 |------|--------|-------|
-| #2853 "Create Excel files" | Review | Merged in #28 and deployed. |
+| #2853 "Create Excel files" | Review | Merged in #28, deployed, live-accepted 2026-11-08 (conclusion records it). Martin confirms Done by hand. |
 | #2854 vulnerable crypto packages | Todo → **Review (move by hand; agents can't)** | The conclusion records the fix (#26), the clean vulnerability scan and the redeploy. |
 
 ## Outstanding
 
-- **Live acceptance of the write tools is still not done.** The user deferred it on 2026-11-05. It means three steps through the live `office` MCP server:
-  1. Make a workbook from a real PRD query result.
-  2. Make a new version of a corpus `.xlsm` with buttons from `C:\Projects\mcpOffice-samples`.
-  3. Open both in Excel.
-
-  What DevExpress does to form-control buttons on a real `.xlsm` round trip is still unrecorded.
+- **Live acceptance of the write tools: done 2026-11-08** through the live `office` MCP server. A
+  2-sheet `.xlsx` (dates, booleans, evaluated `=SUM`, formatted total row, merged cell) and a new
+  version of corpus `bevestigingslijst.xlsm` (added sheet + formula). The VBA project and all three
+  form-control button macros on sheet `monsters` survived the DevExpress round trip; only the shape
+  names changed (`_x0000_s1029` → `Button_x0020_5`). `warnings[]` empty on both. Both opened in
+  Excel and accepted.
+- **`~/.claude.json` user-scope `office` entry** pointed at the dead `net9.0` build and conflicted
+  with the project `.mcp.json` ("Conflicting scopes"). Repointed to `net10.0` on 2026-11-08; a
+  `net9.0` folder still exists under `src/mcpOffice/bin/Debug/` and can be deleted.
 - **Known flaky test:** `AirSampleConversionHintsTests.Suggests_conversion_for_air_workbook_within_budget` asserts under 600 ms. It once took 685 ms on a loaded machine.
 
 ## Next Up
